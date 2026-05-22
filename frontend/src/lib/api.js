@@ -13,6 +13,7 @@ const req = async (method, path, body) => {
 
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Erreur serveur')
+  if (data.token) localStorage.setItem('vrg_token', data.token)
   return data
 }
 

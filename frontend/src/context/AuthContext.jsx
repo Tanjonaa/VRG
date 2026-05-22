@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { api, saveToken, clearToken } from '../lib/api'
+import { api, clearToken } from '../lib/api'
 
 const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -29,16 +29,14 @@ export function AuthProvider({ children }) {
   }, [loadOrders])
 
   const register = async ({ name, phone, password, referralCode }) => {
-    const { token, user } = await api.post('/auth/register', { name, phone, password, referralCode })
+    const { user } = await api.post('/auth/register', { name, phone, password, referralCode })
     sessionStorage.removeItem('vrg_ref')
-    saveToken(token)
     setUser(user)
     await loadOrders()
   }
 
   const login = async ({ phone, password }) => {
-    const { token, user } = await api.post('/auth/login', { phone, password })
-    saveToken(token)
+    const { user } = await api.post('/auth/login', { phone, password })
     setUser(user)
     await loadOrders()
   }
@@ -51,7 +49,7 @@ export function AuthProvider({ children }) {
 
   const updateProfile = async ({ name, phone, currentPassword, newPassword }) => {
     const data = await api.put('/auth/profile', { name, phone, currentPassword, newPassword })
-    setUser(prev => ({ ...prev, name: data.user.name, phone: data.user.phone }))
+    setUser(data.user)
   }
 
   const addOrder = async (order) => {
