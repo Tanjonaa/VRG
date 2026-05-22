@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Package, LogOut, User, Phone, Lock, Eye, EyeOff,
   Check, AlertCircle, ChevronDown, MapPin, Clock, CreditCard,
-  Pencil, ShieldCheck, Star, Trophy, Zap, Gift
+  Pencil, ShieldCheck, Star, Trophy, Zap, Gift, Link, Copy, Users
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { api } from '../lib/api.js'
 
 const PAYMENT_LABELS = {
   mvola:    'MVola',
@@ -26,6 +27,12 @@ function initials(name = '') {
 
 export default function AccountPanel({ isOpen, onClose }) {
   const { user, orders, logout } = useAuth()
+  const [referralData, setReferralData] = useState(null)
+
+  useEffect(() => {
+    if (!user) return
+    api.get('/referral').then(setReferralData).catch(() => {})
+  }, [user])
 
   return (
     <AnimatePresence>
@@ -103,7 +110,9 @@ export default function AccountPanel({ isOpen, onClose }) {
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
               <ProfileSection user={user} />
               <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '4px 0 20px' }} />
-              <FidelitySection orders={orders} />
+              <FidelitySection orders={orders} referralPoints={referralData?.points ?? 0} />
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '4px 0 20px' }} />
+              <ReferralSection data={referralData} onRefresh={() => api.get('/referral').then(setReferralData).catch(() => {})} />
               <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '4px 0 20px' }} />
               <OrdersSection orders={orders} />
             </div>
@@ -300,8 +309,9 @@ function getTier(pts) {
   return TIERS.find(t => pts >= t.min && pts <= t.max) || TIERS[0]
 }
 
-function FidelitySection({ orders }) {
-  const points  = calcPoints(orders)
+function FidelitySection({ orders, referralPoints = 0 }) {
+  const orderPoints = calcPoints(orders)
+  const points  = orderPoints + referralPoints
   const tier    = getTier(points)
   const next    = TIERS[TIERS.indexOf(tier) + 1]
   const progress = next
@@ -337,8 +347,13 @@ function FidelitySection({ orders }) {
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Points</div>
+            <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Total points</div>
             <div style={{ fontSize: 24, fontWeight: 800, color: '#f0f0f5', letterSpacing: '-0.5px' }}>{points.toLocaleString('fr-FR')}</div>
+            {referralPoints > 0 && (
+              <div style={{ fontSize: 10, color: 'rgba(167,139,250,0.7)', marginTop: 2 }}>
+                dont {referralPoints} pts parrainage
+              </div>
+            )}
           </div>
         </div>
 
@@ -403,6 +418,98 @@ function PointRule({ icon, label }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'rgba(240,240,245,0.45)' }}>
       <span style={{ color: 'rgba(240,240,245,0.3)' }}>{icon}</span>
       {label}
+    </div>
+  )
+}
+
+/* ─── Referral ─── */
+function ReferralSection({ data, onRefresh }) {
+  const [copied, setCopied] = useState(false)
+  const loading = data === null
+
+  const referralLink = data?.code
+    ? `${window.location.origin}?ref=${data.code}`
+    : ''
+
+  const handleCopy = () => {
+    if (!referralLink) return
+    navigator.clipboard.writeText(referralLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <section style={{ marginBottom: 24 }}>
+      <SectionHeader icon={<Users size={13} color="#a78bfa" />} label="Parrainage" />
+
+      {loading ? (
+        <div style={{ height: 80, background: 'rgba(255,255,255,0.02)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)' }} />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+          {/* Stats */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatCard value={data?.count ?? 0} label="Filleuls" color="#a78bfa" />
+            <StatCard value={data?.points ?? 0} label="Points gagnés" color="#fbbf24" suffix=" pts" />
+          </div>
+
+          {/* Link card */}
+          <div style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.18)', borderRadius: 14, padding: '14px 15px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+              Ton lien de parrainage
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px' }}>
+              <Link size={13} color="rgba(240,240,245,0.3)" style={{ flexShrink: 0 }} />
+              <span style={{ flex: 1, fontSize: 12, color: 'rgba(240,240,245,0.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                {referralLink}
+              </span>
+              <motion.button
+                whileTap={{ scale: 0.92 }}
+                onClick={handleCopy}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, background: copied ? 'rgba(34,197,94,0.12)' : 'rgba(167,139,250,0.12)', border: `1px solid ${copied ? 'rgba(34,197,94,0.25)' : 'rgba(167,139,250,0.25)'}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', color: copied ? '#22c55e' : '#a78bfa', fontSize: 12, fontWeight: 600, flexShrink: 0, transition: 'all 0.2s' }}>
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? 'Copié !' : 'Copier'}
+              </motion.button>
+            </div>
+
+            <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.25)', marginTop: 10, lineHeight: 1.6 }}>
+              Partage ce lien — chaque ami qui s'inscrit te rapporte <strong style={{ color: '#a78bfa' }}>+10 points</strong> de fidélité.
+            </div>
+          </div>
+
+          {/* Filleuls list */}
+          {data?.referrals?.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0' }}>
+                Amis parrainés
+              </div>
+              {data.referrals.map((r, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 10, padding: '9px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#a78bfa' }}>
+                      {r.name?.[0]?.toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#f0f0f5' }}>{r.name}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.3)' }}>{r.date}</div>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24' }}>+10 pts</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function StatCard({ value, label, color, suffix = '' }) {
+  return (
+    <div style={{ flex: 1, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 14px', textAlign: 'center' }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.5px' }}>{value}{suffix}</div>
+      <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)', marginTop: 3, fontWeight: 600 }}>{label}</div>
     </div>
   )
 }

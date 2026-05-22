@@ -1,9 +1,12 @@
 CREATE TABLE IF NOT EXISTS users (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  name       VARCHAR(100)  NOT NULL,
-  phone      VARCHAR(20)   NOT NULL UNIQUE,
-  password   VARCHAR(255)  NOT NULL,
-  created_at TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(100)  NOT NULL,
+  phone         VARCHAR(20)   NOT NULL UNIQUE,
+  password      VARCHAR(255)  NOT NULL,
+  referral_code VARCHAR(12)   UNIQUE,
+  referred_by   INT           NULL,
+  created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -33,5 +36,15 @@ CREATE TABLE IF NOT EXISTS order_items (
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS referrals (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  referrer_id INT       NOT NULL,
+  referred_id INT       NOT NULL UNIQUE,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_orders_user     ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_items_order     ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_ref   ON referrals(referrer_id);

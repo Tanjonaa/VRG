@@ -1,78 +1,71 @@
 -- ============================================================
--- VRG Gaming — Schéma base de données Supabase
--- Coller dans : Supabase Dashboard > SQL Editor > New query
+-- VaRyGasy — Schéma base de données MariaDB 11
 -- ============================================================
 
--- 1. Profils clients (extension de auth.users)
-create table if not exists profiles (
-  id       uuid references auth.users on delete cascade primary key,
-  name     text not null,
-  phone    text not null,
-  created_at timestamptz default now()
+-- ── Table : users ───────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS users (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(100)  NOT NULL,
+  phone         VARCHAR(20)   NOT NULL UNIQUE,
+  password      VARCHAR(255)  NOT NULL,          -- bcryptjs hash
+  referral_code VARCHAR(12)   UNIQUE,            -- code de parrainage unique
+  referred_by   INT           NULL,              -- id du parrain
+  created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
--- 2. Commandes
-create table if not exists orders (
-  id             bigserial primary key,
-  user_id        uuid references auth.users on delete cascade not null,
-  payment        text not null,
-  address        text not null,
-  note           text default '',
-  total          integer not null,
-  transfer_phone text,
-  transfer_name  text,
-  transfer_id    text,
-  status         text default 'En attente',
-  created_at     timestamptz default now()
+-- ── Table : orders ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS orders (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  user_id        INT           NOT NULL,
+  payment        VARCHAR(50)   NOT NULL,          -- mvola | airtel | orange | livraison
+  address        TEXT          NOT NULL,
+  zone           VARCHAR(50)   NULL,              -- tana | peripherique
+  delivery_fee   INT           NOT NULL DEFAULT 0,-- frais de livraison en Ar
+  hours          VARCHAR(100)  NULL,              -- heures de disponibilité
+  note           TEXT,
+  total          INT           NOT NULL,          -- total TTC en Ar
+  transfer_phone VARCHAR(30)   NULL,              -- mobile money : numéro
+  transfer_name  VARCHAR(100)  NULL,              -- mobile money : nom
+  transfer_id    VARCHAR(100)  NULL,              -- mobile money : id transaction
+  status         VARCHAR(50)   DEFAULT 'En attente', -- En attente | Confirmé | Livré
+  created_at     TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- 3. Articles des commandes
-create table if not exists order_items (
-  id       bigserial primary key,
-  order_id bigint references orders on delete cascade not null,
-  name     text not null,
-  qty      integer not null,
-  price    integer not null
+-- ── Table : order_items ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS order_items (
+  id       INT AUTO_INCREMENT PRIMARY KEY,
+  order_id INT          NOT NULL,
+  name     VARCHAR(255) NOT NULL,
+  qty      INT          NOT NULL,
+  price    INT          NOT NULL,                -- prix unitaire en Ar
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
--- ─── Row Level Security ────────────────────────────────────
+-- ── Table : referrals ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS referrals (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  referrer_id INT       NOT NULL,               -- celui qui a invité
+  referred_id INT       NOT NULL UNIQUE,        -- celui qui a été invité
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
-alter table profiles   enable row level security;
-alter table orders     enable row level security;
-alter table order_items enable row level security;
+-- ── Index ───────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_ref ON referrals(referrer_id);
 
--- Profils : chaque utilisateur voit/modifie uniquement le sien
-create policy "profiles_own" on profiles
-  for all using (auth.uid() = id) with check (auth.uid() = id);
-
--- Commandes : chaque utilisateur voit/crée ses commandes
-create policy "orders_own" on orders
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
--- Articles : accessibles uniquement via les commandes de l'utilisateur
-create policy "order_items_own" on order_items
-  for all using (
-    order_id in (select id from orders where user_id = auth.uid())
-  ) with check (
-    order_id in (select id from orders where user_id = auth.uid())
-  );
-
--- ─── Trigger : créer le profil automatiquement à l'inscription ─
-
-create or replace function handle_new_user()
-returns trigger language plpgsql security definer as $$
-begin
-  insert into profiles (id, name, phone)
-  values (
-    new.id,
-    new.raw_user_meta_data ->> 'name',
-    new.raw_user_meta_data ->> 'phone'
-  );
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function handle_new_user();
+-- ============================================================
+-- Règles métier (rappel, appliquées côté API)
+-- ── Points de fidélité ──────────────────────────────────────
+--   1 point par 1 000 Ar dépensé (calculé depuis orders.total)
+--   10 points par filleul parrainé (calculé depuis referrals)
+--   Niveaux : Bronze 0-199 | Argent 200-499 | Or 500-999 | Platine 1000+
+-- ── Parrainage ──────────────────────────────────────────────
+--   referral_code généré à l'inscription (8 chars alphanumériques)
+--   Lien : https://varygasy.com?ref=<referral_code>
+--   À l'inscription avec ref= → INSERT INTO referrals
+-- ============================================================

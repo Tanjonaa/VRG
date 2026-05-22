@@ -8,6 +8,11 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const [showPwd, setShowPwd] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  const refCode = new URLSearchParams(window.location.search).get('ref') ||
+                  sessionStorage.getItem('vrg_ref') || ''
+  if (refCode) sessionStorage.setItem('vrg_ref', refCode)
+
   const [form, setForm] = useState({ name: '', phone: '', password: '' })
   const { register, login } = useAuth()
 
@@ -37,7 +42,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     }
     setBusy(true)
     try {
-      if (tab === 'register') await register(form)
+      if (tab === 'register') await register({ ...form, referralCode: refCode || undefined })
       else await login({ phone: form.phone, password: form.password })
       onSuccess()
     } catch (err) {

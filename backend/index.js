@@ -20,6 +20,11 @@ const pool = mysql.createPool({
 
 const SECRET = process.env.JWT_SECRET || 'change_this_in_production'
 
+function makeReferralCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+}
+
 /* ── Auth middleware ─────────────────────────────────── */
 const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1]
@@ -34,22 +39,52 @@ const auth = (req, res, next) => {
 
 /* ── POST /auth/register ─────────────────────────────── */
 app.post('/auth/register', async (req, res) => {
-  const { name, phone, password } = req.body
+  const { name, phone, password, referralCode } = req.body
   if (!name || !phone || !password)
     return res.status(400).json({ error: 'Remplis tous les champs' })
+
+  const conn = await pool.getConnection()
   try {
+    await conn.beginTransaction()
+
     const hash = await bcrypt.hash(password, 10)
-    const [r] = await pool.execute(
-      'INSERT INTO users (name, phone, password) VALUES (?, ?, ?)',
-      [name.trim(), phone.trim(), hash]
+    const code = makeReferralCode()
+
+    // Trouver le parrain si un code de parrainage est fourni
+    let referrerId = null
+    if (referralCode) {
+      const [refs] = await conn.execute(
+        'SELECT id FROM users WHERE referral_code = ?', [referralCode.toUpperCase()]
+      )
+      if (refs[0]) referrerId = refs[0].id
+    }
+
+    const [r] = await conn.execute(
+      'INSERT INTO users (name, phone, password, referral_code, referred_by) VALUES (?, ?, ?, ?, ?)',
+      [name.trim(), phone.trim(), hash, code, referrerId]
     )
-    const user = { id: r.insertId, name: name.trim(), phone: phone.trim() }
+    const newUserId = r.insertId
+
+    // Enregistrer le parrainage et créditer le parrain
+    if (referrerId) {
+      await conn.execute(
+        'INSERT INTO referrals (referrer_id, referred_id) VALUES (?, ?)',
+        [referrerId, newUserId]
+      )
+    }
+
+    await conn.commit()
+
+    const user = { id: newUserId, name: name.trim(), phone: phone.trim() }
     const token = jwt.sign(user, SECRET, { expiresIn: '30d' })
     res.json({ token, user })
   } catch (err) {
+    await conn.rollback()
     if (err.code === 'ER_DUP_ENTRY')
       return res.status(409).json({ error: 'Ce numéro est déjà enregistré' })
     res.status(500).json({ error: 'Erreur serveur' })
+  } finally {
+    conn.release()
   }
 })
 
@@ -80,7 +115,6 @@ app.get('/auth/me', auth, (req, res) => {
 app.put('/auth/profile', auth, async (req, res) => {
   const { name, phone, currentPassword, newPassword } = req.body
   try {
-    // Changement de mot de passe
     if (currentPassword && newPassword) {
       if (newPassword.length < 6)
         return res.status(400).json({ error: 'Le mot de passe doit faire au moins 6 caractères' })
@@ -91,7 +125,6 @@ app.put('/auth/profile', auth, async (req, res) => {
       await pool.execute('UPDATE users SET password = ? WHERE id = ?', [hash, req.user.id])
     }
 
-    // Mise à jour nom / téléphone
     if (name || phone) {
       await pool.execute(
         'UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone) WHERE id = ?',
@@ -101,11 +134,46 @@ app.put('/auth/profile', auth, async (req, res) => {
 
     const [rows] = await pool.execute('SELECT id, name, phone FROM users WHERE id = ?', [req.user.id])
     const user = rows[0]
-    const token = require('jsonwebtoken').sign(user, SECRET, { expiresIn: '30d' })
+    const token = jwt.sign(user, SECRET, { expiresIn: '30d' })
     res.json({ user, token })
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY')
       return res.status(409).json({ error: 'Ce numéro est déjà utilisé' })
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/* ── GET /referral ───────────────────────────────────── */
+app.get('/referral', auth, async (req, res) => {
+  try {
+    // Récupérer ou générer le code de parrainage
+    let [rows] = await pool.execute('SELECT referral_code FROM users WHERE id = ?', [req.user.id])
+    let code = rows[0].referral_code
+    if (!code) {
+      code = makeReferralCode()
+      await pool.execute('UPDATE users SET referral_code = ? WHERE id = ?', [code, req.user.id])
+    }
+
+    // Nombre de filleuls et leurs infos
+    const [referrals] = await pool.execute(
+      `SELECT u.name, u.created_at
+       FROM referrals r
+       JOIN users u ON u.id = r.referred_id
+       WHERE r.referrer_id = ?
+       ORDER BY r.created_at DESC`,
+      [req.user.id]
+    )
+
+    res.json({
+      code,
+      count: referrals.length,
+      points: referrals.length * 10,
+      referrals: referrals.map(r => ({
+        name: r.name,
+        date: new Date(r.created_at).toLocaleDateString('fr-FR'),
+      })),
+    })
+  } catch {
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })

@@ -28,8 +28,9 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [loadOrders])
 
-  const register = async ({ name, phone, password }) => {
-    const { token, user } = await api.post('/auth/register', { name, phone, password })
+  const register = async ({ name, phone, password, referralCode }) => {
+    const { token, user } = await api.post('/auth/register', { name, phone, password, referralCode })
+    sessionStorage.removeItem('vrg_ref')
     saveToken(token)
     setUser(user)
     await loadOrders()
