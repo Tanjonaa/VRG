@@ -249,6 +249,20 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
   } catch(e) { console.error(e); res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
+/* ── GET /products (public) ─────────────────────────── */
+app.get('/products', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT id, name, description, price, category, stock, images FROM products WHERE active=1 ORDER BY category, id'
+    )
+    const products = rows.map(p => ({
+      ...p,
+      images: (() => { try { return JSON.parse(p.images) } catch { return [] } })(),
+    }))
+    res.json(products)
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
 /* ── GET /admin/products ─────────────────────────────── */
 app.get('/admin/products', adminAuth, async (req, res) => {
   try {
