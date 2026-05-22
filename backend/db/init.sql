@@ -1,3 +1,9 @@
+-- ============================================================
+-- VaRyGasy — init.sql  (MariaDB 11)
+-- Exécuté automatiquement au premier démarrage du conteneur db
+-- ============================================================
+
+-- ── users ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
   id            INT AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(100)  NOT NULL,
@@ -5,16 +11,32 @@ CREATE TABLE IF NOT EXISTS users (
   password      VARCHAR(255)  NOT NULL,
   referral_code VARCHAR(12)   UNIQUE,
   referred_by   INT           NULL,
+  role          VARCHAR(20)   DEFAULT 'client',   -- client | moderator | admin
   created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
+-- ── products ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS products (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(255) NOT NULL,
+  description TEXT,
+  price       INT          NOT NULL DEFAULT 0,
+  category    VARCHAR(100),
+  stock       INT          NOT NULL DEFAULT 0,
+  images      LONGTEXT,                           -- JSON : [{"src":"/images/..."}]
+  active      TINYINT(1)   DEFAULT 1,
+  created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- ── orders ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS orders (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   user_id        INT           NOT NULL,
-  payment        VARCHAR(50)   NOT NULL,
+  payment        VARCHAR(50)   NOT NULL,           -- mvola | airtel | orange | livraison
   address        TEXT          NOT NULL,
-  zone           VARCHAR(50),
+  zone           VARCHAR(50),                      -- tana | peripherique
   delivery_fee   INT           NOT NULL DEFAULT 0,
   hours          VARCHAR(100),
   note           TEXT,
@@ -27,6 +49,7 @@ CREATE TABLE IF NOT EXISTS orders (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- ── order_items ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS order_items (
   id       INT AUTO_INCREMENT PRIMARY KEY,
   order_id INT          NOT NULL,
@@ -36,6 +59,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
+-- ── referrals ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS referrals (
   id          INT AUTO_INCREMENT PRIMARY KEY,
   referrer_id INT       NOT NULL,
@@ -45,6 +69,16 @@ CREATE TABLE IF NOT EXISTS referrals (
   FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_orders_user     ON orders(user_id);
-CREATE INDEX IF NOT EXISTS idx_items_order     ON order_items(order_id);
-CREATE INDEX IF NOT EXISTS idx_referrals_ref   ON referrals(referrer_id);
+-- ── visits ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS visits (
+  id    INT  AUTO_INCREMENT PRIMARY KEY,
+  date  DATE NOT NULL UNIQUE,
+  count INT  DEFAULT 1
+);
+
+-- ── Index ────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_ref ON referrals(referrer_id);
+CREATE INDEX IF NOT EXISTS idx_products_cat  ON products(category);
+CREATE INDEX IF NOT EXISTS idx_products_act  ON products(active);

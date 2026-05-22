@@ -3,10 +3,11 @@
 ## Vue d'ensemble
 
 ```
-Navigateur (client)
-      │
-      │  HTTP  localhost:3000
-      ▼
+Navigateur (client)          Navigateur (admin)
+       │                            │
+       │  HTTP  localhost:3000      │  HTTP  localhost:3000/admin
+       └──────────────┬─────────────┘
+                      ▼
 ┌─────────────────────────────────────────────────────┐
 │                  Docker Compose                     │
 │                                                     │
@@ -14,7 +15,7 @@ Navigateur (client)
 │  │  app         │        │  api                 │  │
 │  │  nginx:alpine│──/api/─▶  node:22-alpine      │  │
 │  │  port 3000   │        │  Express.js port 4000│  │
-│  │  (frontend)  │        │  (backend)           │  │
+│  │  (React SPA) │        │  (backend REST)      │  │
 │  └──────────────┘        └──────────┬───────────┘  │
 │                                     │ SQL           │
 │                           ┌─────────▼───────────┐  │
@@ -24,11 +25,33 @@ Navigateur (client)
 │                           └─────────────────────┘  │
 │                                                     │
 │  ┌──────────────┐                                   │
-│  │  adminer     │  ← interface web pour la BDD      │
+│  │  adminer     │  ← interface web BDD              │
 │  │  port 8080   │      localhost:8080               │
 │  └──────────────┘                                   │
 └─────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Principe fondamental : tout vient de l'API
+
+Le site client ne contient **aucune donnée en dur**.  
+Chaque modification faite dans le panneau admin est reflétée automatiquement côté client au prochain chargement, sans rebuild Docker.
+
+```
+Admin modifie un produit
+        │
+        ▼
+  PUT /api/admin/products/:id  →  MariaDB
+        │
+        ▼
+  GET /api/products  ←  client React (au chargement)
+        │
+        ▼
+  Affichage mis à jour automatiquement
+```
+
+**Règle d'or** : toute nouvelle donnée affichée côté client doit être exposée via une route `GET /api/<ressource>` et chargée avec `fetch` dans le composant React. Ne jamais hardcoder de données affichées à l'utilisateur.
 
 ---
 
@@ -38,63 +61,70 @@ Navigateur (client)
 VRG/
 │
 ├── frontend/                        ← ÉQUIPE FRONTEND
-│   │
 │   ├── src/
-│   │   ├── main.jsx                 point d'entrée React
-│   │   ├── App.jsx                  composant racine, routing
-│   │   ├── index.css                styles globaux
+│   │   ├── main.jsx                 point d'entrée — détecte /admin et charge AdminApp
+│   │   ├── App.jsx                  composant racine site client
+│   │   ├── index.css                styles globaux + @keyframes
 │   │   │
-│   │   ├── components/              composants UI
-│   │   │   ├── Navbar.jsx           barre de navigation
-│   │   │   ├── Hero.jsx             section hero (bannière)
-│   │   │   ├── Products.jsx         catalogue produits
+│   │   ├── components/              composants UI site client
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── Hero.jsx
+│   │   │   ├── Products.jsx         ← charge /api/products dynamiquement
 │   │   │   ├── CartPanel.jsx        panier + checkout
-│   │   │   ├── AccountPanel.jsx     profil + fidélité + commandes
-│   │   │   ├── AuthModal.jsx        connexion / inscription
-│   │   │   ├── Features.jsx         section avantages
-│   │   │   ├── Gallery.jsx          galerie photos
-│   │   │   ├── Pricing.jsx          section prix
-│   │   │   ├── CTA.jsx              call-to-action
-│   │   │   ├── Footer.jsx           pied de page
-│   │   │   ├── Marquee.jsx          défilement texte
-│   │   │   ├── Particles.jsx        effet particules fond
-│   │   │   └── ScrollProgress.jsx   barre de progression scroll
+│   │   │   ├── AccountPanel.jsx     profil + fidélité + parrainage + commandes
+│   │   │   ├── AuthModal.jsx        connexion / inscription (capture ?ref=CODE)
+│   │   │   ├── Features.jsx
+│   │   │   ├── Gallery.jsx
+│   │   │   ├── Pricing.jsx
+│   │   │   ├── CTA.jsx
+│   │   │   ├── Footer.jsx
+│   │   │   ├── Marquee.jsx
+│   │   │   ├── Particles.jsx
+│   │   │   └── ScrollProgress.jsx
 │   │   │
-│   │   ├── context/                 état global (React Context)
-│   │   │   ├── AuthContext.jsx      utilisateur connecté + commandes
-│   │   │   └── CartContext.jsx      articles dans le panier
+│   │   ├── admin/                   ← PANNEAU ADMIN (/admin)
+│   │   │   ├── AdminApp.jsx         layout admin (sidebar + routing interne)
+│   │   │   ├── AdminLogin.jsx       page de connexion admin
+│   │   │   └── pages/
+│   │   │       ├── Dashboard.jsx    KPI ventes/commandes/clients/visites + graphiques
+│   │   │       ├── Products.jsx     CRUD articles (filtre catégorie, recherche, scroll)
+│   │   │       ├── Orders.jsx       gestion commandes (filtre statut, accordion détail)
+│   │   │       ├── Users.jsx        liste clients/staff, changement de rôle
+│   │   │       └── Stocks.jsx       alertes rupture, édition stock inline
+│   │   │
+│   │   ├── context/
+│   │   │   ├── AuthContext.jsx      utilisateur connecté, commandes, updateProfile
+│   │   │   └── CartContext.jsx      articles dans le panier (localStorage)
 │   │   │
 │   │   ├── hooks/
-│   │   │   └── useAnimatedCounter.js  compteur animé (chiffres)
+│   │   │   └── useAnimatedCounter.js
 │   │   │
 │   │   └── lib/
-│   │       └── api.js               client HTTP → appels vers /api
+│   │       └── api.js               client HTTP — sauvegarde auto du token JWT
 │   │
-│   ├── public/
-│   │   └── images/                  images statiques servies directement
-│   │       ├── logo/                logo SVG
-│   │       ├── fan/                 photos ventilateurs
-│   │       ├── finger-sleeve/       photos finger sleeves
-│   │       └── gallery/             photos galerie
+│   ├── public/images/               images statiques (servies par nginx)
+│   │   ├── fan/                     photos ventilateurs
+│   │   ├── finger-sleeve/           photos finger sleeves
+│   │   ├── logo/
+│   │   └── gallery/
 │   │
-│   ├── index.html                   page HTML racine (Vite)
-│   ├── vite.config.js               config bundler + proxy /api → :4000
-│   ├── package.json                 dépendances frontend
-│   ├── nginx.conf                   config nginx (prod)
-│   └── Dockerfile                   build multi-stage : Vite → nginx
+│   ├── vite.config.js               proxy /api → :4000 (dev)
+│   ├── nginx.conf                   reverse proxy + SPA fallback (prod)
+│   └── Dockerfile                   build Vite → image nginx:alpine
 │
 ├── backend/                         ← ÉQUIPE BACKEND
-│   │
-│   ├── index.js                     serveur Express, toutes les routes API
-│   │
+│   ├── index.js                     serveur Express — toutes les routes API
 │   ├── db/
-│   │   └── init.sql                 schéma BDD (tables users, orders, order_items)
-│   │
-│   ├── package.json                 dépendances backend
+│   │   └── init.sql                 schéma BDD — exécuté au 1er démarrage
+│   ├── package.json
 │   └── Dockerfile                   image node:22-alpine
 │
-├── docker-compose.yml               orchestration des 4 services
-├── .env                             variables secrètes (ne pas committer)
+├── bdd/
+│   └── schema.sql                   schéma complet annoté (référence équipe)
+│
+├── ARCHITECTURE.md                  ce fichier
+├── docker-compose.yml               orchestration 4 services
+├── .env                             secrets (ne pas committer)
 └── .gitignore
 ```
 
@@ -104,51 +134,75 @@ VRG/
 
 ### Frontend
 
-| Outil | Rôle |
-|-------|------|
-| **React 19** | UI déclarative, composants |
-| **Vite 8** | Bundler + dev server (HMR) |
-| **Framer Motion** | Animations (spring, accordéon, transitions) |
-| **Lucide React** | Icônes SVG |
-| **React Context** | État global sans Redux |
-| **fetch API** | Appels HTTP vers le backend |
-| **nginx** | Serveur fichiers statiques en production |
+| Outil | Version | Rôle |
+|-------|---------|------|
+| **React** | 19 | UI déclarative, composants |
+| **Vite** | 8 | Bundler + dev server (HMR) |
+| **Framer Motion** | — | Animations (spring, accordéon, 3D hover) |
+| **Lucide React** | — | Icônes SVG |
+| **React Context** | — | État global (auth, panier) |
+| **fetch API** | native | Appels HTTP vers `/api` |
+| **nginx** | alpine | Serveur statique + proxy en prod |
 
 ### Backend
 
-| Outil | Rôle |
-|-------|------|
-| **Node.js 22** | Runtime JavaScript |
-| **Express.js** | Framework HTTP, routing |
-| **mysql2/promise** | Connexion MariaDB (async/await) |
-| **bcryptjs** | Hash des mots de passe |
-| **jsonwebtoken** | Auth JWT (tokens 30 jours) |
-| **cors** | Autoriser les requêtes cross-origin |
+| Outil | Version | Rôle |
+|-------|---------|------|
+| **Node.js** | 22 | Runtime |
+| **Express.js** | — | Framework HTTP |
+| **mysql2/promise** | — | Connexion MariaDB (async/await) |
+| **bcryptjs** | — | Hash mots de passe (pur JS, pas de binaire natif) |
+| **jsonwebtoken** | — | Auth JWT (tokens 30 jours) |
+| **cors** | — | Requêtes cross-origin |
 
 ### Infrastructure
 
 | Outil | Rôle |
 |-------|------|
-| **Docker** | Conteneurisation |
-| **Docker Compose** | Orchestration multi-service |
+| **Docker Compose** | Orchestration 4 services |
 | **MariaDB 11** | Base de données relationnelle |
-| **Adminer** | Interface web BDD (dev) |
+| **Adminer** | Interface web BDD (dev) — localhost:8080 |
 
 ---
 
 ## Routes API
 
-```
-POST   /auth/register    inscription (nom, téléphone, mot de passe)
-POST   /auth/login       connexion → retourne JWT
-GET    /auth/me          profil de l'utilisateur connecté
-PUT    /auth/profile     modifier nom / téléphone / mot de passe
+### Publiques (sans authentification)
 
-GET    /orders           liste des commandes de l'utilisateur
-POST   /orders           créer une commande
-```
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `POST` | `/auth/register` | Inscription (nom, téléphone, mot de passe, referralCode?) |
+| `POST` | `/auth/login` | Connexion → retourne JWT |
+| `GET` | `/products` | Liste des produits actifs (catalogue client) |
+| `POST` | `/visits` | Incrémente le compteur de visites du jour |
 
-Toutes les routes sauf `/auth/register` et `/auth/login` nécessitent le header :
+### Protégées client (JWT requis)
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `GET` | `/auth/me` | Profil utilisateur connecté |
+| `PUT` | `/auth/profile` | Modifier nom / téléphone / mot de passe |
+| `GET` | `/referral` | Code + stats parrainage + points |
+| `GET` | `/orders` | Commandes de l'utilisateur |
+| `POST` | `/orders` | Créer une commande |
+
+### Admin (JWT + role admin ou moderator)
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `GET` | `/admin/stats` | KPI dashboard (ventes, commandes, visites, graphiques) |
+| `GET` | `/admin/products` | Tous les produits (actifs + archivés) |
+| `POST` | `/admin/products` | Créer un produit |
+| `PUT` | `/admin/products/:id` | Modifier un produit |
+| `DELETE` | `/admin/products/:id` | Archiver un produit (soft delete) |
+| `GET` | `/admin/orders` | Toutes les commandes |
+| `PUT` | `/admin/orders/:id` | Changer le statut d'une commande |
+| `GET` | `/admin/users` | Tous les utilisateurs |
+| `PUT` | `/admin/users/:id` | Changer le rôle d'un utilisateur (admin only) |
+| `GET` | `/admin/stocks` | Produits actifs avec niveau de stock |
+| `PUT` | `/admin/stocks/:id` | Mettre à jour le stock d'un produit |
+
+Header requis pour routes protégées :
 ```
 Authorization: Bearer <token>
 ```
@@ -159,32 +213,60 @@ Authorization: Bearer <token>
 
 ```
 users
-├── id          INT  AUTO_INCREMENT PK
-├── name        VARCHAR(100)
-├── phone       VARCHAR(20) UNIQUE
-├── password    VARCHAR(255)  ← bcrypt hash
-└── created_at  TIMESTAMP
-
-orders
-├── id            INT  AUTO_INCREMENT PK
-├── user_id       INT  FK → users.id
-├── payment       VARCHAR(50)   (mvola / airtel / orange / livraison)
-├── address       TEXT
-├── zone          VARCHAR(50)   (tana / peripherique)
-├── delivery_fee  INT
-├── hours         VARCHAR(100)
-├── note          TEXT
-├── total         INT
-├── transfer_phone / transfer_name / transfer_id
-├── status        VARCHAR(50)   (En attente / Confirmé / Livré)
+├── id            INT  PK AUTO_INCREMENT
+├── name          VARCHAR(100)
+├── phone         VARCHAR(20) UNIQUE
+├── password      VARCHAR(255)        ← bcryptjs hash
+├── referral_code VARCHAR(12) UNIQUE  ← généré à l'inscription
+├── referred_by   INT FK→users.id     ← parrain
+├── role          VARCHAR(20)         ← client | moderator | admin
 └── created_at    TIMESTAMP
 
+products
+├── id          INT  PK AUTO_INCREMENT
+├── name        VARCHAR(255)
+├── description TEXT
+├── price       INT                   ← en Ar
+├── category    VARCHAR(100)          ← Ventilateur | Finger Sleeve | Câble | …
+├── stock       INT
+├── images      LONGTEXT              ← JSON [{"src":"/images/..."}]
+├── active      TINYINT(1)            ← 0 = archivé (invisible côté client)
+├── created_at  TIMESTAMP
+└── updated_at  TIMESTAMP
+
+orders
+├── id             INT  PK AUTO_INCREMENT
+├── user_id        INT  FK→users.id
+├── payment        VARCHAR(50)         ← mvola | airtel | orange | livraison
+├── address        TEXT
+├── zone           VARCHAR(50)         ← tana | peripherique
+├── delivery_fee   INT
+├── hours          VARCHAR(100)
+├── note           TEXT
+├── total          INT                 ← total TTC en Ar
+├── transfer_phone VARCHAR(30)
+├── transfer_name  VARCHAR(100)
+├── transfer_id    VARCHAR(100)
+├── status         VARCHAR(50)         ← En attente | Confirmé | En livraison | Livré | Annulé
+└── created_at     TIMESTAMP
+
 order_items
-├── id        INT  AUTO_INCREMENT PK
-├── order_id  INT  FK → orders.id
-├── name      VARCHAR(255)
-├── qty       INT
-└── price     INT
+├── id       INT  PK AUTO_INCREMENT
+├── order_id INT  FK→orders.id
+├── name     VARCHAR(255)
+├── qty      INT
+└── price    INT                       ← prix unitaire en Ar
+
+referrals
+├── id          INT  PK AUTO_INCREMENT
+├── referrer_id INT  FK→users.id       ← celui qui a invité
+├── referred_id INT  FK→users.id UNIQUE ← celui qui a été invité
+└── created_at  TIMESTAMP
+
+visits
+├── id    INT  PK AUTO_INCREMENT
+├── date  DATE UNIQUE                  ← 1 ligne par jour
+└── count INT                          ← incrémenté à chaque visite
 ```
 
 ---
@@ -192,34 +274,73 @@ order_items
 ## Comment lancer le projet
 
 ```bash
-# Première fois
+# Première fois — construit et démarre tout
 docker compose up --build
 
-# Relancer après modif backend
-docker compose up --build api
+# Après modification backend (index.js, db/)
+docker compose up --build api -d
 
-# Relancer après modif frontend
-docker compose up --build app
+# Après modification frontend (src/)
+docker compose up --build app -d
 
-# Voir les logs en direct
+# Les deux en même temps
+docker compose up --build api app -d
+
+# Logs en direct
 docker compose logs -f api
 docker compose logs -f app
 ```
 
 Accès :
-- **Site**    → http://localhost:3000
-- **Adminer** → http://localhost:8080  (serveur: db, user: vrg_user, mdp: vrg_pass)
+- **Site client** → http://localhost:3000
+- **Panneau admin** → http://localhost:3000/admin
+- **Adminer (BDD)** → http://localhost:8080  
+  `serveur: db` · `user: vrg_user` · `mdp: vrg_pass` · `base: vrg`
 
 ---
 
 ## Flux d'une commande
 
 ```
-1. Client ajoute au panier          → CartContext (état local)
-2. Client passe commande            → POST /api/orders
-3. API vérifie JWT                  → middleware auth
-4. API insère orders + order_items  → transaction MariaDB
-5. Réponse JSON → AuthContext       → met à jour orders[]
-6. AccountPanel affiche la commande → section "Mes commandes"
-7. Points fidélité calculés         → 1 pt par 1 000 Ar (front only)
+1. Client charge /products        → GET /api/products → MariaDB
+2. Client ajoute au panier        → CartContext (état local React)
+3. Client passe commande          → POST /api/orders (JWT requis)
+4. API vérifie JWT                → middleware auth
+5. API insère orders + items      → transaction MariaDB
+6. AuthContext recharge commandes → GET /api/orders
+7. Admin voit la commande         → GET /api/admin/orders
+8. Admin change le statut         → PUT /api/admin/orders/:id
 ```
+
+## Flux de synchronisation admin → client
+
+```
+Admin (panneau /admin)          Client (site /)
+        │                              │
+        │  PUT /api/admin/products/:id │
+        │─────────────────▶ MariaDB   │
+        │                             │
+        │                     prochain chargement
+        │                             │
+        │              GET /api/products
+        │                   ◀─────────┤
+        │                             │
+        │               données à jour affichées
+```
+
+## Règles métier
+
+**Fidélité**
+- 1 point par tranche de 1 000 Ar dépensé (commandes non annulées)
+- 10 points par filleul parrainé
+- Niveaux : Bronze 0–199 · Argent 200–499 · Or 500–999 · Platine 1000+
+
+**Parrainage**
+- Code unique généré à l'inscription (8 chars alphanumériques)
+- Lien de partage : `https://varygasy.com?ref=<code>`
+- À l'inscription avec `?ref=CODE` → ligne dans `referrals` + +10 pts pour le parrain
+
+**Rôles**
+- `client` — accès site, commandes, profil
+- `moderator` — accès admin (sauf gestion des rôles utilisateurs)
+- `admin` — accès complet + changement de rôles
