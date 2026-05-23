@@ -422,4 +422,40 @@ app.put('/admin/stocks/:id', adminAuth, async (req, res) => {
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
+/* ── GET /settings (public) ──────────────────────────────── */
+app.get('/settings', async (req, res) => {
+  try {
+    const [rows] = await pool.execute('SELECT `key`, `value` FROM settings')
+    const obj = {}
+    rows.forEach(r => { obj[r.key] = r.value })
+    res.json(obj)
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── GET /admin/settings ─────────────────────────────────── */
+app.get('/admin/settings', adminAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.execute('SELECT `key`, `value` FROM settings')
+    const obj = {}
+    rows.forEach(r => { obj[r.key] = r.value })
+    res.json(obj)
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── PUT /admin/settings ─────────────────────────────────── */
+app.put('/admin/settings', adminAuth, async (req, res) => {
+  const { settings } = req.body // [{ key, value }]
+  if (!Array.isArray(settings) || settings.length === 0)
+    return res.status(400).json({ error: 'Données invalides' })
+  try {
+    for (const { key, value } of settings) {
+      await pool.execute(
+        'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=?',
+        [key, value, value]
+      )
+    }
+    res.json({ ok: true })
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
 app.listen(4000, () => console.log('VRG API → port 4000'))

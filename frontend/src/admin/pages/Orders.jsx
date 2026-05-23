@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, MapPin, Clock, CreditCard } from 'lucide-react'
+import AdminDropdown from '../components/AdminDropdown.jsx'
 
 const BASE = '/api'
 const h = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
@@ -36,15 +37,19 @@ export default function Orders() {
     <div>
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {['all', ...STATUSES].map(s => (
-          <button key={s} onClick={() => setFilter(s)}
-            style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid', cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
-              background: filter === s ? 'rgba(255,153,0,0.12)' : 'rgba(255,255,255,0.03)',
-              borderColor: filter === s ? 'rgba(255,153,0,0.3)' : 'rgba(255,255,255,0.08)',
-              color: filter === s ? '#FF9900' : 'rgba(240,240,245,0.45)' }}>
-            {s === 'all' ? `Toutes (${orders.length})` : `${s} (${orders.filter(o => o.status === s).length})`}
-          </button>
-        ))}
+        {['all', ...STATUSES].map(s => {
+          const active = filter === s
+          const st = s === 'all' ? null : STATUS_STYLE[s]
+          return (
+            <button key={s} onClick={() => setFilter(s)}
+              style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid', cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
+                background: active ? (st ? st.bg : 'rgba(255,153,0,0.12)') : 'rgba(255,255,255,0.03)',
+                borderColor: active ? (st ? st.border : 'rgba(255,153,0,0.3)') : 'rgba(255,255,255,0.08)',
+                color: active ? (st ? st.color : '#FF9900') : 'rgba(240,240,245,0.45)' }}>
+              {s === 'all' ? `Toutes (${orders.length})` : `${s} (${orders.filter(o => o.status === s).length})`}
+            </button>
+          )
+        })}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -67,12 +72,11 @@ export default function Orders() {
                 </div>
 
                 {/* Status selector */}
-                <select value={o.status} onChange={e => { e.stopPropagation(); updateStatus(o.id, e.target.value) }}
+                <StatusSelect
+                  value={o.status}
                   disabled={updating === o.id}
-                  onClick={e => e.stopPropagation()}
-                  style={{ fontSize: 11, fontWeight: 700, padding: '5px 10px', borderRadius: 8, border: `1px solid ${st.border}`, background: st.bg, color: st.color, cursor: 'pointer', outline: 'none' }}>
-                  {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                  onChange={val => updateStatus(o.id, val)}
+                />
 
                 <span style={{ color: 'rgba(240,240,245,0.3)', display: 'flex' }}>
                   {isOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
@@ -114,6 +118,21 @@ export default function Orders() {
         )}
       </div>
     </div>
+  )
+}
+
+/* ── Sélecteur statut — wrapper de AdminDropdown ─────────── */
+function StatusSelect({ value, disabled, onChange }) {
+  const options = STATUSES.map(s => ({ value: s, label: s, ...STATUS_STYLE[s] }))
+  return (
+    <AdminDropdown
+      value={value}
+      options={options}
+      onChange={onChange}
+      disabled={disabled}
+      compact
+      stopProp
+    />
   )
 }
 

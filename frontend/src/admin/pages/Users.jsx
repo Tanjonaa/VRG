@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Shield, User, Search } from 'lucide-react'
+import AdminDropdown from '../components/AdminDropdown.jsx'
 
 const BASE = '/api'
 const h = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
@@ -9,6 +10,8 @@ const ROLE_STYLE = {
   moderator: { color: '#60a5fa', bg: 'rgba(96,165,250,0.1)',   border: 'rgba(96,165,250,0.25)' },
   client:    { color: 'rgba(240,240,245,0.4)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.1)' },
 }
+
+const ROLE_OPTIONS = ['client', 'moderator', 'admin'].map(r => ({ value: r, label: r, ...ROLE_STYLE[r] }))
 
 export default function UsersPage({ user: adminUser }) {
   const [users, setUsers]   = useState([])
@@ -91,13 +94,13 @@ export default function UsersPage({ user: adminUser }) {
                   {adminUser?.role === 'admin' && (
                     <td style={{ padding: '13px 16px' }}>
                       {u.id !== adminUser.id && (
-                        <select value={u.role} onChange={e => changeRole(u.id, e.target.value)}
+                        <AdminDropdown
+                          value={u.role}
+                          options={ROLE_OPTIONS}
+                          onChange={role => changeRole(u.id, role)}
                           disabled={updating === u.id}
-                          style={{ fontSize: 11, padding: '5px 8px', borderRadius: 7, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#f0f0f5', cursor: 'pointer', outline: 'none' }}>
-                          <option value="client">client</option>
-                          <option value="moderator">moderator</option>
-                          <option value="admin">admin</option>
-                        </select>
+                          compact
+                        />
                       )}
                     </td>
                   )}

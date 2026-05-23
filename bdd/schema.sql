@@ -1,6 +1,6 @@
 -- ============================================================
 -- VaRyGasy — Schéma complet base de données MariaDB 11
--- Dernière mise à jour : mai 2026
+-- Dernière mise à jour : 2026-05-23
 -- ============================================================
 
 -- ── users ────────────────────────────────────────────────────
@@ -77,6 +77,30 @@ CREATE TABLE IF NOT EXISTS visits (
   count INT  DEFAULT 1                             -- incrémenté à chaque visite
 );
 
+-- ── settings ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS settings (
+  `key`      VARCHAR(100) PRIMARY KEY,
+  `value`    TEXT,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  -- Clés pré-insérées :
+  --   announcement_active  '0'|'1'       bandeau annonce actif
+  --   announcement_text    TEXT           texte du bandeau
+  --   announcement_color   '#FF9900'      couleur du bandeau
+  --   delivery_fee_tana    '3000'         frais livraison Tana Ville (Ar)
+  --   delivery_fee_peripherique '5000'    frais livraison périphérique (Ar)
+  --   whatsapp             ''             numéro WhatsApp contact
+  --   business_hours       ''             horaires d'ouverture
+);
+
+INSERT IGNORE INTO settings (`key`, `value`) VALUES
+  ('announcement_active',       '0'),
+  ('announcement_text',         ''),
+  ('announcement_color',        '#FF9900'),
+  ('delivery_fee_tana',         '3000'),
+  ('delivery_fee_peripherique', '5000'),
+  ('whatsapp',                  ''),
+  ('business_hours',            '');
+
 -- ── Index ────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);
@@ -102,5 +126,14 @@ CREATE INDEX IF NOT EXISTS idx_products_act  ON products(active);
 -- ── Produits ────────────────────────────────────────────────
 --   active=0  : archivé (soft delete), invisible sur le site client
 --   stock=0   : badge "Rupture" côté client, bouton désactivé
---   images    : tableau JSON [{"src":"/images/<dossier>/<fichier>"}]
+--   images    : tableau JSON [{"src":"/images/uploads/<fichier>"}]
+--              fichier stocké dans volume Docker partagé api↔app
+--              upload via POST /api/admin/upload (multer, 5 Mo max)
+-- ── Catégories ──────────────────────────────────────────────
+--   products.category : libre, pas de table dédiée
+--   liste déduite par SELECT DISTINCT category FROM products
+--   couleur automatique côté frontend (catColors.js, hash djb2)
+-- ── Settings ────────────────────────────────────────────────
+--   clé/valeur simple, lue par l'API et exposée aux composants
+--   ne pas ajouter de colonne ici — utiliser une nouvelle clé
 -- ============================================================

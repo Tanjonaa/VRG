@@ -76,6 +76,23 @@ CREATE TABLE IF NOT EXISTS visits (
   count INT  DEFAULT 1
 );
 
+-- ── settings ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS settings (
+  `key`      VARCHAR(100) PRIMARY KEY,
+  `value`    TEXT,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT IGNORE INTO settings (`key`, `value`) VALUES
+  ('announcement_active', '0'),
+  ('announcement_text',   ''),
+  ('announcement_color',  '#FF9900'),
+  ('delivery_fee_tana',        '3000'),
+  ('delivery_fee_peripherique', '5000'),
+  ('whatsapp',       ''),
+  ('business_hours', ''),
+  ('marquee_items',  '[{"text":"Finger Sleeves Gaming dispo maintenant"},{"text":"Livraison 24h sur Antananarivo"},{"text":"+1 200 gamers équipés à Madagascar"},{"text":"Ventilateurs Turbo — stock limité"},{"text":"Garantie 6 mois sur tous les produits"},{"text":"Support WhatsApp 7j/7 — réponse en 5 min"}]');
+
 -- ── Index ────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);

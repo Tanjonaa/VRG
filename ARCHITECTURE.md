@@ -85,6 +85,8 @@ VRG/
 │   │   ├── admin/                   ← PANNEAU ADMIN (/admin)
 │   │   │   ├── AdminApp.jsx         layout admin (sidebar + routing interne)
 │   │   │   ├── AdminLogin.jsx       page de connexion admin
+│   │   │   ├── components/
+│   │   │   │   └── AdminDropdown.jsx  dropdown sombre réutilisable (React portal)
 │   │   │   └── pages/
 │   │   │       ├── Dashboard.jsx    KPI ventes/commandes/clients/visites + graphiques
 │   │   │       ├── Products.jsx     CRUD articles (filtre catégorie, recherche, scroll)
@@ -100,13 +102,15 @@ VRG/
 │   │   │   └── useAnimatedCounter.js
 │   │   │
 │   │   └── lib/
-│   │       └── api.js               client HTTP — sauvegarde auto du token JWT
+│   │       ├── api.js               client HTTP — sauvegarde auto du token JWT
+│   │       └── catColors.js         couleurs déterministes par catégorie (hash djb2)
 │   │
 │   ├── public/images/               images statiques (servies par nginx)
 │   │   ├── fan/                     photos ventilateurs
 │   │   ├── finger-sleeve/           photos finger sleeves
 │   │   ├── logo/
-│   │   └── gallery/
+│   │   ├── gallery/
+│   │   └── uploads/                 ← volume Docker partagé api↔app (images uploadées)
 │   │
 │   ├── vite.config.js               proxy /api → :4000 (dev)
 │   ├── nginx.conf                   reverse proxy + SPA fallback (prod)
@@ -153,6 +157,7 @@ VRG/
 | **mysql2/promise** | — | Connexion MariaDB (async/await) |
 | **bcryptjs** | — | Hash mots de passe (pur JS, pas de binaire natif) |
 | **jsonwebtoken** | — | Auth JWT (tokens 30 jours) |
+| **multer** | — | Upload de fichiers images (5 Mo max, jpg/png/webp/avif/gif) |
 | **cors** | — | Requêtes cross-origin |
 
 ### Infrastructure
@@ -195,6 +200,8 @@ VRG/
 | `POST` | `/admin/products` | Créer un produit |
 | `PUT` | `/admin/products/:id` | Modifier un produit |
 | `DELETE` | `/admin/products/:id` | Archiver un produit (soft delete) |
+| `GET` | `/admin/categories` | Liste distincte des catégories existantes (`SELECT DISTINCT category`) |
+| `POST` | `/admin/upload` | Upload image produit → retourne `{ src: "/images/uploads/<fichier>" }` |
 | `GET` | `/admin/orders` | Toutes les commandes |
 | `PUT` | `/admin/orders/:id` | Changer le statut d'une commande |
 | `GET` | `/admin/users` | Tous les utilisateurs |
@@ -206,6 +213,73 @@ Header requis pour routes protégées :
 ```
 Authorization: Bearer <token>
 ```
+
+---
+
+## Volume uploads (images produits)
+
+```
+docker-compose.yml
+  api:   volumes: uploads → /app/uploads          ← multer écrit ici
+  app:   volumes: uploads → /usr/share/nginx/html/images/uploads  ← nginx sert ici
+  volumes: uploads (named volume Docker)
+```
+
+Flux upload :
+```
+Admin choisit un fichier
+        │
+        ▼
+POST /api/admin/upload  (multipart/form-data, champ "image")
+        │  multer génère un nom unique : <timestamp>-<8hex>.<ext>
+        │  fichier écrit dans /app/uploads/<nom>
+        ▼
+retourne { src: "/images/uploads/<nom>" }
+        │
+        ▼
+client React stocke src dans products.images = [{ src }]
+        │
+        ▼
+nginx sert /images/uploads/<nom> depuis le volume partagé
+```
+
+---
+
+## Système de couleurs catégories (`src/lib/catColors.js`)
+
+Toute catégorie produit reçoit automatiquement une couleur déterministe :
+- **Palette** : 10 couleurs (ambre, orange foncé, bleu, violet, vert menthe, rose, orange, vert, cyan, fuchsia)
+- **Algorithme** : hash djb2 → `h = (h * 33 ^ charCode) >>> 0` → `PALETTE[h % 10]`
+- **Résultat** : même catégorie = même couleur, toujours, sans configuration manuelle
+- **Utilisé dans** : `Products.jsx` (client), `admin/pages/Products.jsx` (filtres + badges), `AdminDropdown.jsx` (options colorées)
+
+---
+
+## Composant AdminDropdown (`src/admin/components/AdminDropdown.jsx`)
+
+Dropdown sombre réutilisable pour tous les selects du panneau admin.
+
+**Principe** : le panel est rendu via `ReactDOM.createPortal` dans `document.body` avec `position: fixed` calculé depuis `getBoundingClientRect()`. Cela permet d'échapper à tout `overflow: hidden/auto` parent (layout admin) sans conflit de z-index.
+
+**Props principales** :
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `value` | string | Valeur sélectionnée |
+| `options` | `{value, label, color?, bg?, border?, dim?, separator?}[]` | Options |
+| `onChange` | fn | Callback au changement |
+| `compact` | bool | Trigger compact coloré (statuts, rôles). Défaut : false |
+| `stopProp` | bool | Stoppe la propagation (dropdown dans un accordéon) |
+| `footer` | JSX \| `(close) => JSX` | Contenu bas du panel (ex: "Nouvelle catégorie") |
+| `label` | string | Libellé au-dessus du trigger |
+| `onOpen` | fn | Callback à l'ouverture |
+
+**Utilisé dans** :
+- `admin/pages/Products.jsx` → `CategoryPicker` (mode normal + footer "Nouvelle catégorie")
+- `admin/pages/Orders.jsx` → `StatusSelect` (mode compact + stopProp)
+- `admin/pages/Users.jsx` → sélecteur de rôle (mode compact)
+
+**Règle** : tout nouveau select/dropdown dans l'admin doit utiliser `AdminDropdown`. Ne plus jamais utiliser `<select>` natif.
 
 ---
 
@@ -267,6 +341,16 @@ visits
 ├── id    INT  PK AUTO_INCREMENT
 ├── date  DATE UNIQUE                  ← 1 ligne par jour
 └── count INT                          ← incrémenté à chaque visite
+
+settings
+├── key        VARCHAR(100) PK         ← clé de configuration
+├── value      TEXT                    ← valeur (string)
+└── updated_at TIMESTAMP               ← mise à jour automatique
+
+Clés pré-insérées :
+  announcement_active / announcement_text / announcement_color
+  delivery_fee_tana / delivery_fee_peripherique
+  whatsapp / business_hours
 ```
 
 ---
