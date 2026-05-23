@@ -36,6 +36,8 @@ services:
       DB_USER:     ${DB_USER:-vrg_user}
       DB_PASSWORD: ${DB_PASSWORD:-vrg_pass}
       JWT_SECRET:  ${JWT_SECRET:-change_this_in_production}
+    volumes:
+      - uploads:/app/uploads
     expose:
       - "4000"
     depends_on:
@@ -45,6 +47,8 @@ services:
 
   app:
     build: ./frontend
+    volumes:
+      - uploads:/usr/share/nginx/html/images/uploads
     ports:
       - "3000:80"
     depends_on:
@@ -53,3 +57,4 @@ services:
 
 volumes:
   db_data:
+  uploads:

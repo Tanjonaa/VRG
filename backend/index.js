@@ -3,10 +3,35 @@ const mysql   = require('mysql2/promise')
 const bcrypt  = require('bcryptjs')
 const jwt     = require('jsonwebtoken')
 const cors    = require('cors')
+const multer  = require('multer')
+const path    = require('path')
+const crypto  = require('crypto')
+const fs      = require('fs')
 
 const app = express()
 app.use(express.json())
 app.use(cors())
+
+/* ── Multer : upload images ──────────────────────────────── */
+const UPLOAD_DIR = '/app/uploads'
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
+
+const storage = multer.diskStorage({
+  destination: UPLOAD_DIR,
+  filename: (req, file, cb) => {
+    const ext    = path.extname(file.originalname).toLowerCase()
+    const unique = crypto.randomBytes(8).toString('hex')
+    cb(null, `${Date.now()}-${unique}${ext}`)
+  },
+})
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif', 'image/gif'].includes(file.mimetype)
+    cb(null, ok)
+  },
+})
 
 const pool = mysql.createPool({
   host:             process.env.DB_HOST     || 'localhost',
@@ -250,6 +275,13 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
 })
 
 /* ── GET /products (public) ─────────────────────────── */
+/* ── POST /admin/upload ──────────────────────────────────── */
+app.post('/admin/upload', adminAuth, upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier ou format non supporté (jpg/png/webp/avif)' })
+  res.json({ src: `/images/uploads/${req.file.filename}` })
+})
+
+/* ── GET /products (public) ─────────────────────────────── */
 app.get('/products', async (req, res) => {
   try {
     const [rows] = await pool.execute(
