@@ -295,6 +295,16 @@ app.get('/products', async (req, res) => {
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
+/* ── GET /admin/categories ───────────────────────────── */
+app.get('/admin/categories', adminAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY category"
+    )
+    res.json(rows.map(r => r.category))
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
 /* ── GET /admin/products ─────────────────────────────── */
 app.get('/admin/products', adminAuth, async (req, res) => {
   try {

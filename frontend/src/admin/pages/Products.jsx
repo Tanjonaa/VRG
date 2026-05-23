@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Plus, Pencil, Trash2, X, Check, AlertCircle, Search, Package, Upload, Image } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, AlertCircle, Search, Package, Upload, Image, ChevronDown } from 'lucide-react'
 
-const BASE = '/api'
-const h    = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
+const BASE  = '/api'
+const h     = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
 const hAuth = () => ({ Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
 
-const CATEGORIES = ['Ventilateur', 'Finger Sleeve', 'Câble', 'Manette', 'Accessoire', 'Autre']
 const empty = { name: '', description: '', price: '', category: '', stock: '', images: [] }
 
 const ANIM_STYLE = `
@@ -16,13 +15,14 @@ const ANIM_STYLE = `
 `
 
 export default function Products() {
-  const [products,  setProducts]  = useState([])
-  const [modal,     setModal]     = useState(null)
-  const [form,      setForm]      = useState(empty)
-  const [busy,      setBusy]      = useState(false)
-  const [msg,       setMsg]       = useState(null)
-  const [catFilter, setCatFilter] = useState('all')
-  const [search,    setSearch]    = useState('')
+  const [products,    setProducts]    = useState([])
+  const [categories,  setCategories]  = useState([])
+  const [modal,       setModal]       = useState(null)
+  const [form,        setForm]        = useState(empty)
+  const [busy,        setBusy]        = useState(false)
+  const [msg,         setMsg]         = useState(null)
+  const [catFilter,   setCatFilter]   = useState('all')
+  const [search,      setSearch]      = useState('')
 
   /* Image upload state */
   const [imageFile,    setImageFile]    = useState(null)   // File sélectionné
@@ -34,7 +34,10 @@ export default function Products() {
   const load = () =>
     fetch(`${BASE}/admin/products`, { headers: h() }).then(r => r.json()).then(setProducts)
 
-  useEffect(() => { load() }, [])
+  const loadCats = () =>
+    fetch(`${BASE}/admin/categories`, { headers: h() }).then(r => r.json()).then(setCategories).catch(() => {})
+
+  useEffect(() => { load(); loadCats() }, [])
 
   const openAdd = () => {
     setForm(empty); setModal('add'); setMsg(null)
@@ -94,7 +97,7 @@ export default function Products() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setMsg({ type: 'ok', text: modal === 'add' ? 'Article ajouté !' : 'Article mis à jour !' })
-      await load()
+      await load(); await loadCats()
       setTimeout(() => closeModal(), 1200)
     } catch (err) {
       setUploading(false)
@@ -309,12 +312,11 @@ export default function Products() {
                   <input value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} type="number" min="0" required style={inp} placeholder="20" />
                 </FRow>
               </div>
-              <FRow label="Catégorie">
-                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ ...inp, background: 'rgba(255,255,255,0.04)' }}>
-                  <option value="">— Choisir —</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </FRow>
+              <CategoryPicker
+                value={form.category}
+                categories={categories}
+                onChange={cat => setForm(f => ({ ...f, category: cat }))}
+              />
 
               {/* Message */}
               {msg && (
@@ -372,7 +374,121 @@ function FRow({ label, children }) {
   )
 }
 
+/* ── Dropdown catégorie 100% thémé ───────────────────────── */
+function CategoryPicker({ value, categories, onChange }) {
+  const [open,    setOpen]    = useState(false)
+  const [newCat,  setNewCat]  = useState('')
+  const [showNew, setShowNew] = useState(false)
+  const ref = useRef(null)
+
+  /* Fermer si clic extérieur */
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const select = (cat) => { onChange(cat); setOpen(false); setShowNew(false) }
+
+  const confirmNew = () => {
+    const trimmed = newCat.trim()
+    if (!trimmed) return
+    onChange(trimmed)
+    setNewCat('')
+    setShowNew(false)
+    setOpen(false)
+  }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <label style={labelStyle}>Catégorie</label>
+
+      {/* Trigger */}
+      <button type="button" onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'rgba(255,255,255,0.04)', border: `1px solid ${open ? 'rgba(255,153,0,0.4)' : 'rgba(255,255,255,0.09)'}`,
+          borderRadius: 10, padding: '10px 12px', cursor: 'pointer', color: value ? '#f0f0f5' : 'rgba(240,240,245,0.3)',
+          fontSize: 13, fontFamily: 'inherit', transition: 'border-color 0.15s',
+        }}>
+        <span>{value || '— Choisir —'}</span>
+        <ChevronDown size={14} style={{ flexShrink: 0, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none', color: 'rgba(240,240,245,0.4)' }} />
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 600,
+          background: '#13131f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+          boxShadow: '0 16px 40px rgba(0,0,0,0.6)', overflow: 'hidden',
+          animation: 'rowIn 0.15s ease',
+        }}>
+          {/* Option vide */}
+          <Option label="— Aucune catégorie —" dim onClick={() => select('')} active={value === ''} />
+
+          {/* Catégories existantes */}
+          {categories.length > 0 && (
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 4 }}>
+              {categories.map(c => (
+                <Option key={c} label={c} onClick={() => select(c)} active={value === c} />
+              ))}
+            </div>
+          )}
+
+          {/* Nouvelle catégorie */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: 10 }}>
+            {showNew ? (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                  autoFocus
+                  value={newCat}
+                  onChange={e => setNewCat(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmNew() } if (e.key === 'Escape') setShowNew(false) }}
+                  placeholder="Nom de la catégorie…"
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,153,0,0.3)', borderRadius: 8, padding: '7px 10px', fontSize: 13, color: '#f0f0f5', outline: 'none', fontFamily: 'inherit' }}
+                />
+                <button type="button" onClick={confirmNew}
+                  style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,153,0,0.15)', border: '1px solid rgba(255,153,0,0.3)', color: '#FF9900', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                  <Check size={13} />
+                </button>
+                <button type="button" onClick={() => { setShowNew(false); setNewCat('') }}
+                  style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(240,240,245,0.4)', cursor: 'pointer' }}>
+                  <X size={13} />
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setShowNew(true)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: 'none', border: '1px dashed rgba(255,153,0,0.25)', cursor: 'pointer', color: '#FF9900', fontSize: 12, fontWeight: 600 }}>
+                <Plus size={13} /> Nouvelle catégorie…
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Option({ label, onClick, active, dim }) {
+  const [hover, setHover] = useState(false)
+  return (
+    <button type="button" onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '9px 12px', background: active ? 'rgba(255,153,0,0.1)' : hover ? 'rgba(255,255,255,0.04)' : 'none',
+        border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left', transition: 'background 0.1s',
+        color: active ? '#FF9900' : dim ? 'rgba(240,240,245,0.3)' : '#f0f0f5',
+        fontWeight: active ? 700 : 400,
+      }}>
+      {label}
+      {active && <Check size={13} />}
+    </button>
+  )
+}
+
 const labelStyle = { fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }
-const inp       = { width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: 13, color: '#f0f0f5', fontFamily: 'inherit', boxSizing: 'border-box' }
+const inp        = { width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: 13, color: '#f0f0f5', fontFamily: 'inherit', boxSizing: 'border-box' }
 const btnPrimary = { display: 'flex', alignItems: 'center', gap: 7, background: 'linear-gradient(135deg, #FF9900, #CC5500)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }
-const btnIcon   = { display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, padding: '6px', cursor: 'pointer', color: 'rgba(240,240,245,0.6)', transition: 'all 0.15s' }
+const btnIcon    = { display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, padding: '6px', cursor: 'pointer', color: 'rgba(240,240,245,0.6)', transition: 'all 0.15s' }
