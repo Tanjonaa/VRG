@@ -113,7 +113,7 @@ export default function Products() {
 
   const active   = products.filter(p => p.active)
   const archived = products.filter(p => !p.active)
-  const cats     = ['all', ...CATEGORIES.filter(c => products.some(p => p.category === c))]
+  const cats     = ['all', ...categories.filter(c => products.some(p => p.category === c))]
   const filtered = products
     .filter(p => catFilter === 'all' || p.category === catFilter)
     .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
