@@ -1,6 +1,7 @@
 import React, { useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { ArrowRight, MessageCircle, Truck, ShieldCheck, RotateCcw } from 'lucide-react'
+import { useSettings } from '../hooks/useSettings.js'
 
 const guarantees = [
   { icon: Truck,        label: 'Livraison 24h',      sub: 'Antananarivo' },
@@ -9,9 +10,12 @@ const guarantees = [
   { icon: MessageCircle,label: 'Support WhatsApp',   sub: '7j/7 disponible' },
 ]
 
+const DEFAULT_REASSURANCE = 'Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours'
+
 export default function CTA() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-80px' })
+  const settings = useSettings()
 
   return (
     <section style={{ padding: '80px 24px 120px', position: 'relative', overflow: 'hidden' }}>
@@ -97,7 +101,7 @@ export default function CTA() {
               <motion.p initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}}
                 transition={{ delay: 0.6, duration: 0.6 }}
                 style={{ marginTop: 24, fontSize: 13, color: 'rgba(240,240,245,0.35)' }}>
-                Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours
+                {settings.reassurance_text || DEFAULT_REASSURANCE}
               </motion.p>
             </div>
           </motion.div>

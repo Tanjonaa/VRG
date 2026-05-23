@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, ShoppingCart } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
+import { useSettings } from '../hooks/useSettings.js'
 
 const plans = [
   {
@@ -70,7 +71,10 @@ const cardVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] } },
 }
 
+const DEFAULT_REASSURANCE = 'Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours'
+
 export default function Pricing() {
+  const settings = useSettings()
   return (
     <section style={{ position: 'relative', padding: '120px 24px', overflow: 'hidden' }}>
       <div style={{
@@ -118,7 +122,7 @@ export default function Pricing() {
         <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
           transition={{ delay: 0.4, duration: 0.6 }}
           style={{ textAlign: 'center', marginTop: 40, fontSize: 13, color: 'rgba(240,240,245,0.35)' }}>
-          Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours
+          {settings.reassurance_text || DEFAULT_REASSURANCE}
         </motion.p>
       </div>
     </section>
