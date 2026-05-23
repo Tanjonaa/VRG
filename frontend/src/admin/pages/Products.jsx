@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Plus, Pencil, Trash2, X, Check, AlertCircle, Search, Package, Upload, Image, ChevronDown } from 'lucide-react'
+import { getCatStyle } from '../../lib/catColors.js'
 
 const BASE  = '/api'
 const h     = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
@@ -142,17 +143,21 @@ export default function Products() {
 
       {/* Category filter + search */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        {cats.map(c => (
-          <button key={c} onClick={() => setCatFilter(c)}
-            style={{
-              padding: '6px 14px', borderRadius: 8, border: '1px solid', cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
-              background: catFilter === c ? 'rgba(255,153,0,0.12)' : 'rgba(255,255,255,0.03)',
-              borderColor: catFilter === c ? 'rgba(255,153,0,0.3)' : 'rgba(255,255,255,0.08)',
-              color: catFilter === c ? '#FF9900' : 'rgba(240,240,245,0.45)',
-            }}>
-            {c === 'all' ? `Tous (${products.length})` : `${c} (${products.filter(p => p.category === c).length})`}
-          </button>
-        ))}
+        {cats.map(c => {
+          const s       = c === 'all' ? null : getCatStyle(c)
+          const active  = catFilter === c
+          return (
+            <button key={c} onClick={() => setCatFilter(c)}
+              style={{
+                padding: '6px 14px', borderRadius: 8, border: '1px solid', cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
+                background:  active ? (s ? s.bg   : 'rgba(255,153,0,0.12)') : 'rgba(255,255,255,0.03)',
+                borderColor: active ? (s ? s.border : 'rgba(255,153,0,0.3)') : 'rgba(255,255,255,0.08)',
+                color:       active ? (s ? s.color  : '#FF9900')             : 'rgba(240,240,245,0.45)',
+              }}>
+              {c === 'all' ? `Tous (${products.length})` : `${c} (${products.filter(p => p.category === c).length})`}
+            </button>
+          )
+        })}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, padding: '7px 12px' }}>
           <Search size={13} color="rgba(240,240,245,0.3)" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…"
@@ -187,7 +192,7 @@ export default function Products() {
                 >
                   <td style={{ padding: '13px 16px', fontWeight: 600, color: '#f0f0f5', width: '30%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <ThumbImg images={p.images} name={p.name} />
+                      <ThumbImg images={p.images} name={p.name} category={p.category} />
                       {p.name}
                     </div>
                   </td>
@@ -345,8 +350,9 @@ export default function Products() {
 }
 
 /* Miniature dans le tableau */
-function ThumbImg({ images, name }) {
+function ThumbImg({ images, name, category }) {
   const [err, setErr] = useState(false)
+  const s = getCatStyle(category)
   let src = null
   try {
     const arr = typeof images === 'string' ? JSON.parse(images) : images
@@ -354,14 +360,14 @@ function ThumbImg({ images, name }) {
   } catch {}
   if (!src || err) {
     return (
-      <div style={{ width: 32, height: 32, borderRadius: 7, background: 'rgba(255,153,0,0.08)', border: '1px solid rgba(255,153,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <Package size={14} color="rgba(255,153,0,0.5)" />
+      <div style={{ width: 32, height: 32, borderRadius: 7, background: s.bg, border: `1px solid ${s.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Package size={14} color={s.color} />
       </div>
     )
   }
   return (
     <img src={src} alt={name} onError={() => setErr(true)}
-      style={{ width: 32, height: 32, borderRadius: 7, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.08)' }} />
+      style={{ width: 32, height: 32, borderRadius: 7, objectFit: 'cover', flexShrink: 0, border: `1px solid ${s.border}` }} />
   )
 }
 

@@ -2,17 +2,13 @@ import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion'
 import { ChevronLeft, ChevronRight, ShoppingCart, Check, Package } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
+import { getCatStyle as _getCat } from '../lib/catColors.js'
 
-/* Couleur par catégorie — extensible automatiquement */
-const CAT_COLORS = {
-  'Finger Sleeve': { color: '#ca8a04', colorBg: 'rgba(202,138,4,0.1)', colorBorder: 'rgba(202,138,4,0.25)' },
-  'Ventilateur':   { color: '#CC5500', colorBg: 'rgba(204,85,0,0.1)',  colorBorder: 'rgba(204,85,0,0.25)'  },
-  'Câble':         { color: '#60a5fa', colorBg: 'rgba(96,165,250,0.1)', colorBorder: 'rgba(96,165,250,0.25)' },
-  'Manette':       { color: '#a78bfa', colorBg: 'rgba(167,139,250,0.1)', colorBorder: 'rgba(167,139,250,0.25)' },
-  'Accessoire':    { color: '#34d399', colorBg: 'rgba(52,211,153,0.1)', colorBorder: 'rgba(52,211,153,0.25)' },
+/* Adapte le format { color, bg, border } → { color, colorBg, colorBorder } */
+const getCatStyle = (cat) => {
+  const s = _getCat(cat)
+  return { color: s.color, colorBg: s.bg, colorBorder: s.border }
 }
-const DEFAULT_COLOR = { color: '#f0f0f5', colorBg: 'rgba(255,255,255,0.06)', colorBorder: 'rgba(255,255,255,0.15)' }
-const getCatStyle = (cat) => CAT_COLORS[cat] || DEFAULT_COLOR
 
 const COLS = 3
 const ROWS = 2
