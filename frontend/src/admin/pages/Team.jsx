@@ -11,7 +11,8 @@ const ANIM_STYLE = `
   to   { opacity: 1; transform: translateY(0); }
 }
 `
-const empty = { name: '', role: '', description: '', photo: '', order_index: 0 }
+const empty        = { name: '', role: '', description: '', photo: '', order_index: 0 }
+const settingsDefs = { team_badge: 'Notre équipe', team_title: 'Les personnes derrière', team_subtitle: 'Une équipe passionnée au service de vos commandes à Madagascar.' }
 
 export default function TeamAdmin() {
   const [members,  setMembers]  = useState([])
@@ -25,11 +26,41 @@ export default function TeamAdmin() {
   const [dragOver,     setDragOver]     = useState(false)
   const fileInputRef = useRef(null)
 
+  const [sec,    setSec]    = useState(settingsDefs)
+  const [secBusy, setSecBusy] = useState(false)
+  const [secMsg,  setSecMsg]  = useState(null)
+
   const load = () =>
     fetch(`${BASE}/admin/team`, { headers: h() })
       .then(r => r.json()).then(setMembers).catch(() => {})
 
-  useEffect(() => { load() }, [])
+  const loadSettings = () =>
+    fetch(`${BASE}/admin/settings`, { headers: h() })
+      .then(r => r.json())
+      .then(data => setSec({
+        team_badge:    data.team_badge    ?? settingsDefs.team_badge,
+        team_title:    data.team_title    ?? settingsDefs.team_title,
+        team_subtitle: data.team_subtitle ?? settingsDefs.team_subtitle,
+      }))
+      .catch(() => {})
+
+  useEffect(() => { load(); loadSettings() }, [])
+
+  const saveSection = async (e) => {
+    e.preventDefault(); setSecBusy(true); setSecMsg(null)
+    try {
+      const res = await fetch(`${BASE}/admin/settings`, {
+        method: 'PUT', headers: h(),
+        body: JSON.stringify({ settings: Object.entries(sec).map(([key, value]) => ({ key, value })) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setSecMsg({ type: 'ok', text: 'Enregistré !' })
+      setTimeout(() => setSecMsg(null), 2500)
+    } catch (err) {
+      setSecMsg({ type: 'err', text: err.message })
+    } finally { setSecBusy(false) }
+  }
 
   const openAdd = () => {
     setForm(empty); setModal('add'); setMsg(null)
@@ -101,6 +132,54 @@ export default function TeamAdmin() {
   return (
     <div>
       <style>{ANIM_STYLE}</style>
+
+      {/* Section heading editor */}
+      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: '18px 20px', marginBottom: 24 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 3, height: 14, background: '#FF9900', borderRadius: 99, display: 'inline-block' }} />
+          Contenu de la section
+        </div>
+        <form onSubmit={saveSection}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={labelStyle}>Badge</label>
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '9px 12px' }}>
+                <input value={sec.team_badge} onChange={e => setSec(s => ({ ...s, team_badge: e.target.value }))}
+                  style={inp} placeholder="Notre équipe" />
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>Titre <span style={{ color: 'rgba(240,240,245,0.3)', textTransform: 'none', letterSpacing: 0, fontWeight: 500 }}>+ "VaRyGasy" en orange</span></label>
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '9px 12px' }}>
+                <input value={sec.team_title} onChange={e => setSec(s => ({ ...s, team_title: e.target.value }))}
+                  style={inp} placeholder="Les personnes derrière" />
+              </div>
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelStyle}>Sous-titre</label>
+            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '9px 12px' }}>
+              <input value={sec.team_subtitle} onChange={e => setSec(s => ({ ...s, team_subtitle: e.target.value }))}
+                style={inp} placeholder="Une équipe passionnée…" />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button type="submit" disabled={secBusy}
+              style={{ ...btnPrimary, opacity: secBusy ? 0.7 : 1, padding: '8px 16px', fontSize: 12 }}>
+              {secBusy ? '…' : 'Enregistrer'}
+            </button>
+            {secMsg && (
+              <span style={{ fontSize: 12, fontWeight: 600, color: secMsg.type === 'ok' ? '#22c55e' : '#f87171', display: 'flex', alignItems: 'center', gap: 5 }}>
+                {secMsg.type === 'ok' ? <Check size={12} /> : <AlertCircle size={12} />} {secMsg.text}
+              </span>
+            )}
+            {/* Live preview */}
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(240,240,245,0.25)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {sec.team_title} <span style={{ color: '#FF9900' }}>VaRyGasy</span>
+            </span>
+          </div>
+        </form>
+      </div>
 
       {/* Top bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>

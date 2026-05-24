@@ -44,8 +44,9 @@ CREATE TABLE IF NOT EXISTS orders (
   transfer_phone VARCHAR(30),
   transfer_name  VARCHAR(100),
   transfer_id    VARCHAR(100),
-  status         VARCHAR(50)   DEFAULT 'En attente',
-  created_at     TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  status             VARCHAR(50)   DEFAULT 'En attente',
+  payment_confirmed  TINYINT(1)    DEFAULT 0,
+  created_at         TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -92,7 +93,10 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('whatsapp',       ''),
   ('business_hours', ''),
   ('reassurance_text', 'Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours'),
-  ('marquee_items',  '[{"text":"Finger Sleeves Gaming dispo maintenant"},{"text":"Livraison 24h sur Antananarivo"},{"text":"+1 200 gamers équipés à Madagascar"},{"text":"Ventilateurs Turbo — stock limité"},{"text":"Garantie 6 mois sur tous les produits"},{"text":"Support WhatsApp 7j/7 — réponse en 5 min"}]');
+  ('marquee_items',  '[{"text":"Finger Sleeves Gaming dispo maintenant"},{"text":"Livraison 24h sur Antananarivo"},{"text":"+1 200 gamers équipés à Madagascar"},{"text":"Ventilateurs Turbo — stock limité"},{"text":"Garantie 6 mois sur tous les produits"},{"text":"Support WhatsApp 7j/7 — réponse en 5 min"}]'),
+  ('team_badge',    'Notre équipe'),
+  ('team_title',    'Les personnes derrière'),
+  ('team_subtitle', 'Une équipe passionnée au service de vos commandes à Madagascar.');
 
 -- ── team_members ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS team_members (

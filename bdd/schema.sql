@@ -99,7 +99,10 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('delivery_fee_tana',         '3000'),
   ('delivery_fee_peripherique', '5000'),
   ('whatsapp',                  ''),
-  ('business_hours',            '');
+  ('business_hours',            ''),
+  ('team_badge',                'Notre équipe'),
+  ('team_title',                'Les personnes derrière'),
+  ('team_subtitle',             'Une équipe passionnée au service de vos commandes à Madagascar.');
 
 -- ── team_members ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS team_members (

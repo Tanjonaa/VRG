@@ -1,18 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion'
 
+const DEFAULTS = {
+  team_badge:    'Notre équipe',
+  team_title:    'Les personnes derrière',
+  team_subtitle: 'Une équipe passionnée au service de vos commandes à Madagascar.',
+}
+
 export default function Team() {
-  const [members, setMembers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [members,  setMembers]  = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [settings, setSettings] = useState(DEFAULTS)
 
   useEffect(() => {
-    fetch('/api/team')
-      .then(r => r.json())
-      .then(data => { setMembers(data); setLoading(false) })
-      .catch(() => setLoading(false))
+    Promise.all([
+      fetch('/api/team').then(r => r.json()),
+      fetch('/api/settings').then(r => r.json()),
+    ]).then(([data, cfg]) => {
+      setMembers(data)
+      setSettings({ ...DEFAULTS, ...cfg })
+      setLoading(false)
+    }).catch(() => setLoading(false))
   }, [])
 
   if (!loading && members.length === 0) return null
+
+  const badge    = settings.team_badge    || DEFAULTS.team_badge
+  const title    = settings.team_title    || DEFAULTS.team_title
+  const subtitle = settings.team_subtitle || DEFAULTS.team_subtitle
 
   return (
     <section style={{ position: 'relative', padding: '120px 24px', overflow: 'hidden' }}>
@@ -28,13 +43,13 @@ export default function Team() {
           style={{ textAlign: 'center', marginBottom: 56 }}
         >
           <div style={{ display: 'inline-block', background: 'rgba(202,138,4,0.12)', border: '1px solid rgba(202,138,4,0.25)', borderRadius: 99, padding: '5px 16px', fontSize: 12, fontWeight: 600, color: '#fbbf24', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 20 }}>
-            Notre équipe
+            {badge}
           </div>
           <h2 style={{ fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 700, letterSpacing: '-0.03em', color: '#f0f0f5', lineHeight: 1.15, marginBottom: 16 }}>
-            Les personnes derrière{' '}<span style={{ color: '#FF9900' }}>VaRyGasy</span>
+            {title}{' '}<span style={{ color: '#FF9900' }}>VaRyGasy</span>
           </h2>
           <p style={{ fontSize: 16, color: 'rgba(240,240,245,0.45)', maxWidth: 480, margin: '0 auto', lineHeight: 1.65 }}>
-            Une équipe passionnée au service de vos commandes à Madagascar.
+            {subtitle}
           </p>
         </motion.div>
 
