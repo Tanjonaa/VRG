@@ -458,4 +458,59 @@ app.put('/admin/settings', adminAuth, async (req, res) => {
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
+/* ── GET /team (public) ──────────────────────────────────── */
+app.get('/team', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT id, name, role, description, photo FROM team_members WHERE active=1 ORDER BY order_index ASC, id ASC'
+    )
+    res.json(rows)
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── GET /admin/team ─────────────────────────────────────── */
+app.get('/admin/team', adminAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT * FROM team_members ORDER BY order_index ASC, id ASC'
+    )
+    res.json(rows)
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── POST /admin/team ────────────────────────────────────── */
+app.post('/admin/team', adminAuth, async (req, res) => {
+  const { name, role, description, photo, order_index } = req.body
+  if (!name) return res.status(400).json({ error: 'Nom requis' })
+  try {
+    const [r] = await pool.execute(
+      'INSERT INTO team_members (name, role, description, photo, order_index) VALUES (?, ?, ?, ?, ?)',
+      [name, role || null, description || null, photo || null, order_index || 0]
+    )
+    res.json({ id: r.insertId })
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── PUT /admin/team/:id ─────────────────────────────────── */
+app.put('/admin/team/:id', adminAuth, async (req, res) => {
+  const { name, role, description, photo, order_index, active } = req.body
+  if (!name) return res.status(400).json({ error: 'Nom requis' })
+  try {
+    await pool.execute(
+      'UPDATE team_members SET name=?, role=?, description=?, photo=?, order_index=?, active=? WHERE id=?',
+      [name, role || null, description || null, photo || null, order_index || 0,
+       active !== undefined ? (active ? 1 : 0) : 1, req.params.id]
+    )
+    res.json({ ok: true })
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── DELETE /admin/team/:id (soft delete) ────────────────── */
+app.delete('/admin/team/:id', adminAuth, async (req, res) => {
+  try {
+    await pool.execute('UPDATE team_members SET active=0 WHERE id=?', [req.params.id])
+    res.json({ ok: true })
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
 app.listen(4000, () => console.log('VRG API → port 4000'))

@@ -101,12 +101,27 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('whatsapp',                  ''),
   ('business_hours',            '');
 
+-- ── team_members ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS team_members (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(100) NOT NULL,
+  role        VARCHAR(100),                        -- ex: Fondateur & CEO
+  description TEXT,
+  photo       VARCHAR(255),                        -- /images/uploads/<fichier>
+  order_index INT          NOT NULL DEFAULT 0,     -- tri croissant (0 = premier)
+  active      TINYINT(1)  DEFAULT 1,              -- 0 = archivé (soft delete)
+  created_at  TIMESTAMP   DEFAULT CURRENT_TIMESTAMP
+  -- Routes : GET /api/team (public) · CRUD /api/admin/team (adminAuth)
+  -- Photo servie via volume Docker uploads (même pipeline que products)
+);
+
 -- ── Index ────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_referrals_ref ON referrals(referrer_id);
 CREATE INDEX IF NOT EXISTS idx_products_cat  ON products(category);
 CREATE INDEX IF NOT EXISTS idx_products_act  ON products(active);
+CREATE INDEX IF NOT EXISTS idx_team_order    ON team_members(active, order_index);
 
 -- ============================================================
 -- Règles métier (appliquées côté API — backend/index.js)

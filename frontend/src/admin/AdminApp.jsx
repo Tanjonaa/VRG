@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, LogOut, Menu, X, Bell } from 'lucide-react'
-import Dashboard   from './pages/Dashboard.jsx'
-import Products    from './pages/Products.jsx'
-import Orders      from './pages/Orders.jsx'
-import UsersPage   from './pages/Users.jsx'
-import Stocks      from './pages/Stocks.jsx'
+import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, LogOut, Menu, X, Bell } from 'lucide-react'
+import Dashboard    from './pages/Dashboard.jsx'
+import Products     from './pages/Products.jsx'
+import Orders       from './pages/Orders.jsx'
+import UsersPage    from './pages/Users.jsx'
+import Stocks       from './pages/Stocks.jsx'
 import SettingsPage from './pages/Settings.jsx'
-import AdminLogin  from './AdminLogin.jsx'
+import TeamAdmin    from './pages/Team.jsx'
+import AdminLogin   from './AdminLogin.jsx'
 
 const NAV = [
   { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
@@ -14,6 +15,7 @@ const NAV = [
   { id: 'orders',    label: 'Commandes',        icon: ShoppingBag },
   { id: 'users',     label: 'Clients',          icon: Users },
   { id: 'stocks',    label: 'Stocks',           icon: BarChart3 },
+  { id: 'team',      label: 'Équipe',           icon: UserSquare2 },
   { id: 'settings',  label: 'Paramètres',       icon: Settings2 },
 ]
 
@@ -74,7 +76,7 @@ export default function AdminApp() {
 
   if (!user) return <AdminLogin onLogin={login} />
 
-  const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: UsersPage, stocks: Stocks, settings: SettingsPage }[page]
+  const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: UsersPage, stocks: Stocks, team: TeamAdmin, settings: SettingsPage }[page]
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#07070f', color: '#f0f0f5', fontFamily: 'system-ui, sans-serif' }}>

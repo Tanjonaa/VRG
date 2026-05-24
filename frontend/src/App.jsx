@@ -9,6 +9,7 @@ import Features from './components/Features.jsx'
 import Products from './components/Products.jsx'
 import Gallery from './components/Gallery.jsx'
 import Pricing from './components/Pricing.jsx'
+import Team from './components/Team.jsx'
 import CTA from './components/CTA.jsx'
 import Footer from './components/Footer.jsx'
 import ScrollProgress from './components/ScrollProgress.jsx'
@@ -45,6 +46,7 @@ function AppInner() {
         <Products />
         <Gallery />
         <Pricing />
+        <Team />
         <CTA />
       </main>
       <Footer />
