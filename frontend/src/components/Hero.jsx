@@ -2,6 +2,7 @@ import React, { useRef } from 'react'
 import { motion, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion'
 import { ArrowRight, ChevronDown, Star, Zap, Shield, Cpu, Flame } from 'lucide-react'
 import Particles from './Particles.jsx'
+import { useSettings } from '../hooks/useSettings.js'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 32 },
@@ -11,11 +12,23 @@ const fadeUp = {
   }),
 }
 
+const DEFAULT_HERO = {
+  badge:          '🔥 Livraison gratuite ce weekend — Antananarivo',
+  title_1:        'Domine le jeu mobile.',
+  title_2:        'Équipe-toi maintenant.',
+  subtitle:       'Finger sleeves anti-transpiration, ventilateurs de refroidissement et accessoires gaming pour dominer sur PUBG Mobile, Free Fire et MLBB — livrés chez toi à Madagascar.',
+  btn_primary:    'Commander via WhatsApp',
+  btn_secondary:  'Voir les produits',
+  social_proof:   '+1 200 gamers équipés à Madagascar',
+}
+
 export default function Hero() {
   const ref = useRef(null)
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })
   const y = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
   const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0])
+  const settings = useSettings()
+  const hero = (() => { try { return settings.hero_content ? { ...DEFAULT_HERO, ...JSON.parse(settings.hero_content) } : DEFAULT_HERO } catch { return DEFAULT_HERO } })()
 
   return (
     <section ref={ref} style={{
@@ -32,14 +45,12 @@ export default function Hero() {
       <FloatingIcon icon={Shield} x="6%" y="70%" delay={3}   color="#0ea5e9" />
       <FloatingIcon icon={Flame} x="90%" y="65%" delay={2}   color="#ca8a04" />
 
-      {/* Noise */}
       <div style={{
         position: 'absolute', inset: 0, zIndex: 1,
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E")`,
         backgroundRepeat: 'repeat', pointerEvents: 'none', opacity: 0.4,
       }} />
 
-      {/* Floating product images */}
       <FloatingProductImg src="/images/finger-sleeve/finger-sleeve-09.webp" side="left"  delay={1.2} accentColor="#ca8a04" />
       <FloatingProductImg src="/images/fan/fan-02.webp"                     side="right" delay={1.5} accentColor="#CC5500" />
 
@@ -52,7 +63,7 @@ export default function Hero() {
           color: '#fbbf24', marginBottom: 28, backdropFilter: 'blur(8px)',
         }}>
           <Flame size={13} fill="#fbbf24" />
-          🔥 Livraison gratuite ce weekend — Antananarivo
+          {hero.badge}
         </motion.div>
 
         {/* Headline */}
@@ -60,9 +71,9 @@ export default function Hero() {
           fontSize: 'clamp(40px, 7vw, 78px)', fontWeight: 700,
           lineHeight: 1.08, letterSpacing: '-0.03em', marginBottom: 24, color: '#f0f0f5',
         }}>
-          Domine le jeu mobile.{' '}
+          {hero.title_1}{' '}
           <span style={{ color: '#FF9900' }}>
-            Équipe-toi maintenant.
+            {hero.title_2}
           </span>
         </motion.h1>
 
@@ -71,8 +82,7 @@ export default function Hero() {
           fontSize: 'clamp(16px, 2.5vw, 20px)', color: 'rgba(240,240,245,0.6)',
           lineHeight: 1.65, maxWidth: 580, margin: '0 auto 40px', fontWeight: 400,
         }}>
-          Finger sleeves anti-transpiration, ventilateurs de refroidissement et accessoires gaming
-          pour dominer sur PUBG Mobile, Free Fire et MLBB — livrés chez toi à Madagascar.
+          {hero.subtitle}
         </motion.p>
 
         {/* CTAs */}
@@ -84,7 +94,7 @@ export default function Hero() {
             color: '#fff', border: 'none', borderRadius: 12,
             padding: '15px 28px', fontSize: 16, fontWeight: 600, cursor: 'pointer', letterSpacing: '-0.01em',
           }}>
-            Commander via WhatsApp <ArrowRight size={18} />
+            {hero.btn_primary} <ArrowRight size={18} />
           </MagneticButton>
           <MagneticButton style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -92,7 +102,7 @@ export default function Hero() {
             border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12,
             padding: '15px 28px', fontSize: 16, fontWeight: 500, cursor: 'pointer', backdropFilter: 'blur(8px)',
           }}>
-            Voir les produits
+            {hero.btn_secondary}
           </MagneticButton>
         </motion.div>
 
@@ -115,13 +125,13 @@ export default function Hero() {
               {[...Array(5)].map((_, i) => <Star key={i} size={14} fill="#fbbf24" color="#fbbf24" />)}
             </div>
             <p style={{ fontSize: 13, color: 'rgba(240,240,245,0.55)', margin: 0 }}>
-              <strong style={{ color: 'rgba(240,240,245,0.85)' }}>+1 200 gamers</strong> équipés à Madagascar
+              <strong style={{ color: 'rgba(240,240,245,0.85)' }}>{hero.social_proof.split(' ').slice(0,2).join(' ')}</strong>{' '}
+              {hero.social_proof.split(' ').slice(2).join(' ')}
             </p>
           </div>
         </motion.div>
       </motion.div>
 
-      {/* Scroll indicator */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 2, duration: 0.8 }}
         style={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 2 }}>
@@ -139,22 +149,12 @@ function FloatingProductImg({ src, side, delay, accentColor }) {
       initial={{ opacity: 0, x: side === 'left' ? -80 : 80, rotate: side === 'left' ? -12 : 12 }}
       animate={{ opacity: 1, x: 0, rotate: side === 'left' ? -6 : 6 }}
       transition={{ delay, duration: 1, ease: [0.16, 1, 0.3, 1] }}
-      style={{
-        position: 'absolute', [side]: '2%', bottom: '12%',
-        zIndex: 2, pointerEvents: 'none',
-        width: 'clamp(110px, 13vw, 190px)',
-      }}
+      style={{ position: 'absolute', [side]: '2%', bottom: '12%', zIndex: 2, pointerEvents: 'none', width: 'clamp(110px, 13vw, 190px)' }}
     >
-      <motion.img
-        src={src} alt="produit"
+      <motion.img src={src} alt="produit"
         animate={{ y: [0, -12, 0] }}
         transition={{ duration: 5 + Math.random(), repeat: Infinity, ease: 'easeInOut' }}
-        style={{
-          width: '100%', borderRadius: 16,
-          border: `1px solid ${accentColor}40`,
-          boxShadow: `0 20px 60px rgba(0,0,0,0.5), 0 0 30px ${accentColor}25`,
-          objectFit: 'cover', aspectRatio: '1/1',
-        }}
+        style={{ width: '100%', borderRadius: 16, border: `1px solid ${accentColor}40`, boxShadow: `0 20px 60px rgba(0,0,0,0.5), 0 0 30px ${accentColor}25`, objectFit: 'cover', aspectRatio: '1/1' }}
       />
     </motion.div>
   )
@@ -190,12 +190,7 @@ function FloatingIcon({ icon: Icon, x, y, delay, color }) {
       <motion.div
         animate={{ y: [0, -14, 0], rotate: [0, 8, -8, 0] }}
         transition={{ duration: 4 + Math.random() * 2, repeat: Infinity, ease: 'easeInOut', delay: delay * 0.5 }}
-        style={{
-          width: 44, height: 44, borderRadius: 12,
-          background: `${color}18`, border: `1px solid ${color}35`,
-          backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
+        style={{ width: 44, height: 44, borderRadius: 12, background: `${color}18`, border: `1px solid ${color}35`, backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Icon size={20} color={color} strokeWidth={1.8} />
       </motion.div>
     </motion.div>
@@ -208,16 +203,13 @@ function GradientBg() {
       <div style={{ position: 'absolute', inset: 0, background: '#080810' }} />
       <motion.div animate={{ x: ['0%','15%','-10%','5%','0%'], y: ['0%','-20%','10%','-5%','0%'], scale: [1,1.15,0.95,1.05,1] }}
         transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
-        style={{ position: 'absolute', top: '-20%', left: '-10%', width: '70vw', height: '70vw', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(202,138,4,0.22) 0%, rgba(202,138,4,0.05) 50%, transparent 70%)', filter: 'blur(60px)' }} />
+        style={{ position: 'absolute', top: '-20%', left: '-10%', width: '70vw', height: '70vw', borderRadius: '50%', background: 'radial-gradient(circle, rgba(202,138,4,0.22) 0%, rgba(202,138,4,0.05) 50%, transparent 70%)', filter: 'blur(60px)' }} />
       <motion.div animate={{ x: ['0%','-12%','8%','-4%','0%'], y: ['0%','15%','-12%','6%','0%'], scale: [1,0.9,1.1,0.95,1] }}
         transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-        style={{ position: 'absolute', top: '10%', right: '-15%', width: '60vw', height: '60vw', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(204,85,0,0.2) 0%, rgba(204,85,0,0.05) 50%, transparent 70%)', filter: 'blur(60px)' }} />
+        style={{ position: 'absolute', top: '10%', right: '-15%', width: '60vw', height: '60vw', borderRadius: '50%', background: 'radial-gradient(circle, rgba(204,85,0,0.2) 0%, rgba(204,85,0,0.05) 50%, transparent 70%)', filter: 'blur(60px)' }} />
       <motion.div animate={{ x: ['0%','8%','-15%','3%','0%'], y: ['0%','-8%','18%','-3%','0%'], scale: [1,1.2,0.85,1.1,1] }}
         transition={{ duration: 30, repeat: Infinity, ease: 'easeInOut', delay: 5 }}
-        style={{ position: 'absolute', bottom: '-10%', left: '20%', width: '50vw', height: '50vw', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(37,99,235,0.15) 0%, rgba(37,99,235,0.04) 50%, transparent 70%)', filter: 'blur(60px)' }} />
+        style={{ position: 'absolute', bottom: '-10%', left: '20%', width: '50vw', height: '50vw', borderRadius: '50%', background: 'radial-gradient(circle, rgba(37,99,235,0.15) 0%, rgba(37,99,235,0.04) 50%, transparent 70%)', filter: 'blur(60px)' }} />
       <div style={{
         position: 'absolute', inset: 0,
         backgroundImage: `linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)`,

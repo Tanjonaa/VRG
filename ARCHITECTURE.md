@@ -76,6 +76,7 @@ VRG/
 │   │   │   ├── Features.jsx
 │   │   │   ├── Gallery.jsx
 │   │   │   ├── Pricing.jsx
+│   │   │   ├── Team.jsx             ← section équipe (charge /api/team, auto-cachée si vide)
 │   │   │   ├── CTA.jsx
 │   │   │   ├── Footer.jsx
 │   │   │   ├── Marquee.jsx
@@ -92,7 +93,9 @@ VRG/
 │   │   │       ├── Products.jsx     CRUD articles (filtre catégorie, recherche, scroll)
 │   │   │       ├── Orders.jsx       gestion commandes (filtre statut, accordion détail)
 │   │   │       ├── Users.jsx        liste clients/staff, changement de rôle
-│   │   │       └── Stocks.jsx       alertes rupture, édition stock inline
+│   │   │       ├── Stocks.jsx       alertes rupture, édition stock inline
+│   │   │       ├── Team.jsx         CRUD membres de l'équipe (photo, nom, rôle, ordre)
+│   │   │       └── Settings.jsx     paramètres site (bandeau, frais livraison, contacts)
 │   │   │
 │   │   ├── context/
 │   │   │   ├── AuthContext.jsx      utilisateur connecté, commandes, updateProfile
@@ -180,6 +183,7 @@ VRG/
 | `POST` | `/auth/login` | Connexion → retourne JWT |
 | `GET` | `/products` | Liste des produits actifs (catalogue client) |
 | `POST` | `/visits` | Incrémente le compteur de visites du jour |
+| `GET` | `/team` | Membres de l'équipe actifs (triés par `order_index`) |
 
 ### Protégées client (JWT requis)
 
@@ -208,6 +212,12 @@ VRG/
 | `PUT` | `/admin/users/:id` | Changer le rôle d'un utilisateur (admin only) |
 | `GET` | `/admin/stocks` | Produits actifs avec niveau de stock |
 | `PUT` | `/admin/stocks/:id` | Mettre à jour le stock d'un produit |
+| `GET` | `/admin/team` | Tous les membres équipe (actifs + archivés) |
+| `POST` | `/admin/team` | Ajouter un membre |
+| `PUT` | `/admin/team/:id` | Modifier un membre (nom, rôle, description, photo, ordre) |
+| `DELETE` | `/admin/team/:id` | Archiver un membre (soft delete `active=0`) |
+| `GET` | `/admin/settings` | Lire tous les paramètres site |
+| `PUT` | `/admin/settings` | Modifier un ou plusieurs paramètres (body `{ key, value }[]`) |
 
 Header requis pour routes protégées :
 ```
@@ -283,6 +293,26 @@ Dropdown sombre réutilisable pour tous les selects du panneau admin.
 
 ---
 
+## Section Équipe
+
+La section équipe est entièrement dynamique : aucune donnée hardcodée.
+
+**Côté client (`components/Team.jsx`)** :
+- Appelle `GET /api/team` au montage
+- Si la réponse est vide, le composant retourne `null` — la section est absente du DOM
+- Si des membres existent, affiche des cards glassmorphism avec hover 3D (Framer Motion : `rotateX/Y` spring, mouse-follow glow)
+- Chaque card : photo 4/3 avec scale hover, badge rôle orange, nom, description, fallback initiales si pas de photo
+- Animations en stagger (délai `index × 0.08s`)
+
+**Côté admin (`admin/pages/Team.jsx`)** :
+- Table : photo circulaire, nom, rôle, ordre, badge actif/archivé, actions edit/archive
+- Modal : upload drag-and-drop photo (même pipeline multer que produits), champs nom/rôle/description/ordre
+- Soft delete : `DELETE /api/admin/team/:id` → `UPDATE team_members SET active=0`
+
+**Règle** : ajouter un membre dans l'admin → visible immédiatement côté client sans rebuild.
+
+---
+
 ## Schéma base de données
 
 ```
@@ -351,6 +381,17 @@ Clés pré-insérées :
   announcement_active / announcement_text / announcement_color
   delivery_fee_tana / delivery_fee_peripherique
   whatsapp / business_hours
+  reassurance_text / marquee_items
+
+team_members
+├── id          INT  PK AUTO_INCREMENT
+├── name        VARCHAR(100)            ← nom complet
+├── role        VARCHAR(100)            ← ex : Fondateur & CEO
+├── description TEXT                    ← biographie courte
+├── photo       VARCHAR(255)            ← /images/uploads/<fichier> (même pipeline produits)
+├── order_index INT                     ← tri croissant (0 = premier affiché)
+├── active      TINYINT(1)              ← 0 = archivé (invisible côté client)
+└── created_at  TIMESTAMP
 ```
 
 ---
