@@ -8,7 +8,7 @@ RUN npm run build
 
 # ── Stage 2 : production (nginx + Node.js) ──────────────
 FROM node:22-alpine
-RUN apk add --no-cache nginx
+RUN apk add --no-cache nginx && mkdir -p /etc/nginx/conf.d /usr/share/nginx/html
 
 # Backend
 WORKDIR /app
