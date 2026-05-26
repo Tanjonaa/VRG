@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, History, LogOut, Menu, X, Bell } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell } from 'lucide-react'
 import Dashboard    from './pages/Dashboard.jsx'
 import Products     from './pages/Products.jsx'
 import Orders       from './pages/Orders.jsx'
@@ -18,7 +18,7 @@ const NAV = [
   { id: 'team',      label: 'Équipe',           icon: UserSquare2 },
   { id: 'settings',  label: 'Paramètres',       icon: Settings2 },
   { id: 'users',     label: 'Clients',          icon: Users },
-  { id: 'logs',      label: 'Historique',       icon: History },
+  { id: 'logs',      label: 'Historique',       icon: Scroll },
 ]
 
 function useAdminAuth() {

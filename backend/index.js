@@ -352,6 +352,7 @@ app.post('/admin/products', adminAuth, async (req, res) => {
       [name.trim(), description || '', price, category || '', stock || 0, JSON.stringify(images || [])]
     )
     const [rows] = await pool.execute('SELECT * FROM products WHERE id = ?', [r.insertId])
+    await writeLog(req.user.id, req.user.name, 'product_add', 'product', r.insertId, name.trim(), null, category || null)
     res.json(rows[0])
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
@@ -360,6 +361,7 @@ app.post('/admin/products', adminAuth, async (req, res) => {
 app.put('/admin/products/:id', adminAuth, async (req, res) => {
   const { name, description, price, category, stock, images, active } = req.body
   try {
+    const [[prev]] = await pool.execute('SELECT name, category FROM products WHERE id=?', [req.params.id])
     await pool.execute(
       `UPDATE products SET name=COALESCE(?,name), description=COALESCE(?,description),
        price=COALESCE(?,price), category=COALESCE(?,category), stock=COALESCE(?,stock),
@@ -368,6 +370,8 @@ app.put('/admin/products/:id', adminAuth, async (req, res) => {
        images ? JSON.stringify(images) : null, active??null, req.params.id]
     )
     const [rows] = await pool.execute('SELECT * FROM products WHERE id = ?', [req.params.id])
+    await writeLog(req.user.id, req.user.name, 'product_edit', 'product', req.params.id,
+      name || (prev ? prev.name : '—'), prev ? prev.category : null, category || null)
     res.json(rows[0])
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
@@ -375,7 +379,10 @@ app.put('/admin/products/:id', adminAuth, async (req, res) => {
 /* ── DELETE /admin/products/:id ──────────────────────── */
 app.delete('/admin/products/:id', adminAuth, async (req, res) => {
   try {
+    const [[prev]] = await pool.execute('SELECT name, category FROM products WHERE id=?', [req.params.id])
     await pool.execute('UPDATE products SET active=0 WHERE id=?', [req.params.id])
+    await writeLog(req.user.id, req.user.name, 'product_archive', 'product', req.params.id,
+      prev ? prev.name : '—', 'actif', 'archivé')
     res.json({ ok: true })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
@@ -399,9 +406,24 @@ app.get('/admin/orders', adminAuth, async (req, res) => {
 app.put('/admin/orders/:id', adminAuth, async (req, res) => {
   const { status, payment_confirmed } = req.body
   try {
+    const [[prev]] = await pool.execute(
+      'SELECT o.status, o.payment_confirmed, u.name as user_name FROM orders o JOIN users u ON u.id=o.user_id WHERE o.id=?',
+      [req.params.id]
+    )
     if (status) await pool.execute('UPDATE orders SET status=? WHERE id=?', [status, req.params.id])
     if (payment_confirmed !== undefined)
       await pool.execute('UPDATE orders SET payment_confirmed=? WHERE id=?', [payment_confirmed ? 1 : 0, req.params.id])
+    if (prev) {
+      if (status && status !== prev.status)
+        await writeLog(req.user.id, req.user.name, 'order_status', 'order', req.params.id,
+          `Commande #${req.params.id} (${prev.user_name})`, prev.status, status)
+      if (payment_confirmed !== undefined) {
+        const oldPay = prev.payment_confirmed ? 'confirmé' : 'non confirmé'
+        const newPay = payment_confirmed ? 'confirmé' : 'non confirmé'
+        await writeLog(req.user.id, req.user.name, 'order_payment', 'order', req.params.id,
+          `Commande #${req.params.id} (${prev.user_name})`, oldPay, newPay)
+      }
+    }
     res.json({ ok: true, status, payment_confirmed })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
@@ -484,7 +506,10 @@ app.put('/admin/stocks/:id', adminAuth, async (req, res) => {
   const { stock } = req.body
   if (stock === undefined) return res.status(400).json({ error: 'Stock requis' })
   try {
+    const [[prev]] = await pool.execute('SELECT name, stock FROM products WHERE id=?', [req.params.id])
     await pool.execute('UPDATE products SET stock=? WHERE id=?', [stock, req.params.id])
+    await writeLog(req.user.id, req.user.name, 'stock_update', 'product', req.params.id,
+      prev ? prev.name : '—', prev ? String(prev.stock) : null, String(stock))
     res.json({ ok: true, stock })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
@@ -516,10 +541,14 @@ app.put('/admin/settings', adminAuth, async (req, res) => {
     return res.status(400).json({ error: 'Données invalides' })
   try {
     for (const { key, value } of settings) {
+      const [[prev]] = await pool.execute('SELECT `value` FROM settings WHERE `key`=?', [key])
       await pool.execute(
         'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=?',
         [key, value, value]
       )
+      if (!prev || prev.value !== value)
+        await writeLog(req.user.id, req.user.name, 'settings_update', 'setting', 0, key,
+          prev ? prev.value : null, value)
     }
     res.json({ ok: true })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
