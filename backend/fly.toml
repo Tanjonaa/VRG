@@ -28,7 +28,7 @@ primary_region = "jnb"   # Johannesburg — plus proche de Madagascar
 [[mounts]]
   source       = "vrg_uploads"
   destination  = "/app/uploads"
-  initial_size = "1"
+  initial_size = 1
 
 [[vm]]
   memory   = "256mb"
