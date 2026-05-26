@@ -116,7 +116,7 @@ export default function Logs() {
       {/* Table */}
       <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 200px 140px 150px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px 130px 145px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
           {['Action', 'Cible', 'Avant → Après', 'Effectué par', 'Date'].map(col => (
             <div key={col} style={{ padding: '11px 16px', fontSize: 11, fontWeight: 700,
               color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
@@ -143,7 +143,7 @@ export default function Logs() {
             const { Icon } = meta
             return (
               <div key={row.id}
-                style={{ display: 'grid', gridTemplateColumns: '200px 1fr 200px 140px 150px',
+                style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px 130px 145px',
                   borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
                   transition: 'background 0.15s', fontSize: 13 }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
@@ -171,10 +171,10 @@ export default function Logs() {
                 </div>
 
                 {/* Avant → Après */}
-                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', overflow: 'hidden' }}>
                   <ValueChip value={row.old_value} />
                   {(row.old_value != null || row.new_value != null) && (
-                    <span style={{ color: 'rgba(240,240,245,0.2)', fontSize: 12 }}>→</span>
+                    <span style={{ color: 'rgba(240,240,245,0.2)', fontSize: 12, flexShrink: 0 }}>→</span>
                   )}
                   <ValueChip value={row.new_value} />
                 </div>

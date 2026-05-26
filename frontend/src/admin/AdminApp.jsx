@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell, MessageSquare } from 'lucide-react'
 import Dashboard    from './pages/Dashboard.jsx'
 import Products     from './pages/Products.jsx'
 import Orders       from './pages/Orders.jsx'
@@ -8,6 +8,7 @@ import Stocks       from './pages/Stocks.jsx'
 import SettingsPage from './pages/Settings.jsx'
 import TeamAdmin    from './pages/Team.jsx'
 import LogsPage     from './pages/Logs.jsx'
+import MsgsPage     from './pages/Msgs.jsx'
 import AdminLogin   from './AdminLogin.jsx'
 
 const NAV = [
@@ -19,6 +20,7 @@ const NAV = [
   { id: 'settings',  label: 'Paramètres',       icon: Settings2 },
   { id: 'users',     label: 'Clients',          icon: Users },
   { id: 'logs',      label: 'Historique',       icon: Scroll },
+  { id: 'msgs',      label: 'Messages',         icon: MessageSquare },
 ]
 
 function useAdminAuth() {
@@ -78,7 +80,7 @@ export default function AdminApp() {
 
   if (!user) return <AdminLogin onLogin={login} />
 
-  const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: UsersPage, stocks: Stocks, team: TeamAdmin, settings: SettingsPage, logs: LogsPage }[page]
+  const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: UsersPage, stocks: Stocks, team: TeamAdmin, settings: SettingsPage, logs: LogsPage, msgs: MsgsPage }[page]
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#07070f', color: '#f0f0f5', fontFamily: 'system-ui, sans-serif' }}>

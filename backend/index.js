@@ -1,4 +1,4 @@
-const express = require('express')
+﻿const express = require('express')
 const mysql   = require('mysql2/promise')
 const bcrypt  = require('bcryptjs')
 const jwt     = require('jsonwebtoken')
@@ -61,6 +61,43 @@ pool.execute(`
     INDEX idx_logs_created (created_at)
   )
 `).catch(() => {})
+
+/* ── Création tables chat ────────────────────────────────── */
+;(async () => {
+  try {
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS chat_rooms (
+        id        INT AUTO_INCREMENT PRIMARY KEY,
+        type      ENUM('admin_only','admin_mod','direct','support') NOT NULL,
+        name      VARCHAR(255),
+        client_id INT NULL,
+        created_at DATETIME DEFAULT NOW()
+      )
+    `)
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS chat_room_members (
+        room_id INT NOT NULL,
+        user_id INT NOT NULL,
+        PRIMARY KEY (room_id, user_id)
+      )
+    `)
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        room_id     INT NOT NULL,
+        sender_id   INT NOT NULL,
+        sender_name VARCHAR(255) NOT NULL,
+        body        TEXT NOT NULL,
+        created_at  DATETIME DEFAULT NOW(),
+        INDEX idx_chat_room_date (room_id, created_at)
+      )
+    `)
+    const [[r1]] = await pool.execute("SELECT id FROM chat_rooms WHERE type='admin_only' LIMIT 1")
+    if (!r1) await pool.execute("INSERT INTO chat_rooms (type, name) VALUES ('admin_only', 'Admins')")
+    const [[r2]] = await pool.execute("SELECT id FROM chat_rooms WHERE type='admin_mod' LIMIT 1")
+    if (!r2) await pool.execute("INSERT INTO chat_rooms (type, name) VALUES ('admin_mod', 'Équipe')")
+  } catch {}
+})()
 
 /* ── Log helper ──────────────────────────────────────────── */
 async function writeLog(adminId, adminName, action, targetType, targetId, targetName, oldValue, newValue) {
@@ -241,6 +278,12 @@ app.post('/orders', auth, async (req, res) => {
       for (const item of items) {
         await conn.execute('INSERT INTO order_items (order_id, name, qty, price) VALUES (?, ?, ?, ?)',
           [orderId, item.name, item.qty, item.price])
+        if (item.id) {
+          await conn.execute(
+            'UPDATE products SET stock = GREATEST(0, stock - ?) WHERE id = ?',
+            [item.qty, item.id]
+          )
+        }
       }
     }
     await conn.commit()
@@ -314,7 +357,7 @@ app.post('/admin/upload', adminAuth, upload.single('image'), (req, res) => {
 app.get('/products', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT id, name, description, price, category, stock, images FROM products WHERE active=1 ORDER BY category, id'
+      'SELECT id, name, description, price, category, stock, images FROM products WHERE active=1 AND stock > 0 ORDER BY category, id'
     )
     const products = rows.map(p => ({
       ...p,
@@ -383,6 +426,17 @@ app.delete('/admin/products/:id', adminAuth, async (req, res) => {
     await pool.execute('UPDATE products SET active=0 WHERE id=?', [req.params.id])
     await writeLog(req.user.id, req.user.name, 'product_archive', 'product', req.params.id,
       prev ? prev.name : '—', 'actif', 'archivé')
+    res.json({ ok: true })
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── DELETE /admin/products/:id/permanent ────────────── */
+app.delete('/admin/products/:id/permanent', adminAuth, async (req, res) => {
+  try {
+    const [[prev]] = await pool.execute('SELECT name FROM products WHERE id=?', [req.params.id])
+    await pool.execute('DELETE FROM products WHERE id = ?', [req.params.id])
+    await writeLog(req.user.id, req.user.name, 'product_delete', 'product', req.params.id,
+      prev ? prev.name : '—', null, null)
     res.json({ ok: true })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
@@ -638,4 +692,188 @@ app.get('/admin/logs', adminAuth, async (req, res) => {
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
-app.listen(4000, () => console.log('VRG API → port 4000'))
+/* ═══════════════════════════════════════════════════════════
+   CHAT — routes admin
+   ═══════════════════════════════════════════════════════════ */
+
+/* GET /admin/chat/rooms — liste des salons accessibles */
+app.get('/admin/chat/rooms', adminAuth, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin'
+    const [fixed] = await pool.execute(
+      isAdmin
+        ? "SELECT id, type, name FROM chat_rooms WHERE type IN ('admin_only','admin_mod') ORDER BY id"
+        : "SELECT id, type, name FROM chat_rooms WHERE type='admin_mod' ORDER BY id"
+    )
+    const [directs] = await pool.execute(`
+      SELECT cr.id, cr.type, cr.name,
+             u.name AS other_name, u.role AS other_role
+      FROM chat_rooms cr
+      JOIN chat_room_members m1 ON m1.room_id = cr.id AND m1.user_id = ?
+      JOIN chat_room_members m2 ON m2.room_id = cr.id AND m2.user_id != ?
+      JOIN users u ON u.id = m2.user_id
+      WHERE cr.type = 'direct'
+    `, [req.user.id, req.user.id])
+    const [supports] = await pool.execute(`
+      SELECT cr.id, cr.type, cr.name, cr.client_id,
+             (SELECT body FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_msg,
+             (SELECT created_at FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_at
+      FROM chat_rooms cr WHERE cr.type='support' ORDER BY last_at DESC
+    `)
+    res.json({ fixed, directs, supports })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* GET /admin/chat/rooms/:id/messages */
+app.get('/admin/chat/rooms/:id/messages', adminAuth, async (req, res) => {
+  try {
+    const { since, limit = 60 } = req.query
+    const roomId = Number(req.params.id)
+    const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [roomId])
+    if (!room) return res.status(404).json({ error: 'Salon introuvable' })
+    if (room.type === 'admin_only' && req.user.role !== 'admin')
+      return res.status(403).json({ error: 'Acces refuse' })
+    if (room.type === 'direct') {
+      const [[m]] = await pool.execute(
+        'SELECT 1 FROM chat_room_members WHERE room_id=? AND user_id=?', [roomId, req.user.id]
+      )
+      if (!m) return res.status(403).json({ error: 'Acces refuse' })
+    }
+    let query = 'SELECT * FROM chat_messages WHERE room_id=?'
+    const params = [roomId]
+    if (since) { query += ' AND created_at > ?'; params.push(since) }
+    query += ' ORDER BY created_at ASC LIMIT ?'
+    params.push(Number(limit))
+    const [rows] = await pool.execute(query, params)
+    res.json(rows)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* POST /admin/chat/rooms/:id/messages */
+app.post('/admin/chat/rooms/:id/messages', adminAuth, async (req, res) => {
+  const { body } = req.body
+  if (!body?.trim()) return res.status(400).json({ error: 'Message vide' })
+  try {
+    const roomId = Number(req.params.id)
+    const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [roomId])
+    if (!room) return res.status(404).json({ error: 'Salon introuvable' })
+    if (room.type === 'admin_only' && req.user.role !== 'admin')
+      return res.status(403).json({ error: 'Acces refuse' })
+    const [r] = await pool.execute(
+      'INSERT INTO chat_messages (room_id, sender_id, sender_name, body) VALUES (?,?,?,?)',
+      [roomId, req.user.id, req.user.name, body.trim()]
+    )
+    const [[msg]] = await pool.execute('SELECT * FROM chat_messages WHERE id=?', [r.insertId])
+    res.json(msg)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* GET /admin/chat/staff — liste du staff pour creer un DM */
+app.get('/admin/chat/staff', adminAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      "SELECT id, name, role FROM users WHERE role IN ('admin','moderator') AND id != ? ORDER BY name",
+      [req.user.id]
+    )
+    res.json(rows)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* POST /admin/chat/direct/:userId — creer ou recuperer un DM */
+app.post('/admin/chat/direct/:userId', adminAuth, async (req, res) => {
+  const otherId = Number(req.params.userId)
+  const myId    = req.user.id
+  try {
+    const [[other]] = await pool.execute(
+      "SELECT id, name, role FROM users WHERE id=? AND role IN ('admin','moderator')", [otherId]
+    )
+    if (!other) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    const [existing] = await pool.execute(`
+      SELECT cr.id FROM chat_rooms cr
+      JOIN chat_room_members m1 ON m1.room_id=cr.id AND m1.user_id=?
+      JOIN chat_room_members m2 ON m2.room_id=cr.id AND m2.user_id=?
+      WHERE cr.type='direct' LIMIT 1
+    `, [myId, otherId])
+    if (existing.length) return res.json({ room_id: existing[0].id })
+    const [r] = await pool.execute(
+      "INSERT INTO chat_rooms (type, name) VALUES ('direct', ?)",
+      [req.user.name + ' & ' + other.name]
+    )
+    const roomId = r.insertId
+    await pool.execute('INSERT INTO chat_room_members (room_id, user_id) VALUES (?,?)', [roomId, myId])
+    await pool.execute('INSERT INTO chat_room_members (room_id, user_id) VALUES (?,?)', [roomId, otherId])
+    res.json({ room_id: roomId })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ═══════════════════════════════════════════════════════════
+   CHAT — routes client (support)
+   ═══════════════════════════════════════════════════════════ */
+
+/* GET /chat/support */
+app.get('/chat/support', auth, async (req, res) => {
+  try {
+    let [[room]] = await pool.execute(
+      "SELECT * FROM chat_rooms WHERE type='support' AND client_id=? LIMIT 1", [req.user.id]
+    )
+    if (!room) {
+      const [[u]] = await pool.execute('SELECT name FROM users WHERE id=?', [req.user.id])
+      const [r] = await pool.execute(
+        "INSERT INTO chat_rooms (type, name, client_id) VALUES ('support',?,?)",
+        [u ? u.name : 'Client', req.user.id]
+      )
+      const insertId = r.insertId;
+      [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [insertId])
+    }
+    const [messages] = await pool.execute(
+      'SELECT * FROM chat_messages WHERE room_id=? ORDER BY created_at ASC LIMIT 100', [room.id]
+    )
+    res.json({ room_id: room.id, messages })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* POST /chat/support/messages */
+app.post('/chat/support/messages', auth, async (req, res) => {
+  const { body } = req.body
+  if (!body?.trim()) return res.status(400).json({ error: 'Message vide' })
+  try {
+    let [[room]] = await pool.execute(
+      "SELECT * FROM chat_rooms WHERE type='support' AND client_id=? LIMIT 1", [req.user.id]
+    )
+    if (!room) {
+      const [[u]] = await pool.execute('SELECT name FROM users WHERE id=?', [req.user.id])
+      const [r] = await pool.execute(
+        "INSERT INTO chat_rooms (type, name, client_id) VALUES ('support',?,?)",
+        [u ? u.name : 'Client', req.user.id]
+      )
+      const insertId = r.insertId;
+      [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [insertId])
+    }
+    const [[u]] = await pool.execute('SELECT name FROM users WHERE id=?', [req.user.id])
+    const [r] = await pool.execute(
+      'INSERT INTO chat_messages (room_id, sender_id, sender_name, body) VALUES (?,?,?,?)',
+      [room.id, req.user.id, u ? u.name : 'Client', body.trim()]
+    )
+    const [[msg]] = await pool.execute('SELECT * FROM chat_messages WHERE id=?', [r.insertId])
+    res.json(msg)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* GET /chat/support/poll?since= */
+app.get('/chat/support/poll', auth, async (req, res) => {
+  try {
+    const [[room]] = await pool.execute(
+      "SELECT id FROM chat_rooms WHERE type='support' AND client_id=? LIMIT 1", [req.user.id]
+    )
+    if (!room) return res.json([])
+    const { since } = req.query
+    let query = 'SELECT * FROM chat_messages WHERE room_id=?'
+    const params = [room.id]
+    if (since) { query += ' AND created_at > ?'; params.push(since) }
+    query += ' ORDER BY created_at ASC LIMIT 50'
+    const [rows] = await pool.execute(query, params)
+    res.json(rows)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.listen(4000, () => console.log('VRG API port 4000'))

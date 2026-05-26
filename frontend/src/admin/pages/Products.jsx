@@ -117,6 +117,7 @@ export default function Products() {
   const archived = products.filter(p => !p.active)
   const cats     = ['all', ...categories.filter(c => products.some(p => p.category === c))]
   const filtered = products
+    .filter(p => p.active)
     .filter(p => catFilter === 'all' || p.category === catFilter)
     .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
 
@@ -173,7 +174,15 @@ export default function Products() {
 
       {/* Table */}
       <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '32%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '16%' }} />
+          </colgroup>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
               {['Article', 'Catégorie', 'Prix', 'Stock', 'Statut', 'Actions'].map(col => (
@@ -183,7 +192,15 @@ export default function Products() {
           </thead>
         </table>
         <div style={{ maxHeight: '60vh', overflowY: 'auto', overflowX: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '32%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '16%' }} />
+            </colgroup>
             <tbody>
               {filtered.map((p, i) => (
                 <tr key={p.id}

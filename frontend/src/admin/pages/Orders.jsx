@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ChevronDown, ChevronUp, MapPin, Clock, CreditCard } from 'lucide-react'
+import { ChevronDown, ChevronUp, MapPin, Clock, CreditCard, CheckCircle2 } from 'lucide-react'
 import AdminDropdown from '../components/AdminDropdown.jsx'
 
 const BASE = '/api'
@@ -28,6 +28,19 @@ export default function Orders() {
     setUpdating(id)
     await fetch(`${BASE}/admin/orders/${id}`, { method: 'PUT', headers: h(), body: JSON.stringify({ status }) })
     await load()
+    setUpdating(null)
+  }
+
+  const confirmPayment = async (id) => {
+    setUpdating(id)
+    try {
+      const res = await fetch(`${BASE}/admin/orders/${id}`, { method: 'PUT', headers: h(), body: JSON.stringify({ payment_confirmed: 1 }) })
+      const data = await res.json()
+      if (!res.ok) { alert(`Erreur : ${data.error || res.status}`); setUpdating(null); return }
+      await load()
+    } catch (e) {
+      alert(`Erreur réseau : ${e.message}`)
+    }
     setUpdating(null)
   }
 
@@ -101,6 +114,23 @@ export default function Orders() {
                     {o.zone && <Detail icon={<CreditCard size={11} />} label={`${o.zone === 'tana' ? 'Tana Ville' : 'Périphérique'} · Ar ${Number(o.delivery_fee).toLocaleString('fr-FR')}`} />}
                     {o.hours && <Detail icon={<Clock size={11} />} label={o.hours} />}
                     <Detail icon={<CreditCard size={11} />} label={PAYMENT[o.payment] || o.payment} />
+                    {o.transfer_phone && (
+                      <div style={{ marginTop: 4, padding: '10px 12px', borderRadius: 9, background: o.payment_confirmed == 1 ? 'rgba(34,197,94,0.07)' : 'rgba(245,158,11,0.07)', border: `1px solid ${o.payment_confirmed == 1 ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.18)'}`, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: o.payment_confirmed == 1 ? '#22c55e' : '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            {o.payment_confirmed == 1 ? '✓ Paiement confirmé' : 'Confirmation de transfert'}
+                          </div>
+                          {o.payment_confirmed == 1 && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#22c55e' }}>
+                              <CheckCircle2 size={13} /> Confirmé
+                            </span>
+                          )}
+                        </div>
+                        <TransferRow label="Numéro" value={o.transfer_phone} />
+                        {o.transfer_name && <TransferRow label="Nom" value={o.transfer_name} />}
+                        {o.transfer_id   && <TransferRow label="ID transfert" value={o.transfer_id} highlight />}
+                      </div>
+                    )}
                     {o.note && <Detail icon={<span style={{ fontSize: 11 }}>📝</span>} label={o.note} />}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#f0f0f5', paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
@@ -141,6 +171,17 @@ function Detail({ icon, label }) {
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12, color: 'rgba(240,240,245,0.4)' }}>
       <span style={{ flexShrink: 0, marginTop: 1 }}>{icon}</span>
       <span>{label}</span>
+    </div>
+  )
+}
+
+function TransferRow({ label, value, highlight }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+      <span style={{ color: 'rgba(240,240,245,0.4)', minWidth: 80 }}>{label}</span>
+      <span style={{ color: highlight ? '#fbbf24' : 'rgba(240,240,245,0.75)', fontWeight: highlight ? 700 : 500, fontFamily: highlight ? 'monospace' : 'inherit' }}>
+        {value}
+      </span>
     </div>
   )
 }

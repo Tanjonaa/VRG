@@ -12,17 +12,14 @@ const SECTIONS = [
   { id: 'gallery',      label: 'Galerie',     icon: Image,     desc: 'Titres galerie' },
   { id: 'pricing',      label: 'Packs',       icon: Package,   desc: 'Offres & tarifs' },
   { id: 'cta',          label: 'CTA',         icon: Megaphone, desc: 'Appel à l\'action' },
-  { id: 'announcement', label: 'Annonces',    icon: Megaphone, desc: 'Bannière & réassurance' },
   { id: 'delivery',     label: 'Livraison',   icon: Truck,     desc: 'Frais de livraison' },
   { id: 'contact',      label: 'Contact',     icon: Phone,     desc: 'WhatsApp & horaires' },
 ]
 
 /* ── Defaults ── */
 const DEF = {
-  announcement_active: '0', announcement_text: '', announcement_color: '#FF9900',
-  reassurance_text: 'Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours',
   delivery_fee_tana: '3000', delivery_fee_peripherique: '5000',
-  whatsapp: '', business_hours: '',
+  whatsapp: '', business_hours: '', facebook: '', instagram: '',
 }
 const DEF_TICKER = [
   { text: 'Finger Sleeves Gaming dispo maintenant' },
@@ -344,48 +341,6 @@ export default function Settings() {
           </>)}
         </div>}
 
-        {/* ── ANNOUNCEMENT ── */}
-        {section === 'announcement' && <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {card(<>
-            {sectionTitle('Bannière d\'annonce')}
-            {flat.announcement_text && (
-              <div style={{ padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, textAlign: 'center', background: flat.announcement_color + '22', border: `1px solid ${flat.announcement_color}44`, color: flat.announcement_color, opacity: flat.announcement_active === '1' ? 1 : 0.4 }}>
-                {flat.announcement_active !== '1' && <span style={{ marginRight: 6, fontSize: 11 }}>(désactivé)</span>}
-                {flat.announcement_text}
-              </div>
-            )}
-            {field('Activée', null,
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[['1', 'Oui'], ['0', 'Non']].map(([val, label]) => (
-                  <button key={val} onClick={() => setF('announcement_active')(val)}
-                    style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: flat.announcement_active === val ? 'rgba(255,153,0,0.15)' : 'rgba(255,255,255,0.03)', borderColor: flat.announcement_active === val ? 'rgba(255,153,0,0.4)' : 'rgba(255,255,255,0.1)', color: flat.announcement_active === val ? '#FF9900' : 'rgba(240,240,245,0.4)' }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
-            {field('Texte', 'Affiché en haut du site', ta(flat.announcement_text, setF('announcement_text'), 'Ex : Livraison gratuite ce weekend !'))}
-            {field('Couleur', null,
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input type="color" value={flat.announcement_color} onChange={e => setF('announcement_color')(e.target.value)} style={{ width: 40, height: 32, borderRadius: 7, border: '1px solid rgba(255,255,255,0.1)', background: 'none', cursor: 'pointer', padding: 2 }} />
-                <span style={{ fontSize: 11, color: 'rgba(240,240,245,0.3)', fontFamily: 'monospace' }}>{flat.announcement_color}</span>
-                {['#FF9900', '#22c55e', '#60a5fa', '#f87171', '#a78bfa'].map(c => (
-                  <button key={c} onClick={() => setF('announcement_color')(c)} style={{ width: 20, height: 20, borderRadius: 99, background: c, border: flat.announcement_color === c ? '2px solid #fff' : '2px solid transparent', cursor: 'pointer', flexShrink: 0 }} />
-                ))}
-              </div>
-            )}
-          </>)}
-          {card(<>
-            {sectionTitle('Ligne de réassurance')}
-            {field('Texte sous les prix et le CTA', null, ta(flat.reassurance_text, setF('reassurance_text'), 'Livraison gratuite · Paiement à la livraison · Retour sous 7 jours'))}
-            {flat.reassurance_text && (
-              <div style={{ padding: '7px 12px', borderRadius: 7, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', fontSize: 12, color: 'rgba(240,240,245,0.35)', textAlign: 'center' }}>
-                {flat.reassurance_text}
-              </div>
-            )}
-          </>)}
-        </div>}
-
         {/* ── DELIVERY ── */}
         {section === 'delivery' && card(<>
           {sectionTitle('Frais de livraison')}
@@ -407,11 +362,18 @@ export default function Settings() {
         </>)}
 
         {/* ── CONTACT ── */}
-        {section === 'contact' && card(<>
-          {sectionTitle('Informations de contact')}
-          {field('Numéro WhatsApp', 'Format international ex : +261341234567', inp(flat.whatsapp, setF('whatsapp'), 'tel', '+261...'))}
-          {field('Horaires d\'ouverture', null, ta(flat.business_hours, setF('business_hours'), 'Ex : Lun–Sam 8h–18h\nDimanche fermé', 3))}
-        </>)}
+        {section === 'contact' && <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {card(<>
+            {sectionTitle('Contact & horaires')}
+            {field('Numéro WhatsApp', 'Format international ex : +261341234567', inp(flat.whatsapp, setF('whatsapp'), 'tel', '+261...'))}
+            {field('Horaires d\'ouverture', null, ta(flat.business_hours, setF('business_hours'), 'Ex : Lun–Sam 8h–18h\nDimanche fermé', 3))}
+          </>)}
+          {card(<>
+            {sectionTitle('Réseaux sociaux (footer)')}
+            {field('Facebook', 'URL de la page Facebook', inp(flat.facebook, setF('facebook'), 'url', 'https://facebook.com/...'))}
+            {field('Instagram', 'URL du profil Instagram', inp(flat.instagram, setF('instagram'), 'url', 'https://instagram.com/...'))}
+          </>)}
+        </div>}
       </div>
     </div>
   )

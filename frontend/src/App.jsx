@@ -15,6 +15,7 @@ import Footer from './components/Footer.jsx'
 import ScrollProgress from './components/ScrollProgress.jsx'
 import AuthModal from './components/AuthModal.jsx'
 import AccountPanel from './components/AccountPanel.jsx'
+import SupportChat from './components/SupportChat.jsx'
 
 function AppInner() {
   const { user } = useAuth()
@@ -75,6 +76,7 @@ export default function App() {
     <AuthProvider>
       <CartProvider>
         <AppInner />
+        <SupportChat />
       </CartProvider>
     </AuthProvider>
   )

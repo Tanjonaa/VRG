@@ -38,6 +38,10 @@ export function AuthProvider({ children }) {
   const login = async ({ phone, password }) => {
     const { user } = await api.post('/auth/login', { phone, password })
     setUser(user)
+    if (['admin', 'moderator'].includes(user?.role)) {
+      window.location.href = '/admin'
+      return
+    }
     await loadOrders()
   }
 

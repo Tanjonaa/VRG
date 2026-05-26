@@ -29,6 +29,7 @@ export default function Hero() {
   const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0])
   const settings = useSettings()
   const hero = (() => { try { return settings.hero_content ? { ...DEFAULT_HERO, ...JSON.parse(settings.hero_content) } : DEFAULT_HERO } catch { return DEFAULT_HERO } })()
+  const waHref = settings.whatsapp ? `https://wa.me/${settings.whatsapp.replace(/\D/g, '')}` : '#'
 
   return (
     <section ref={ref} style={{
@@ -88,11 +89,11 @@ export default function Hero() {
         {/* CTAs */}
         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={3}
           style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <MagneticButton primary style={{
+          <MagneticButton primary href={waHref} target="_blank" rel="noopener noreferrer" style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             background: 'linear-gradient(135deg, #ca8a04, #d97706)',
             color: '#fff', border: 'none', borderRadius: 12,
-            padding: '15px 28px', fontSize: 16, fontWeight: 600, cursor: 'pointer', letterSpacing: '-0.01em',
+            padding: '15px 28px', fontSize: 16, fontWeight: 600, cursor: 'pointer', letterSpacing: '-0.01em', textDecoration: 'none',
           }}>
             {hero.btn_primary} <ArrowRight size={18} />
           </MagneticButton>
@@ -160,7 +161,7 @@ function FloatingProductImg({ src, side, delay, accentColor }) {
   )
 }
 
-function MagneticButton({ children, style, primary = false }) {
+function MagneticButton({ children, style, primary = false, href, target, rel }) {
   const ref = useRef(null)
   const x = useMotionValue(0), y = useMotionValue(0)
   const sx = useSpring(x, { stiffness: 200, damping: 20 })
@@ -170,15 +171,17 @@ function MagneticButton({ children, style, primary = false }) {
     x.set((e.clientX - r.left - r.width / 2) * 0.25)
     y.set((e.clientY - r.top - r.height / 2) * 0.25)
   }
+  const Tag = href ? motion.a : motion.button
   return (
-    <motion.button ref={ref} onMouseMove={handleMouse} onMouseLeave={() => { x.set(0); y.set(0) }}
+    <Tag ref={ref} href={href} target={target} rel={rel}
+      onMouseMove={handleMouse} onMouseLeave={() => { x.set(0); y.set(0) }}
       style={{ x: sx, y: sy, ...style }} whileTap={{ scale: 0.96 }}
       {...(primary
         ? { whileHover: { scale: 1.04, boxShadow: '0 0 40px rgba(202,138,4,0.45)' } }
         : { whileHover: { background: 'rgba(255,255,255,0.08)', scale: 1.02 } }
       )}>
       {children}
-    </motion.button>
+    </Tag>
   )
 }
 

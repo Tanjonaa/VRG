@@ -27,6 +27,7 @@ export default function CTA() {
   const settings = useSettings()
   const content = (() => { try { return settings.cta_content ? { ...DEFAULT_CONTENT, ...JSON.parse(settings.cta_content) } : DEFAULT_CONTENT } catch { return DEFAULT_CONTENT } })()
   const guarantees = content.guarantees?.length ? content.guarantees : DEFAULT_CONTENT.guarantees
+  const waHref = settings.whatsapp ? `https://wa.me/${settings.whatsapp.replace(/\D/g, '')}` : '#'
 
   return (
     <section style={{ padding: '80px 24px 120px', position: 'relative', overflow: 'hidden' }}>
@@ -85,11 +86,12 @@ export default function CTA() {
               <motion.div initial={{ opacity: 0, y: 16 }} animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ delay: 0.45, duration: 0.6 }}
                 style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <motion.button whileHover={{ scale: 1.05, boxShadow: '0 0 48px rgba(34,197,94,0.4)' }} whileTap={{ scale: 0.97 }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: 'linear-gradient(135deg, #16a34a, #15803d)', color: '#fff', border: 'none', borderRadius: 14, padding: '17px 32px', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
+                <motion.a href={waHref} target="_blank" rel="noopener noreferrer"
+                  whileHover={{ scale: 1.05, boxShadow: '0 0 48px rgba(34,197,94,0.4)' }} whileTap={{ scale: 0.97 }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: 'linear-gradient(135deg, #16a34a, #15803d)', color: '#fff', border: 'none', borderRadius: 14, padding: '17px 32px', fontSize: 17, fontWeight: 700, cursor: 'pointer', textDecoration: 'none' }}>
                   <MessageCircle size={20} />
                   {content.btn_whatsapp}
-                </motion.button>
+                </motion.a>
                 <motion.button whileHover={{ background: 'rgba(255,255,255,0.09)', scale: 1.02 }} whileTap={{ scale: 0.97 }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.06)', color: 'rgba(240,240,245,0.8)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 14, padding: '17px 28px', fontSize: 17, fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>
                   {content.btn_products} <ArrowRight size={18} />

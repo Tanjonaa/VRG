@@ -185,10 +185,16 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 }
 
 function Field({ icon, suffix, onChange, ...props }) {
+  const handleChange = e => {
+    const val = props.type === 'tel'
+      ? e.target.value.replace(/[^\d\s+]/g, '')
+      : e.target.value
+    onChange(val)
+  }
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '13px 14px' }}>
       <span style={{ color: 'rgba(240,240,245,0.3)', flexShrink: 0 }}>{icon}</span>
-      <input {...props} onChange={e => onChange(e.target.value)} style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit' }} />
+      <input {...props} onChange={handleChange} inputMode={props.type === 'tel' ? 'tel' : undefined} style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit' }} />
       {suffix}
     </div>
   )

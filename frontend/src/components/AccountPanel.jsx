@@ -568,7 +568,7 @@ function OrderCard({ order: o, index }) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, padding: '4px 10px', borderRadius: 99, border: `1px solid ${st.border}` }}>
+<span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, padding: '4px 10px', borderRadius: 99, border: `1px solid ${st.border}` }}>
             {o.status}
           </span>
           <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }} style={{ color: 'rgba(240,240,245,0.3)', display: 'flex' }}>

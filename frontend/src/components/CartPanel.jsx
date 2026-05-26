@@ -39,7 +39,7 @@ export default function CartPanel({ isOpen, onClose, onOpenAuth }) {
     setCheckoutError('')
     try {
       const order = await addOrder({
-        items: items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+        items: items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price })),
         payment, address, zone, delivery_fee: deliveryFee, hours, note,
         total: grandTotal,
         transfer: isMobile ? { phone: transferPhone, name: transferName, id: transferId } : null,
