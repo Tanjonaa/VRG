@@ -1,6 +1,6 @@
 -- ============================================================
 -- VaRyGasy — Schéma complet base de données MariaDB 11
--- Dernière mise à jour : 2026-05-23
+-- Dernière mise à jour : 2026-05-26
 -- ============================================================
 
 -- ── users ────────────────────────────────────────────────────
@@ -136,6 +136,45 @@ CREATE TABLE IF NOT EXISTS admin_logs (
   -- Route : GET /api/admin/logs (adminAuth)
 );
 
+-- ── chat_rooms ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS chat_rooms (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  type       ENUM('admin_only','admin_mod','direct','support') NOT NULL,
+             -- admin_only : groupe réservé aux admins
+             -- admin_mod  : groupe admins + modérateurs
+             -- direct     : conversation privée entre deux membres du staff
+             -- support    : conversation entre l'équipe et un client
+  name       VARCHAR(255),                         -- libellé affiché dans la liste
+  client_id  INT NULL,                             -- FK→users.id pour type='support'
+  created_at DATETIME DEFAULT NOW(),
+  FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Salons fixes créés au démarrage de l'API (CREATE IF NOT EXISTS)
+INSERT IGNORE INTO chat_rooms (id, type, name) VALUES
+  (1, 'admin_only', 'Admins'),
+  (2, 'admin_mod',  'Équipe');
+
+-- ── chat_room_members ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS chat_room_members (
+  room_id INT NOT NULL,                            -- FK→chat_rooms.id
+  user_id INT NOT NULL,                            -- FK→users.id (staff uniquement)
+  PRIMARY KEY (room_id, user_id)
+  -- Utilisé uniquement pour type='direct' (salons privés)
+  -- Les salons fixed (admin_only / admin_mod) et support n'ont pas de membres en DB
+);
+
+-- ── chat_messages ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  room_id     INT NOT NULL,                        -- FK→chat_rooms.id
+  sender_id   INT NOT NULL,                        -- FK→users.id
+  sender_name VARCHAR(255) NOT NULL,               -- snapshot du nom à l'envoi
+  body        TEXT NOT NULL,
+  created_at  DATETIME DEFAULT NOW(),
+  INDEX idx_chat_room_date (room_id, created_at)   -- accélère le polling (since=)
+);
+
 -- ── Index ────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);
@@ -147,6 +186,15 @@ CREATE INDEX IF NOT EXISTS idx_logs_created  ON admin_logs(created_at);
 
 -- ============================================================
 -- Règles métier (appliquées côté API — backend/index.js)
+-- ── Stock ───────────────────────────────────────────────────
+--   À chaque commande (POST /orders), le stock de chaque article
+--   est décrémenté : UPDATE products SET stock = GREATEST(0, stock - qty)
+--   Le site client (GET /products) filtre stock > 0.
+-- ── Messagerie ──────────────────────────────────────────────
+--   Salons permanents id=1 (admin_only) et id=2 (admin_mod) créés au démarrage.
+--   Salons directs créés à la demande (POST /admin/chat/direct/:userId).
+--   Salons support : un par client, créé au 1er message (GET /chat/support).
+--   Polling toutes les 3-4 s via param since= (datetime ISO).
 -- ── Points de fidélité ──────────────────────────────────────
 --   1 pt par tranche de 1 000 Ar dépensé (orders.total, status ≠ Annulé)
 --   10 pts par filleul parrainé (referrals)

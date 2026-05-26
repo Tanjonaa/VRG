@@ -126,6 +126,38 @@ CREATE TABLE IF NOT EXISTS admin_logs (
   created_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ── chat_rooms ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS chat_rooms (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  type       ENUM('admin_only','admin_mod','direct','support') NOT NULL,
+  name       VARCHAR(255),
+  client_id  INT NULL,
+  created_at DATETIME DEFAULT NOW(),
+  FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+INSERT IGNORE INTO chat_rooms (id, type, name) VALUES
+  (1, 'admin_only', 'Admins'),
+  (2, 'admin_mod',  'Équipe');
+
+-- ── chat_room_members ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS chat_room_members (
+  room_id INT NOT NULL,
+  user_id INT NOT NULL,
+  PRIMARY KEY (room_id, user_id)
+);
+
+-- ── chat_messages ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  room_id     INT NOT NULL,
+  sender_id   INT NOT NULL,
+  sender_name VARCHAR(255) NOT NULL,
+  body        TEXT NOT NULL,
+  created_at  DATETIME DEFAULT NOW(),
+  INDEX idx_chat_room_date (room_id, created_at)
+);
+
 -- ── Index ────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);

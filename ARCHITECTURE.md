@@ -69,10 +69,11 @@ VRG/
 │   │   ├── components/              composants UI site client
 │   │   │   ├── Navbar.jsx
 │   │   │   ├── Hero.jsx
-│   │   │   ├── Products.jsx         ← charge /api/products dynamiquement
-│   │   │   ├── CartPanel.jsx        panier + checkout
+│   │   │   ├── Products.jsx         ← charge /api/products (stock > 0 uniquement)
+│   │   │   ├── CartPanel.jsx        panier + checkout (envoie item.id pour décrémentation stock)
 │   │   │   ├── AccountPanel.jsx     profil + fidélité + parrainage + commandes
 │   │   │   ├── AuthModal.jsx        connexion / inscription (capture ?ref=CODE)
+│   │   │   ├── SupportChat.jsx      bulle chat flottante style Messenger (polling 4s)
 │   │   │   ├── Features.jsx
 │   │   │   ├── Gallery.jsx
 │   │   │   ├── Pricing.jsx
@@ -90,13 +91,14 @@ VRG/
 │   │   │   │   └── AdminDropdown.jsx  dropdown sombre réutilisable (React portal)
 │   │   │   └── pages/
 │   │   │       ├── Dashboard.jsx    KPI ventes/commandes/clients/visites + graphiques
-│   │   │       ├── Products.jsx     CRUD articles (filtre catégorie, recherche, scroll)
+│   │   │       ├── Products.jsx     CRUD articles actifs (filtre catégorie, recherche, scroll)
 │   │   │       ├── Orders.jsx       gestion commandes (filtre statut, accordion détail)
-│   │   │       ├── Users.jsx        liste clients/staff, changement de rôle
-│   │   │       ├── Stocks.jsx       alertes rupture, édition stock inline
+│   │   │       ├── Users.jsx        liste clients/staff, création admin, dropdown rôle
+│   │   │       ├── Stocks.jsx       alertes rupture, édition inline, ajout/suppression article
 │   │   │       ├── Team.jsx         CRUD membres de l'équipe (photo, nom, rôle, ordre)
 │   │   │       ├── Settings.jsx     paramètres site (bandeau, frais livraison, contacts)
-│   │   │       └── Logs.jsx         historique des actions admin (rôles, équipe) — pagination + filtres
+│   │   │       ├── Logs.jsx         historique des actions admin — pagination + filtres
+│   │   │       └── Msgs.jsx         messagerie interne (4 onglets : Admins/Équipe/Direct/Clients)
 │   │   │
 │   │   ├── context/
 │   │   │   ├── AuthContext.jsx      utilisateur connecté, commandes, updateProfile
@@ -182,7 +184,7 @@ VRG/
 |---------|-------|-------------|
 | `POST` | `/auth/register` | Inscription (nom, téléphone, mot de passe, referralCode?) |
 | `POST` | `/auth/login` | Connexion → retourne JWT |
-| `GET` | `/products` | Liste des produits actifs (catalogue client) |
+| `GET` | `/products` | Liste des produits actifs avec `stock > 0` (catalogue client) |
 | `POST` | `/visits` | Incrémente le compteur de visites du jour |
 | `GET` | `/team` | Membres de l'équipe actifs (triés par `order_index`) |
 
@@ -194,7 +196,10 @@ VRG/
 | `PUT` | `/auth/profile` | Modifier nom / téléphone / mot de passe |
 | `GET` | `/referral` | Code + stats parrainage + points |
 | `GET` | `/orders` | Commandes de l'utilisateur |
-| `POST` | `/orders` | Créer une commande |
+| `POST` | `/orders` | Créer une commande (décrémente le stock automatiquement) |
+| `GET` | `/chat/support` | Récupère ou crée le salon support du client connecté + messages |
+| `POST` | `/chat/support/messages` | Envoyer un message au support |
+| `GET` | `/chat/support/poll` | Nouveaux messages depuis `?since=` (polling) |
 
 ### Admin (JWT + role admin ou moderator)
 
@@ -204,22 +209,29 @@ VRG/
 | `GET` | `/admin/products` | Tous les produits (actifs + archivés) |
 | `POST` | `/admin/products` | Créer un produit |
 | `PUT` | `/admin/products/:id` | Modifier un produit |
-| `DELETE` | `/admin/products/:id` | Archiver un produit (soft delete) |
-| `GET` | `/admin/categories` | Liste distincte des catégories existantes (`SELECT DISTINCT category`) |
-| `POST` | `/admin/upload` | Upload image produit → retourne `{ src: "/images/uploads/<fichier>" }` |
+| `DELETE` | `/admin/products/:id` | Archiver un produit (soft delete `active=0`) |
+| `DELETE` | `/admin/products/:id/permanent` | Supprimer définitivement (hard delete, stock=0 ou inactif) |
+| `GET` | `/admin/categories` | Liste distincte des catégories (`SELECT DISTINCT category`) |
+| `POST` | `/admin/upload` | Upload image → `{ src: "/images/uploads/<fichier>" }` |
 | `GET` | `/admin/orders` | Toutes les commandes |
-| `PUT` | `/admin/orders/:id` | Changer le statut d'une commande |
+| `PUT` | `/admin/orders/:id` | Changer statut ou confirmer paiement |
 | `GET` | `/admin/users` | Tous les utilisateurs |
+| `POST` | `/admin/users` | Créer un compte admin ou modérateur (admin only) |
 | `PUT` | `/admin/users/:id` | Changer le rôle d'un utilisateur (admin only) |
 | `GET` | `/admin/stocks` | Produits actifs avec niveau de stock |
-| `PUT` | `/admin/stocks/:id` | Mettre à jour le stock d'un produit |
+| `PUT` | `/admin/stocks/:id` | Mettre à jour le stock |
 | `GET` | `/admin/team` | Tous les membres équipe (actifs + archivés) |
 | `POST` | `/admin/team` | Ajouter un membre |
-| `PUT` | `/admin/team/:id` | Modifier un membre (nom, rôle, description, photo, ordre) |
-| `DELETE` | `/admin/team/:id` | Archiver un membre (soft delete `active=0`) |
+| `PUT` | `/admin/team/:id` | Modifier un membre |
+| `DELETE` | `/admin/team/:id` | Archiver un membre (`active=0`) |
 | `GET` | `/admin/settings` | Lire tous les paramètres site |
-| `PUT` | `/admin/settings` | Modifier un ou plusieurs paramètres (body `{ settings: [{key,value}] }`) |
-| `GET` | `/admin/logs` | Historique des actions admin (`?limit=&offset=&action=`) |
+| `PUT` | `/admin/settings` | Modifier un ou plusieurs paramètres (`{ settings: [{key,value}] }`) |
+| `GET` | `/admin/logs` | Historique des actions (`?limit=&offset=&action=`) |
+| `GET` | `/admin/chat/rooms` | Salons accessibles (fixes + directs + support clients) |
+| `GET` | `/admin/chat/rooms/:id/messages` | Messages d'un salon (`?since=&limit=`) |
+| `POST` | `/admin/chat/rooms/:id/messages` | Envoyer un message dans un salon |
+| `GET` | `/admin/chat/staff` | Liste du staff pour créer un DM |
+| `POST` | `/admin/chat/direct/:userId` | Créer ou récupérer un salon direct avec un membre du staff |
 
 Header requis pour routes protégées :
 ```
@@ -326,6 +338,7 @@ Toute action sensible effectuée par un admin ou modérateur est automatiquement
 | `product_add` | `POST /admin/products` | `null` | catégorie du produit |
 | `product_edit` | `PUT /admin/products/:id` | ancienne catégorie | nouvelle catégorie |
 | `product_archive` | `DELETE /admin/products/:id` | `actif` | `archivé` |
+| `product_delete` | `DELETE /admin/products/:id/permanent` | nom du produit | `null` |
 | `order_status` | `PUT /admin/orders/:id` (status) | ancien statut | nouveau statut |
 | `order_payment` | `PUT /admin/orders/:id` (payment_confirmed) | `non confirmé` | `confirmé` |
 | `stock_update` | `PUT /admin/stocks/:id` | ancien stock | nouveau stock |
@@ -433,14 +446,69 @@ admin_logs
 ├── id          INT  PK AUTO_INCREMENT
 ├── admin_id    INT                     ← id de l'admin qui a effectué l'action
 ├── admin_name  VARCHAR(100)            ← nom snapshot au moment de l'action
-├── action      VARCHAR(50)             ← role_change | team_add | team_edit | team_archive
-├── target_type VARCHAR(30)             ← user | team_member
+├── action      VARCHAR(50)             ← role_change | product_add/edit/archive/delete
+│                                          order_status | order_payment | stock_update
+│                                          settings_update | team_add/edit/archive
+├── target_type VARCHAR(30)             ← user | product | order | setting | team_member
 ├── target_id   INT                     ← id de la cible
 ├── target_name VARCHAR(100)            ← nom snapshot de la cible
 ├── old_value   TEXT                    ← ancienne valeur (rôle, statut…)
 ├── new_value   TEXT                    ← nouvelle valeur
 └── created_at  TIMESTAMP
+
+chat_rooms
+├── id         INT  PK AUTO_INCREMENT
+├── type       ENUM  ← admin_only | admin_mod | direct | support
+├── name       VARCHAR(255)             ← libellé affiché
+├── client_id  INT FK→users.id NULL     ← pour type='support' uniquement
+└── created_at DATETIME
+  Salons permanents : id=1 admin_only, id=2 admin_mod
+
+chat_room_members (pour type='direct' uniquement)
+├── room_id INT FK→chat_rooms.id  PK
+└── user_id INT FK→users.id       PK
+
+chat_messages
+├── id          INT  PK AUTO_INCREMENT
+├── room_id     INT FK→chat_rooms.id
+├── sender_id   INT FK→users.id
+├── sender_name VARCHAR(255)            ← snapshot nom à l'envoi
+├── body        TEXT
+└── created_at  DATETIME               (INDEX room_id + created_at pour polling)
 ```
+
+---
+
+## Système de messagerie
+
+### Architecture
+
+Polling REST simple (pas de WebSocket). Chaque client appelle `?since=<datetime>` toutes les 3–4 secondes pour récupérer uniquement les nouveaux messages.
+
+### Salons
+
+| Type | Accès | Créé |
+|------|-------|------|
+| `admin_only` | admins uniquement | au démarrage (id=1) |
+| `admin_mod` | admins + modérateurs | au démarrage (id=2) |
+| `direct` | deux membres du staff | `POST /admin/chat/direct/:userId` |
+| `support` | staff (tous) + le client concerné | au 1er message client |
+
+### Côté admin (`admin/pages/Msgs.jsx`)
+
+4 onglets dans le panneau admin :
+1. **Admins** — salon `admin_only` (caché aux modérateurs)
+2. **Équipe** — salon `admin_mod`
+3. **Direct** — liste du staff à gauche, cliquer ouvre/crée un DM
+4. **Clients** — liste des fils support à gauche, polling 5s sur la liste
+
+### Côté client (`components/SupportChat.jsx`)
+
+- Bulle flottante `position: fixed` rendue **en dehors** d'`AppInner` (directement dans `App`) pour éviter le clipping `overflow-x: hidden` du body
+- Si non connecté : message "Connexion requise"
+- Si connecté : conversation avec l'équipe, envoi optimiste (message visible immédiatement, confirmé ou annulé après réponse API)
+- Badge rouge sur la bulle si messages reçus pendant que le panel est fermé
+- Polling toutes les 4 s via `GET /chat/support/poll?since=`
 
 ---
 
