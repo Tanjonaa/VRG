@@ -46,7 +46,10 @@ services:
     restart: unless-stopped
 
   app:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        API_HOST: api:4000
     volumes:
       - uploads:/usr/share/nginx/html/images/uploads
     ports:

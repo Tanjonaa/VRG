@@ -1,0 +1,25 @@
+app            = "vrg-db"
+primary_region = "jnb"
+
+[build]
+  dockerfile = "db/Dockerfile"
+  # Contexte = racine du repo (fly deploy --config db/fly.toml depuis la racine)
+
+[env]
+  MYSQL_DATABASE = "vrg"
+  MYSQL_USER     = "vrg_user"
+  # Secrets :
+  #   fly secrets set -a vrg-db MYSQL_ROOT_PASSWORD=... MYSQL_PASSWORD=...
+
+# Pas de [http_service] — MariaDB n'est accessible que via le réseau privé Fly.io
+# Adresse interne : vrg-db.internal:3306
+
+[[mounts]]
+  source       = "vrg_mariadb"
+  destination  = "/var/lib/mysql"
+  initial_size = "3"
+
+[[vm]]
+  memory   = "512mb"
+  cpu_kind = "shared"
+  cpus     = 1
