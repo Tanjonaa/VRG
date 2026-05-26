@@ -323,17 +323,27 @@ Toute action sensible effectuée par un admin ou modérateur est automatiquement
 
 | Action | Déclencheur | old_value | new_value |
 |--------|-------------|-----------|-----------|
-| `role_change` | `PUT /admin/users/:id` | ancien rôle (`client`) | nouveau rôle (`admin`) |
-| `team_add` | `POST /admin/team` | `null` | rôle/poste du nouveau membre |
+| `product_add` | `POST /admin/products` | `null` | catégorie du produit |
+| `product_edit` | `PUT /admin/products/:id` | ancienne catégorie | nouvelle catégorie |
+| `product_archive` | `DELETE /admin/products/:id` | `actif` | `archivé` |
+| `order_status` | `PUT /admin/orders/:id` (status) | ancien statut | nouveau statut |
+| `order_payment` | `PUT /admin/orders/:id` (payment_confirmed) | `non confirmé` | `confirmé` |
+| `stock_update` | `PUT /admin/stocks/:id` | ancien stock | nouveau stock |
+| `settings_update` | `PUT /admin/settings` | ancienne valeur | nouvelle valeur |
+| `role_change` | `PUT /admin/users/:id` | ancien rôle | nouveau rôle |
+| `team_add` | `POST /admin/team` | `null` | rôle/poste du membre |
 | `team_edit` | `PUT /admin/team/:id` | ancien rôle/poste | nouveau rôle/poste |
 | `team_archive` | `DELETE /admin/team/:id` | `actif` | `archivé` |
 
-**Implémentation** : helper `writeLog()` dans `backend/index.js` appelé après chaque opération réussie. Un échec du log ne bloque jamais l'opération principale.
+**Implémentation** : helper `writeLog()` dans `backend/index.js` — appelé après chaque opération réussie. Un échec du log ne bloque jamais l'opération principale (catch silencieux). La table `admin_logs` est créée automatiquement au démarrage de l'API (`CREATE TABLE IF NOT EXISTS`).
 
 **Page admin (`admin/pages/Logs.jsx`)** :
-- Tableau paginé (25 lignes/page) avec filtres par type d'action
-- Icône + couleur par type d'action, chips colorées avant/après, avatar de l'admin
-- Bouton "Actualiser" avec spinner animé
+- Layout grid aligné (pas de double `<table>`)
+- Pagination 25 lignes/page, filtres par type d'action
+- Icône + couleur distincte par type, chips avant/après tronquées à 30 chars, avatar admin
+- Bouton "Actualiser" avec spinner
+
+**Note icônes lucide-react v1.16.0** : `History` et `UserCog` n'existent pas dans cette version. Utiliser `Scroll` (nav Historique) et `Shield` (role_change icon).
 
 ---
 

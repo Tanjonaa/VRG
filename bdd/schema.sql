@@ -44,9 +44,10 @@ CREATE TABLE IF NOT EXISTS orders (
   transfer_phone VARCHAR(30)   NULL,               -- mobile money : numéro
   transfer_name  VARCHAR(100)  NULL,               -- mobile money : nom
   transfer_id    VARCHAR(100)  NULL,               -- mobile money : réf transaction
-  status         VARCHAR(50)   DEFAULT 'En attente',
+  status            VARCHAR(50)  DEFAULT 'En attente',
                                                    -- En attente | Confirmé | En livraison | Livré | Annulé
-  created_at     TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  payment_confirmed TINYINT(1)   DEFAULT 0,        -- 0 = non confirmé | 1 = paiement vérifié
+  created_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -99,6 +100,8 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('delivery_fee_tana',         '3000'),
   ('delivery_fee_peripherique', '5000'),
   ('whatsapp',                  ''),
+  ('facebook',                  ''),
+  ('instagram',                 ''),
   ('business_hours',            ''),
   ('team_badge',                'Notre équipe'),
   ('team_title',                'Les personnes derrière'),
@@ -123,8 +126,8 @@ CREATE TABLE IF NOT EXISTS admin_logs (
   id          INT AUTO_INCREMENT PRIMARY KEY,
   admin_id    INT           NOT NULL,
   admin_name  VARCHAR(100)  NOT NULL,
-  action      VARCHAR(50)   NOT NULL,    -- role_change | team_add | team_edit | team_archive
-  target_type VARCHAR(30)   NOT NULL,    -- user | team_member
+  action      VARCHAR(50)   NOT NULL,    -- role_change | product_add/edit/archive | order_status | order_payment | stock_update | settings_update | team_add/edit/archive
+  target_type VARCHAR(30)   NOT NULL,    -- user | product | order | setting | team_member
   target_id   INT           NOT NULL,
   target_name VARCHAR(100)  NOT NULL,
   old_value   TEXT,                      -- ancienne valeur (rôle, statut…)

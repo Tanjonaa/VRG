@@ -117,8 +117,8 @@ CREATE TABLE IF NOT EXISTS admin_logs (
   id          INT AUTO_INCREMENT PRIMARY KEY,
   admin_id    INT           NOT NULL,
   admin_name  VARCHAR(100)  NOT NULL,
-  action      VARCHAR(50)   NOT NULL,    -- role_change | team_add | team_edit | team_archive
-  target_type VARCHAR(30)   NOT NULL,    -- user | team_member
+  action      VARCHAR(50)   NOT NULL,    -- role_change | product_add/edit/archive | order_status | order_payment | stock_update | settings_update | team_add/edit/archive
+  target_type VARCHAR(30)   NOT NULL,    -- user | product | order | setting | team_member
   target_id   INT           NOT NULL,
   target_name VARCHAR(100)  NOT NULL,
   old_value   TEXT,
