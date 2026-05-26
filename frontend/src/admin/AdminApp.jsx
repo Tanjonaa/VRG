@@ -17,10 +17,10 @@ const NAV = [
   { id: 'orders',    label: 'Commandes',        icon: ShoppingBag },
   { id: 'stocks',    label: 'Stocks',           icon: BarChart3 },
   { id: 'team',      label: 'Équipe',           icon: UserSquare2 },
-  { id: 'settings',  label: 'Paramètres',       icon: Settings2 },
-  { id: 'users',     label: 'Clients',          icon: Users },
-  { id: 'logs',      label: 'Historique',       icon: Scroll },
   { id: 'msgs',      label: 'Messages',         icon: MessageSquare },
+  { id: 'settings',  label: 'Paramètres',       icon: Settings2,  adminOnly: true },
+  { id: 'users',     label: 'Clients',          icon: Users,      adminOnly: true },
+  { id: 'logs',      label: 'Historique',       icon: Scroll,     adminOnly: true },
 ]
 
 function useAdminAuth() {
@@ -80,7 +80,13 @@ export default function AdminApp() {
 
   if (!user) return <AdminLogin onLogin={login} />
 
-  const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: UsersPage, stocks: Stocks, team: TeamAdmin, settings: SettingsPage, logs: LogsPage, msgs: MsgsPage }[page]
+  const isAdmin = user.role === 'admin'
+  const visibleNav = NAV.filter(n => !n.adminOnly || isAdmin)
+  const allowedPages = new Set(visibleNav.map(n => n.id))
+  const safePage = allowedPages.has(page) ? page : 'dashboard'
+  if (page !== safePage) setPage('dashboard')
+
+  const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: UsersPage, stocks: Stocks, team: TeamAdmin, settings: SettingsPage, logs: LogsPage, msgs: MsgsPage }[safePage]
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#07070f', color: '#f0f0f5', fontFamily: 'system-ui, sans-serif' }}>
@@ -102,7 +108,7 @@ export default function AdminApp() {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {NAV.map(({ id, label, icon: Icon }) => {
+          {visibleNav.map(({ id, label, icon: Icon }) => {
             const active = page === id
             return (
               <button key={id} onClick={() => setPage(id)}
@@ -151,7 +157,7 @@ export default function AdminApp() {
             {sideOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
           <div style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#f0f0f5' }}>
-            {NAV.find(n => n.id === page)?.label}
+            {NAV.find(n => n.id === safePage)?.label}
           </div>
           {alerts > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '5px 12px', fontSize: 12, color: '#f87171', fontWeight: 600 }}>

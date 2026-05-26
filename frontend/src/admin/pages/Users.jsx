@@ -20,7 +20,7 @@ const TIERS = [
 ]
 
 function loyaltyBadge(totalSpent) {
-  const points = Math.floor(Number(totalSpent) / 1000)
+  const points = Math.floor(Number(totalSpent) / 10000)
   const tier = [...TIERS].reverse().find(t => points >= t.min) || TIERS[0]
   return { ...tier, points }
 }

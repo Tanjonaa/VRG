@@ -191,7 +191,11 @@ function CartView({ items, removeItem, updateQty, total, user, onCheckout, onOpe
           </span>
         </div>
 
-        {user ? (
+        {user && ['admin', 'moderator'].includes(user.role) ? (
+          <div style={{ textAlign: 'center', padding: '14px', borderRadius: 12, background: 'rgba(255,153,0,0.06)', border: '1px solid rgba(255,153,0,0.15)' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,153,0,0.7)', margin: 0 }}>Compte staff — achat désactivé</p>
+          </div>
+        ) : user ? (
           <motion.button whileHover={{ scale: 1.02, boxShadow: '0 6px 28px rgba(255,153,0,0.4)' }} whileTap={{ scale: 0.97 }}
             onClick={onCheckout}
             style={{ width: '100%', padding: '15px', borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700, background: 'linear-gradient(135deg, #FF9900, #CC5500)', color: '#fff', boxShadow: '0 4px 20px rgba(255,153,0,0.28)' }}>

@@ -302,7 +302,7 @@ const TIERS = [
 ]
 
 function calcPoints(orders) {
-  return orders.reduce((sum, o) => sum + Math.floor((o.total || 0) / 1000), 0)
+  return orders.reduce((sum, o) => sum + Math.floor((o.total || 0) / 10000), 0)
 }
 
 function getTier(pts) {
@@ -387,8 +387,8 @@ function FidelitySection({ orders, referralPoints = 0 }) {
       {/* How points work */}
       <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>Comment gagner des points</div>
-        <PointRule icon={<Package size={12} />} label="1 point par 1 000 Ar dépensé" />
-        <PointRule icon={<Zap size={12} color="#fbbf24" />} label="Bonus x2 à partir du niveau Or" />
+        <PointRule icon={<Package size={12} />} label="1 point par 10 000 Ar dépensé" />
+        <PointRule icon={<Zap size={12} color="#fbbf24" />} label="Bonus à partir du niveau Or" />
         <PointRule icon={<Gift size={12} color="#FF9900" />} label="Réductions exclusives à venir" />
       </div>
 
@@ -397,7 +397,7 @@ function FidelitySection({ orders, referralPoints = 0 }) {
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0' }}>Historique des points</div>
           {orders.slice(0, 4).map((o, i) => {
-            const pts = Math.floor((o.total || 0) / 1000)
+            const pts = Math.floor((o.total || 0) / 10000)
             return (
               <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 10, padding: '9px 12px' }}>
                 <div style={{ fontSize: 12, color: 'rgba(240,240,245,0.5)' }}>

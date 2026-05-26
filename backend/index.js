@@ -347,6 +347,8 @@ app.get('/orders', auth, async (req, res) => {
 
 /* ── POST /orders ────────────────────────────────────── */
 app.post('/orders', auth, async (req, res) => {
+  if (['admin', 'moderator'].includes(req.user.role))
+    return res.status(403).json({ error: 'Les comptes staff ne peuvent pas passer de commande' })
   const { payment, address, zone, delivery_fee, hours, note, total, transfer, items } = req.body
   if (!payment || !address || !total) return res.status(400).json({ error: 'Données incomplètes' })
 
