@@ -4,9 +4,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-# /api est proxifié par nginx vers PocketBase en production
-ARG VITE_PB_URL=/api
-ENV VITE_PB_URL=$VITE_PB_URL
 RUN npm run build
 
 # Stage 2 — serve

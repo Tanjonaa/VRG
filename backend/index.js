@@ -404,7 +404,7 @@ app.post('/admin/products', adminAuth, async (req, res) => {
 app.put('/admin/products/:id', adminAuth, async (req, res) => {
   const { name, description, price, category, stock, images, active } = req.body
   try {
-    const [[prev]] = await pool.execute('SELECT name, category FROM products WHERE id=?', [req.params.id])
+    const [[prev]] = await pool.execute('SELECT name, price, category, stock FROM products WHERE id=?', [req.params.id])
     await pool.execute(
       `UPDATE products SET name=COALESCE(?,name), description=COALESCE(?,description),
        price=COALESCE(?,price), category=COALESCE(?,category), stock=COALESCE(?,stock),
@@ -413,8 +413,21 @@ app.put('/admin/products/:id', adminAuth, async (req, res) => {
        images ? JSON.stringify(images) : null, active??null, req.params.id]
     )
     const [rows] = await pool.execute('SELECT * FROM products WHERE id = ?', [req.params.id])
-    await writeLog(req.user.id, req.user.name, 'product_edit', 'product', req.params.id,
-      name || (prev ? prev.name : '—'), prev ? prev.category : null, category || null)
+    if (prev) {
+      const checks = [
+        { label: 'nom',       oldV: prev.name,     newV: name     },
+        { label: 'prix',      oldV: prev.price,    newV: price    },
+        { label: 'catégorie', oldV: prev.category, newV: category },
+        { label: 'stock',     oldV: prev.stock,    newV: stock    },
+      ]
+      const diffs = checks.filter(c => c.newV != null && String(c.oldV) !== String(c.newV))
+      if (diffs.length > 0) {
+        const oldStr = diffs.map(d => `${d.label}: ${d.oldV}`).join(' · ')
+        const newStr = diffs.map(d => `${d.label}: ${d.newV}`).join(' · ')
+        await writeLog(req.user.id, req.user.name, 'product_edit', 'product', req.params.id,
+          name || prev.name, oldStr, newStr)
+      }
+    }
     res.json(rows[0])
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
