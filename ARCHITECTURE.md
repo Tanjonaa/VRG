@@ -95,7 +95,8 @@ VRG/
 │   │   │       ├── Users.jsx        liste clients/staff, changement de rôle
 │   │   │       ├── Stocks.jsx       alertes rupture, édition stock inline
 │   │   │       ├── Team.jsx         CRUD membres de l'équipe (photo, nom, rôle, ordre)
-│   │   │       └── Settings.jsx     paramètres site (bandeau, frais livraison, contacts)
+│   │   │       ├── Settings.jsx     paramètres site (bandeau, frais livraison, contacts)
+│   │   │       └── Logs.jsx         historique des actions admin (rôles, équipe) — pagination + filtres
 │   │   │
 │   │   ├── context/
 │   │   │   ├── AuthContext.jsx      utilisateur connecté, commandes, updateProfile
@@ -217,7 +218,8 @@ VRG/
 | `PUT` | `/admin/team/:id` | Modifier un membre (nom, rôle, description, photo, ordre) |
 | `DELETE` | `/admin/team/:id` | Archiver un membre (soft delete `active=0`) |
 | `GET` | `/admin/settings` | Lire tous les paramètres site |
-| `PUT` | `/admin/settings` | Modifier un ou plusieurs paramètres (body `{ key, value }[]`) |
+| `PUT` | `/admin/settings` | Modifier un ou plusieurs paramètres (body `{ settings: [{key,value}] }`) |
+| `GET` | `/admin/logs` | Historique des actions admin (`?limit=&offset=&action=`) |
 
 Header requis pour routes protégées :
 ```
@@ -313,6 +315,28 @@ La section équipe est entièrement dynamique : aucune donnée hardcodée.
 
 ---
 
+## Historique des actions admin (`admin_logs`)
+
+Toute action sensible effectuée par un admin ou modérateur est automatiquement enregistrée dans `admin_logs`.
+
+**Actions tracées** :
+
+| Action | Déclencheur | old_value | new_value |
+|--------|-------------|-----------|-----------|
+| `role_change` | `PUT /admin/users/:id` | ancien rôle (`client`) | nouveau rôle (`admin`) |
+| `team_add` | `POST /admin/team` | `null` | rôle/poste du nouveau membre |
+| `team_edit` | `PUT /admin/team/:id` | ancien rôle/poste | nouveau rôle/poste |
+| `team_archive` | `DELETE /admin/team/:id` | `actif` | `archivé` |
+
+**Implémentation** : helper `writeLog()` dans `backend/index.js` appelé après chaque opération réussie. Un échec du log ne bloque jamais l'opération principale.
+
+**Page admin (`admin/pages/Logs.jsx`)** :
+- Tableau paginé (25 lignes/page) avec filtres par type d'action
+- Icône + couleur par type d'action, chips colorées avant/après, avatar de l'admin
+- Bouton "Actualiser" avec spinner animé
+
+---
+
 ## Schéma base de données
 
 ```
@@ -351,8 +375,9 @@ orders
 ├── transfer_phone VARCHAR(30)
 ├── transfer_name  VARCHAR(100)
 ├── transfer_id    VARCHAR(100)
-├── status         VARCHAR(50)         ← En attente | Confirmé | En livraison | Livré | Annulé
-└── created_at     TIMESTAMP
+├── status             VARCHAR(50)     ← En attente | Confirmé | En livraison | Livré | Annulé
+├── payment_confirmed  TINYINT(1)      ← 0 = non confirmé | 1 = paiement vérifié
+└── created_at         TIMESTAMP
 
 order_items
 ├── id       INT  PK AUTO_INCREMENT
@@ -380,8 +405,9 @@ settings
 Clés pré-insérées :
   announcement_active / announcement_text / announcement_color
   delivery_fee_tana / delivery_fee_peripherique
-  whatsapp / business_hours
+  whatsapp / facebook / instagram / business_hours
   reassurance_text / marquee_items
+  team_badge / team_title / team_subtitle
 
 team_members
 ├── id          INT  PK AUTO_INCREMENT
@@ -391,6 +417,18 @@ team_members
 ├── photo       VARCHAR(255)            ← /images/uploads/<fichier> (même pipeline produits)
 ├── order_index INT                     ← tri croissant (0 = premier affiché)
 ├── active      TINYINT(1)              ← 0 = archivé (invisible côté client)
+└── created_at  TIMESTAMP
+
+admin_logs
+├── id          INT  PK AUTO_INCREMENT
+├── admin_id    INT                     ← id de l'admin qui a effectué l'action
+├── admin_name  VARCHAR(100)            ← nom snapshot au moment de l'action
+├── action      VARCHAR(50)             ← role_change | team_add | team_edit | team_archive
+├── target_type VARCHAR(30)             ← user | team_member
+├── target_id   INT                     ← id de la cible
+├── target_name VARCHAR(100)            ← nom snapshot de la cible
+├── old_value   TEXT                    ← ancienne valeur (rôle, statut…)
+├── new_value   TEXT                    ← nouvelle valeur
 └── created_at  TIMESTAMP
 ```
 

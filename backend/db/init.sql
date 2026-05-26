@@ -91,6 +91,8 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('delivery_fee_tana',        '3000'),
   ('delivery_fee_peripherique', '5000'),
   ('whatsapp',       ''),
+  ('facebook',       ''),
+  ('instagram',      ''),
   ('business_hours', ''),
   ('reassurance_text', 'Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours'),
   ('marquee_items',  '[{"text":"Finger Sleeves Gaming dispo maintenant"},{"text":"Livraison 24h sur Antananarivo"},{"text":"+1 200 gamers équipés à Madagascar"},{"text":"Ventilateurs Turbo — stock limité"},{"text":"Garantie 6 mois sur tous les produits"},{"text":"Support WhatsApp 7j/7 — réponse en 5 min"}]'),
@@ -110,6 +112,20 @@ CREATE TABLE IF NOT EXISTS team_members (
   created_at  TIMESTAMP   DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ── admin_logs ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS admin_logs (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  admin_id    INT           NOT NULL,
+  admin_name  VARCHAR(100)  NOT NULL,
+  action      VARCHAR(50)   NOT NULL,    -- role_change | team_add | team_edit | team_archive
+  target_type VARCHAR(30)   NOT NULL,    -- user | team_member
+  target_id   INT           NOT NULL,
+  target_name VARCHAR(100)  NOT NULL,
+  old_value   TEXT,
+  new_value   TEXT,
+  created_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ── Index ────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);
@@ -117,3 +133,4 @@ CREATE INDEX IF NOT EXISTS idx_referrals_ref ON referrals(referrer_id);
 CREATE INDEX IF NOT EXISTS idx_products_cat  ON products(category);
 CREATE INDEX IF NOT EXISTS idx_products_act  ON products(active);
 CREATE INDEX IF NOT EXISTS idx_team_order    ON team_members(active, order_index);
+CREATE INDEX IF NOT EXISTS idx_logs_created  ON admin_logs(created_at);

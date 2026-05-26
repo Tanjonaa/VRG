@@ -118,6 +118,21 @@ CREATE TABLE IF NOT EXISTS team_members (
   -- Photo servie via volume Docker uploads (même pipeline que products)
 );
 
+-- ── admin_logs ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS admin_logs (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  admin_id    INT           NOT NULL,
+  admin_name  VARCHAR(100)  NOT NULL,
+  action      VARCHAR(50)   NOT NULL,    -- role_change | team_add | team_edit | team_archive
+  target_type VARCHAR(30)   NOT NULL,    -- user | team_member
+  target_id   INT           NOT NULL,
+  target_name VARCHAR(100)  NOT NULL,
+  old_value   TEXT,                      -- ancienne valeur (rôle, statut…)
+  new_value   TEXT,                      -- nouvelle valeur
+  created_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+  -- Route : GET /api/admin/logs (adminAuth)
+);
+
 -- ── Index ────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);
@@ -125,6 +140,7 @@ CREATE INDEX IF NOT EXISTS idx_referrals_ref ON referrals(referrer_id);
 CREATE INDEX IF NOT EXISTS idx_products_cat  ON products(category);
 CREATE INDEX IF NOT EXISTS idx_products_act  ON products(active);
 CREATE INDEX IF NOT EXISTS idx_team_order    ON team_members(active, order_index);
+CREATE INDEX IF NOT EXISTS idx_logs_created  ON admin_logs(created_at);
 
 -- ============================================================
 -- Règles métier (appliquées côté API — backend/index.js)

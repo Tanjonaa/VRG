@@ -45,6 +45,35 @@ const pool = mysql.createPool({
 
 const SECRET = process.env.JWT_SECRET || 'change_this_in_production'
 
+/* ── Création table admin_logs si absente ────────────────── */
+pool.execute(`
+  CREATE TABLE IF NOT EXISTS admin_logs (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id    INT           NOT NULL,
+    admin_name  VARCHAR(100)  NOT NULL,
+    action      VARCHAR(50)   NOT NULL,
+    target_type VARCHAR(30)   NOT NULL,
+    target_id   INT           NOT NULL,
+    target_name VARCHAR(100)  NOT NULL,
+    old_value   TEXT,
+    new_value   TEXT,
+    created_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_logs_created (created_at)
+  )
+`).catch(() => {})
+
+/* ── Log helper ──────────────────────────────────────────── */
+async function writeLog(adminId, adminName, action, targetType, targetId, targetName, oldValue, newValue) {
+  try {
+    await pool.execute(
+      'INSERT INTO admin_logs (admin_id, admin_name, action, target_type, target_id, target_name, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [adminId, adminName, action, targetType, Number(targetId), targetName,
+       oldValue != null ? String(oldValue) : null,
+       newValue != null ? String(newValue) : null]
+    )
+  } catch {}
+}
+
 function makeReferralCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
@@ -368,11 +397,12 @@ app.get('/admin/orders', adminAuth, async (req, res) => {
 
 /* ── PUT /admin/orders/:id ───────────────────────────── */
 app.put('/admin/orders/:id', adminAuth, async (req, res) => {
-  const { status } = req.body
-  if (!status) return res.status(400).json({ error: 'Statut requis' })
+  const { status, payment_confirmed } = req.body
   try {
-    await pool.execute('UPDATE orders SET status=? WHERE id=?', [status, req.params.id])
-    res.json({ ok: true, status })
+    if (status) await pool.execute('UPDATE orders SET status=? WHERE id=?', [status, req.params.id])
+    if (payment_confirmed !== undefined)
+      await pool.execute('UPDATE orders SET payment_confirmed=? WHERE id=?', [payment_confirmed ? 1 : 0, req.params.id])
+    res.json({ ok: true, status, payment_confirmed })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
@@ -380,14 +410,48 @@ app.put('/admin/orders/:id', adminAuth, async (req, res) => {
 app.get('/admin/users', adminAuth, async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT u.id, u.name, u.phone, u.role, u.created_at,
-        COUNT(DISTINCT o.id) as order_count,
-        COALESCE(SUM(o.total),0) as total_spent
-       FROM users u LEFT JOIN orders o ON o.user_id=u.id
+      `SELECT u.id, u.name, u.phone, u.role, u.referral_code, u.created_at,
+        COUNT(DISTINCT o.id)      as order_count,
+        COALESCE(SUM(o.total), 0) as total_spent,
+        COUNT(DISTINCT r.referred_id) as referral_count
+       FROM users u
+       LEFT JOIN orders    o ON o.user_id      = u.id
+       LEFT JOIN referrals r ON r.referrer_id  = u.id
        GROUP BY u.id ORDER BY u.created_at DESC`
     )
     res.json(rows.map(u => ({ ...u, date: new Date(u.created_at).toLocaleDateString('fr-FR') })))
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── GET /admin/users/:id/referrals ─────────────────── */
+app.get('/admin/users/:id/referrals', adminAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT u.id, u.name, u.phone, u.created_at
+       FROM referrals r JOIN users u ON u.id = r.referred_id
+       WHERE r.referrer_id = ? ORDER BY r.created_at DESC`,
+      [req.params.id]
+    )
+    res.json(rows)
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── POST /admin/users ───────────────────────────────── */
+app.post('/admin/users', adminAuth, async (req, res) => {
+  const { name, phone, password, role } = req.body
+  if (!name || !phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
+  if (!['admin', 'moderator'].includes(role)) return res.status(400).json({ error: 'Rôle invalide' })
+  try {
+    const [existing] = await pool.execute('SELECT id FROM users WHERE phone = ?', [phone.trim()])
+    if (existing.length) return res.status(409).json({ error: 'Ce numéro est déjà utilisé' })
+    const hash = await bcrypt.hash(password, 10)
+    const code = makeReferralCode()
+    await pool.execute(
+      'INSERT INTO users (name, phone, password, role, referral_code) VALUES (?, ?, ?, ?, ?)',
+      [name.trim(), phone.trim(), hash, role, code]
+    )
+    res.status(201).json({ ok: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 /* ── PUT /admin/users/:id ────────────────────────────── */
@@ -397,7 +461,10 @@ app.put('/admin/users/:id', adminAuth, async (req, res) => {
   if (!allowed.includes(role)) return res.status(400).json({ error: 'Rôle invalide' })
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Seul un admin peut changer les rôles' })
   try {
+    const [[target]] = await pool.execute('SELECT name, role FROM users WHERE id=?', [req.params.id])
+    if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' })
     await pool.execute('UPDATE users SET role=? WHERE id=?', [role, req.params.id])
+    await writeLog(req.user.id, req.user.name, 'role_change', 'user', req.params.id, target.name, target.role, role)
     res.json({ ok: true })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
@@ -487,6 +554,7 @@ app.post('/admin/team', adminAuth, async (req, res) => {
       'INSERT INTO team_members (name, role, description, photo, order_index) VALUES (?, ?, ?, ?, ?)',
       [name, role || null, description || null, photo || null, order_index || 0]
     )
+    await writeLog(req.user.id, req.user.name, 'team_add', 'team_member', r.insertId, name, null, role || null)
     res.json({ id: r.insertId })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
@@ -496,11 +564,14 @@ app.put('/admin/team/:id', adminAuth, async (req, res) => {
   const { name, role, description, photo, order_index, active } = req.body
   if (!name) return res.status(400).json({ error: 'Nom requis' })
   try {
+    const [[prev]] = await pool.execute('SELECT name, role FROM team_members WHERE id=?', [req.params.id])
     await pool.execute(
       'UPDATE team_members SET name=?, role=?, description=?, photo=?, order_index=?, active=? WHERE id=?',
       [name, role || null, description || null, photo || null, order_index || 0,
        active !== undefined ? (active ? 1 : 0) : 1, req.params.id]
     )
+    await writeLog(req.user.id, req.user.name, 'team_edit', 'team_member', req.params.id,
+      name, prev ? prev.role : null, role || null)
     res.json({ ok: true })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
@@ -508,8 +579,33 @@ app.put('/admin/team/:id', adminAuth, async (req, res) => {
 /* ── DELETE /admin/team/:id (soft delete) ────────────────── */
 app.delete('/admin/team/:id', adminAuth, async (req, res) => {
   try {
+    const [[prev]] = await pool.execute('SELECT name FROM team_members WHERE id=?', [req.params.id])
     await pool.execute('UPDATE team_members SET active=0 WHERE id=?', [req.params.id])
+    await writeLog(req.user.id, req.user.name, 'team_archive', 'team_member', req.params.id,
+      prev ? prev.name : '—', 'actif', 'archivé')
     res.json({ ok: true })
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── GET /admin/logs ─────────────────────────────────────── */
+app.get('/admin/logs', adminAuth, async (req, res) => {
+  const limit  = Math.min(parseInt(req.query.limit)  || 100, 200)
+  const offset = parseInt(req.query.offset) || 0
+  const action = req.query.action || null
+  try {
+    const where = action ? 'WHERE action=?' : ''
+    const params = action ? [action, limit, offset] : [limit, offset]
+    const [rows] = await pool.execute(
+      `SELECT id, admin_id, admin_name, action, target_type, target_id, target_name,
+              old_value, new_value, created_at
+       FROM admin_logs ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      params
+    )
+    const [[{ total }]] = await pool.execute(
+      `SELECT COUNT(*) AS total FROM admin_logs ${action ? 'WHERE action=?' : ''}`,
+      action ? [action] : []
+    )
+    res.json({ rows, total })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
