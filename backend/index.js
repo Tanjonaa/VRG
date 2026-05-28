@@ -1,16 +1,22 @@
-﻿const express = require('express')
-const mysql   = require('mysql2/promise')
-const bcrypt  = require('bcryptjs')
-const jwt     = require('jsonwebtoken')
-const cors    = require('cors')
-const multer  = require('multer')
-const path    = require('path')
-const crypto  = require('crypto')
-const fs      = require('fs')
+﻿const express   = require('express')
+const mysql     = require('mysql2/promise')
+const bcrypt    = require('bcryptjs')
+const jwt       = require('jsonwebtoken')
+const cors      = require('cors')
+const multer    = require('multer')
+const path      = require('path')
+const crypto    = require('crypto')
+const fs        = require('fs')
+const rateLimit = require('express-rate-limit')
 
 const app = express()
 app.use(express.json())
 app.use(cors())
+
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Trop de tentatives, réessaie dans 15 minutes' } })
+const apiLimiter   = rateLimit({ windowMs: 60 * 1000, max: 120, message: { error: 'Trop de requêtes, ralentis' } })
+app.use('/auth/login', loginLimiter)
+app.use(apiLimiter)
 
 /* ── Multer : upload images ──────────────────────────────── */
 const UPLOAD_DIR = '/app/uploads'
@@ -44,6 +50,8 @@ const pool = mysql.createPool({
 })
 
 const SECRET = process.env.JWT_SECRET || 'change_this_in_production'
+if (SECRET === 'change_this_in_production')
+  console.warn('⚠️  JWT_SECRET non configuré — utilise la valeur par défaut non sécurisée')
 
 /* ── Initialisation DB (retry — MariaDB peut démarrer après l'API) ── */
 ;(async () => {
@@ -640,10 +648,11 @@ app.post('/admin/users', adminAuth, async (req, res) => {
     if (existing.length) return res.status(409).json({ error: 'Ce numéro est déjà utilisé' })
     const hash = await bcrypt.hash(password, 10)
     const code = makeReferralCode()
-    await pool.execute(
+    const [r] = await pool.execute(
       'INSERT INTO users (name, phone, password, role, referral_code) VALUES (?, ?, ?, ?, ?)',
       [name.trim(), phone.trim(), hash, role, code]
     )
+    await writeLog(req.user.id, req.user.name, 'user_create', 'user', r.insertId, `${name.trim()} (${phone.trim()})`, null, role)
     res.status(201).json({ ok: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -654,6 +663,7 @@ app.put('/admin/users/:id', adminAuth, async (req, res) => {
   const allowed = ['client', 'moderator', 'admin', 'livreur']
   if (!allowed.includes(role)) return res.status(400).json({ error: 'Rôle invalide' })
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Seul un admin peut changer les rôles' })
+  if (String(req.params.id) === String(req.user.id)) return res.status(400).json({ error: 'Vous ne pouvez pas modifier votre propre rôle' })
   try {
     const [[target]] = await pool.execute('SELECT name, role FROM users WHERE id=?', [req.params.id])
     if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' })
