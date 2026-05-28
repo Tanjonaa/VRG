@@ -82,9 +82,10 @@ function Login({ onLogin }) {
 }
 
 /* ── Order card ── */
-function OrderCard({ order, onStatusChange }) {
+function OrderCard({ order, onStatusChange, onTaken }) {
   const [open, setOpen]   = useState(false)
   const [busy, setBusy]   = useState(false)
+  const [err, setErr]     = useState('')
   const isCash = order.payment === 'livraison'
 
   const nextStatus = order.status === 'Confirmé' ? 'En livraison' : order.status === 'En livraison' ? 'Livré' : null
@@ -92,14 +93,20 @@ function OrderCard({ order, onStatusChange }) {
 
   const handleStatus = async () => {
     if (!nextStatus) return
-    setBusy(true)
+    setBusy(true); setErr('')
     try {
       const res = await fetch(`/api/livreur/orders/${order.id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` },
         body: JSON.stringify({ status: nextStatus }),
       })
-      if (res.ok) onStatusChange(order.id, nextStatus)
+      if (res.ok) {
+        onStatusChange(order.id, nextStatus)
+      } else {
+        const data = await res.json()
+        if (res.status === 409) { onTaken(order.id); return }
+        setErr(data.error || 'Erreur')
+      }
     } finally { setBusy(false) }
   }
 
@@ -175,7 +182,8 @@ function OrderCard({ order, onStatusChange }) {
 
       {/* Action */}
       {nextStatus && (
-        <div style={{ padding: '12px' }}>
+        <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {err && <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.1)', borderRadius: 8, padding: '8px 12px' }}>{err}</div>}
           <button onClick={handleStatus} disabled={busy}
             style={{ width: '100%', padding: '13px', borderRadius: 12, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700, background: nextStatus === 'Livré' ? 'linear-gradient(135deg,#22c55e,#16a34a)' : 'linear-gradient(135deg,#60a5fa,#3b82f6)', color: '#fff', opacity: busy ? 0.6 : 1 }}>
             {busy ? '...' : nextLabel}
@@ -215,6 +223,10 @@ function DeliveryPage({ user, logout }) {
 
   const handleStatusChange = (id, status) => {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o))
+  }
+
+  const handleTaken = (id) => {
+    setOrders(prev => prev.filter(o => o.id !== id))
   }
 
   const shown = orders.filter(o =>
@@ -264,7 +276,7 @@ function DeliveryPage({ user, logout }) {
             {tab === 'actif' ? 'Aucune livraison en attente' : 'Aucune livraison terminée'}
           </div>
         ) : (
-          shown.map(o => <OrderCard key={o.id} order={o} onStatusChange={handleStatusChange} />)
+          shown.map(o => <OrderCard key={o.id} order={o} onStatusChange={handleStatusChange} onTaken={handleTaken} />)
         )}
       </div>
     </div>

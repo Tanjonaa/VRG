@@ -91,9 +91,11 @@ const SECRET = process.env.JWT_SECRET || 'change_this_in_production'
     transfer_id       VARCHAR(100),
     status            VARCHAR(50)  DEFAULT 'En attente',
     payment_confirmed TINYINT(1)   DEFAULT 0,
+    livreur_id        INT          NULL DEFAULT NULL,
     created_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`)
+  await pool.execute(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS livreur_id INT NULL DEFAULT NULL`)
   await pool.execute(`CREATE TABLE IF NOT EXISTS order_items (
     id       INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT          NOT NULL,
@@ -994,8 +996,10 @@ app.get('/livreur/orders', livreurAuth, async (req, res) => {
     const [orders] = await pool.execute(
       `SELECT o.*, u.name as user_name, u.phone as user_phone
        FROM orders o JOIN users u ON u.id = o.user_id
-       WHERE o.status IN ('Confirmé','En livraison')
-       ORDER BY o.created_at DESC`
+       WHERE o.status = 'Confirmé'
+          OR (o.status IN ('En livraison','Livré') AND o.livreur_id = ?)
+       ORDER BY o.created_at DESC`,
+      [req.user.id]
     )
     const result = await Promise.all(orders.map(async (o) => {
       const [items] = await pool.execute('SELECT * FROM order_items WHERE order_id=?', [o.id])
@@ -1011,7 +1015,21 @@ app.put('/livreur/orders/:id/status', livreurAuth, async (req, res) => {
   if (!['En livraison', 'Livré'].includes(status))
     return res.status(400).json({ error: 'Statut invalide' })
   try {
-    await pool.execute('UPDATE orders SET status=? WHERE id=?', [status, req.params.id])
+    if (status === 'En livraison') {
+      const [r] = await pool.execute(
+        `UPDATE orders SET status='En livraison', livreur_id=? WHERE id=? AND status='Confirmé'`,
+        [req.user.id, req.params.id]
+      )
+      if (r.affectedRows === 0)
+        return res.status(409).json({ error: 'Commande déjà prise en charge par un autre livreur' })
+    } else {
+      const [r] = await pool.execute(
+        `UPDATE orders SET status='Livré' WHERE id=? AND livreur_id=? AND status='En livraison'`,
+        [req.params.id, req.user.id]
+      )
+      if (r.affectedRows === 0)
+        return res.status(403).json({ error: 'Action non autorisée' })
+    }
     res.json({ ok: true, status })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
