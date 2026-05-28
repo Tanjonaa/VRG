@@ -87,8 +87,8 @@ function OrderCard({ order, onStatusChange }) {
   const [busy, setBusy]   = useState(false)
   const isCash = order.payment === 'livraison'
 
-  const nextStatus = order.status === 'En attente' ? 'En cours' : order.status === 'En cours' ? 'Livré' : null
-  const nextLabel  = order.status === 'En attente' ? 'Prendre en charge' : 'Marquer comme livré'
+  const nextStatus = order.status === 'Confirmé' ? 'En livraison' : order.status === 'En livraison' ? 'Livré' : null
+  const nextLabel  = order.status === 'Confirmé' ? '🛵 Prendre en charge' : 'Marquer comme livré ✓'
 
   const handleStatus = async () => {
     if (!nextStatus) return
@@ -103,7 +103,7 @@ function OrderCard({ order, onStatusChange }) {
     } finally { setBusy(false) }
   }
 
-  const statusColor = order.status === 'En attente' ? '#fbbf24' : order.status === 'En cours' ? '#60a5fa' : '#22c55e'
+  const statusColor = order.status === 'Confirmé' ? '#22c55e' : order.status === 'En livraison' ? '#60a5fa' : '#a78bfa'
 
   return (
     <div style={{ background: '#0c0c1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden', marginBottom: 12 }}>
@@ -218,7 +218,7 @@ function DeliveryPage({ user, logout }) {
   }
 
   const shown = orders.filter(o =>
-    tab === 'actif' ? ['En attente', 'En cours'].includes(o.status) : o.status === 'Livré'
+    tab === 'actif' ? ['Confirmé', 'En livraison'].includes(o.status) : o.status === 'Livré'
   )
 
   return (
@@ -248,7 +248,7 @@ function DeliveryPage({ user, logout }) {
             {t.label}
             {t.id === 'actif' && orders.filter(o => ['En attente','En cours'].includes(o.status)).length > 0 && (
               <span style={{ marginLeft: 6, background: tab === 'actif' ? 'rgba(0,0,0,0.25)' : 'rgba(255,153,0,0.7)', color: tab === 'actif' ? '#000' : '#fff', borderRadius: 99, fontSize: 11, fontWeight: 800, padding: '1px 6px' }}>
-                {orders.filter(o => ['En attente','En cours'].includes(o.status)).length}
+                {orders.filter(o => ['Confirmé','En livraison'].includes(o.status)).length}
               </span>
             )}
           </button>

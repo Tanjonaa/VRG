@@ -994,7 +994,7 @@ app.get('/livreur/orders', livreurAuth, async (req, res) => {
     const [orders] = await pool.execute(
       `SELECT o.*, u.name as user_name, u.phone as user_phone
        FROM orders o JOIN users u ON u.id = o.user_id
-       WHERE o.status IN ('En attente','En cours')
+       WHERE o.status IN ('Confirmé','En livraison')
        ORDER BY o.created_at DESC`
     )
     const result = await Promise.all(orders.map(async (o) => {
@@ -1008,7 +1008,7 @@ app.get('/livreur/orders', livreurAuth, async (req, res) => {
 /* ── PUT /livreur/orders/:id/status ─────────────────── */
 app.put('/livreur/orders/:id/status', livreurAuth, async (req, res) => {
   const { status } = req.body
-  if (!['En cours', 'Livré'].includes(status))
+  if (!['En livraison', 'Livré'].includes(status))
     return res.status(400).json({ error: 'Statut invalide' })
   try {
     await pool.execute('UPDATE orders SET status=? WHERE id=?', [status, req.params.id])
