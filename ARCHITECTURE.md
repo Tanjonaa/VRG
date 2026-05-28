@@ -196,7 +196,7 @@ VRG/
 |---------|-------|-------------|
 | `GET` | `/auth/me` | Profil utilisateur connecté |
 | `PUT` | `/auth/profile` | Modifier nom / téléphone / mot de passe |
-| `GET` | `/referral` | Code + stats parrainage + points |
+| `GET` | `/referral` | Code parrainage + liste filleuls avec `validated` (≥ 5 000 Ar) + points |
 | `GET` | `/orders` | Commandes de l'utilisateur |
 | `POST` | `/orders` | Créer une commande (décrémente le stock automatiquement) |
 | `GET` | `/chat/support` | Récupère ou crée le salon support du client connecté + messages |
@@ -589,13 +589,14 @@ Admin (panneau /admin)          Client (site /)
 
 **Fidélité**
 - 1 point par tranche de 10 000 Ar dépensé (commandes non annulées)
-- 10 points par filleul parrainé
 - Niveaux : Bronze 0–199 · Argent 200–499 · Or 500–999 · Platine 1000+
 
 **Parrainage**
 - Code unique généré à l'inscription (8 chars alphanumériques)
 - Lien de partage : `https://varygasy.com?ref=<code>`
-- À l'inscription avec `?ref=CODE` → ligne dans `referrals` + +10 pts pour le parrain
+- À l'inscription avec `?ref=CODE` → ligne dans `referrals`
+- **+10 pts validés uniquement quand le filleul a dépensé ≥ 5 000 Ar** (commandes non annulées)
+- Avant 5 000 Ar : parrainage visible mais `⏳ En attente` — aucun point crédité
 
 **Rôles**
 - `client` — accès site, commandes, profil
