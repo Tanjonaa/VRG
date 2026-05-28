@@ -6,11 +6,12 @@ const BASE = '/api'
 const h = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
 
 const ROLE_STYLE = {
-  admin:     { color: '#FF9900',              bg: 'rgba(255,153,0,0.1)',    border: 'rgba(255,153,0,0.25)' },
-  moderator: { color: '#60a5fa',              bg: 'rgba(96,165,250,0.1)',   border: 'rgba(96,165,250,0.25)' },
+  admin:     { color: '#FF9900',               bg: 'rgba(255,153,0,0.1)',    border: 'rgba(255,153,0,0.25)' },
+  moderator: { color: '#60a5fa',               bg: 'rgba(96,165,250,0.1)',   border: 'rgba(96,165,250,0.25)' },
+  livreur:   { color: '#34d399',               bg: 'rgba(52,211,153,0.1)',   border: 'rgba(52,211,153,0.25)' },
   client:    { color: 'rgba(240,240,245,0.4)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.1)' },
 }
-const ROLE_OPTIONS = ['client', 'moderator', 'admin'].map(r => ({ value: r, label: r, ...ROLE_STYLE[r] }))
+const ROLE_OPTIONS = ['client', 'moderator', 'admin', 'livreur'].map(r => ({ value: r, label: r, ...ROLE_STYLE[r] }))
 
 const TIERS = [
   { label: 'Bronze',  min: 0,    color: '#cd7f32', bg: 'rgba(205,127,50,0.12)',  border: 'rgba(205,127,50,0.25)' },
@@ -57,7 +58,7 @@ export default function UsersPage({ user: adminUser }) {
     setUpdating(null)
   }
 
-  const openModal = () => { setNewForm({ name: '', phone: '', password: '', role: 'moderator' }); setNewError(''); setShowModal(true) }
+  const openModal = () => { setNewForm({ name: '', phone: '', password: '', role: tab === 'livreurs' ? 'livreur' : 'moderator' }); setNewError(''); setShowModal(true) }
   const closeModal = () => setShowModal(false)
 
   const createAdmin = async (e) => {
@@ -76,9 +77,11 @@ export default function UsersPage({ user: adminUser }) {
     setNewBusy(false)
   }
 
-  const staff   = users.filter(u => ['admin', 'moderator'].includes(u.role))
-  const clients = users.filter(u => u.role === 'client')
-  const list    = (tab === 'staff' ? staff : clients).filter(u =>
+  const staff    = users.filter(u => ['admin', 'moderator'].includes(u.role))
+  const clients  = users.filter(u => u.role === 'client')
+  const livreurs = users.filter(u => u.role === 'livreur')
+  const base     = tab === 'staff' ? staff : tab === 'livreurs' ? livreurs : clients
+  const list     = base.filter(u =>
     !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.phone.includes(search)
   )
 
@@ -112,8 +115,9 @@ export default function UsersPage({ user: adminUser }) {
       {/* Tabs + Search */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         {[
-          { id: 'clients', label: `Clients (${clients.length})`, icon: <User size={13} /> },
-          { id: 'staff',   label: `Admin & Modérateurs (${staff.length})`, icon: <Shield size={13} /> },
+          { id: 'clients',  label: `Clients (${clients.length})`,              icon: <User size={13} /> },
+          { id: 'staff',    label: `Admin & Modérateurs (${staff.length})`,    icon: <Shield size={13} /> },
+          { id: 'livreurs', label: `Livreurs (${livreurs.length})`,            icon: <span style={{ fontSize: 13 }}>🛵</span> },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 9, border: '1px solid', cursor: 'pointer', fontSize: 13, fontWeight: 600,
@@ -123,9 +127,9 @@ export default function UsersPage({ user: adminUser }) {
             {t.icon} {t.label}
           </button>
         ))}
-        {tab === 'staff' && adminUser?.role === 'admin' && (
+        {(tab === 'staff' || tab === 'livreurs') && adminUser?.role === 'admin' && (
           <button onClick={openModal} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, border: '1px solid rgba(255,153,0,0.3)', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'rgba(255,153,0,0.1)', color: '#FF9900' }}>
-            <Plus size={14} /> Ajouter un admin
+            <Plus size={14} /> {tab === 'livreurs' ? 'Ajouter un livreur' : 'Ajouter un admin'}
           </button>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, padding: '8px 12px' }}>
@@ -326,11 +330,14 @@ export default function UsersPage({ user: adminUser }) {
 
               {/* Role selector */}
               <div style={{ display: 'flex', gap: 8 }}>
-                {[{ value: 'moderator', label: 'Modérateur', color: '#60a5fa' }, { value: 'admin', label: 'Admin', color: '#FF9900' }].map(opt => (
+                {(tab === 'livreurs'
+                  ? [{ value: 'livreur', label: 'Livreur', color: '#34d399' }]
+                  : [{ value: 'moderator', label: 'Modérateur', color: '#60a5fa' }, { value: 'admin', label: 'Admin', color: '#FF9900' }]
+                ).map(opt => (
                   <button key={opt.value} type="button" onClick={() => setNewForm(f => ({ ...f, role: opt.value }))}
                     style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1px solid', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s',
-                      background: newForm.role === opt.value ? `rgba(${opt.value === 'admin' ? '255,153,0' : '96,165,250'},0.12)` : 'rgba(255,255,255,0.03)',
-                      borderColor: newForm.role === opt.value ? (opt.value === 'admin' ? 'rgba(255,153,0,0.4)' : 'rgba(96,165,250,0.4)') : 'rgba(255,255,255,0.08)',
+                      background: newForm.role === opt.value ? `${opt.color}18` : 'rgba(255,255,255,0.03)',
+                      borderColor: newForm.role === opt.value ? `${opt.color}55` : 'rgba(255,255,255,0.08)',
                       color: newForm.role === opt.value ? opt.color : 'rgba(240,240,245,0.4)' }}>
                     {opt.label}
                   </button>
