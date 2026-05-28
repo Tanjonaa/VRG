@@ -23,7 +23,17 @@ export function AuthProvider({ children }) {
     if (!token) { setLoading(false); return }
 
     api.get('/auth/me')
-      .then(({ user }) => { setUser(user); return loadOrders() })
+      .then(({ user }) => {
+        setUser(user)
+        const path = window.location.pathname
+        if (user?.role === 'livreur' && !path.startsWith('/livreur')) {
+          window.location.href = '/livreur'; return
+        }
+        if (['admin', 'moderator'].includes(user?.role) && !path.startsWith('/admin')) {
+          window.location.href = '/admin'; return
+        }
+        return loadOrders()
+      })
       .catch(() => { clearToken(); setUser(null) })
       .finally(() => setLoading(false))
   }, [loadOrders])
@@ -39,8 +49,10 @@ export function AuthProvider({ children }) {
     const { user } = await api.post('/auth/login', { phone, password })
     setUser(user)
     if (['admin', 'moderator'].includes(user?.role)) {
-      window.location.href = '/admin'
-      return
+      window.location.href = '/admin'; return
+    }
+    if (user?.role === 'livreur') {
+      window.location.href = '/livreur'; return
     }
     await loadOrders()
   }

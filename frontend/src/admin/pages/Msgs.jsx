@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageSquare, Users, User, Headphones, Send, ChevronRight } from 'lucide-react'
+import { MessageSquare, Users, User, Headphones, Send, ChevronRight, Package } from 'lucide-react'
 
 const BASE = '/api'
 const h = () => ({
@@ -8,10 +8,11 @@ const h = () => ({
 })
 
 const TABS = [
-  { id: 'admin_only', label: 'Admins',  Icon: Users,       desc: 'Groupe admin seulement' },
-  { id: 'admin_mod',  label: 'Équipe',  Icon: MessageSquare,desc: 'Admins + Modérateurs' },
-  { id: 'direct',     label: 'Direct',  Icon: User,        desc: 'Messages privés' },
-  { id: 'clients',    label: 'Clients', Icon: Headphones,  desc: 'Support client' },
+  { id: 'admin_only',    label: 'Admins',    Icon: Users,         desc: 'Groupe admin seulement' },
+  { id: 'admin_mod',     label: 'Équipe',    Icon: MessageSquare, desc: 'Admins + Modérateurs' },
+  { id: 'livreur_group', label: 'Livreurs',  Icon: Package,       desc: 'Groupe livreurs' },
+  { id: 'direct',        label: 'Direct',    Icon: User,          desc: 'Messages privés' },
+  { id: 'clients',       label: 'Clients',   Icon: Headphones,    desc: 'Support client' },
 ]
 
 function fmtTime(ts) {
@@ -313,7 +314,8 @@ export default function Msgs({ user: me }) {
   }, [])
 
   useEffect(() => {
-    if (tab === 'admin_only' || tab === 'admin_mod') {
+    const isFixed = ['admin_only', 'admin_mod', 'livreur_group'].includes(tab)
+    if (isFixed) {
       const target = rooms.fixed.find(f => f.type === tab)
       if (target) { setActiveRoom(target.id); setActiveContact(null); setDirectStaffId(null) }
     } else {
@@ -351,7 +353,7 @@ export default function Msgs({ user: me }) {
       <div style={{ flex: 1, display: 'flex', minHeight: 0, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
 
         {/* Fixed group rooms */}
-        {(tab === 'admin_only' || tab === 'admin_mod') && (
+        {['admin_only', 'admin_mod', 'livreur_group'].includes(tab) && (
           <ChatArea roomId={activeRoom} me={me} />
         )}
 

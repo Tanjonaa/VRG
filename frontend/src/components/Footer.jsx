@@ -74,10 +74,14 @@ export default function Footer() {
 
           {/* Liens légaux */}
           <div style={{ display: 'flex', gap: 20 }}>
-            {['Confidentialité', 'CGU', 'Contact'].map(item => (
-              <motion.a key={item} href="#" whileHover={{ color: 'rgba(240,240,245,0.8)' }}
+            {[
+              { label: 'Confidentialité', href: '/confidentialite' },
+              { label: 'CGU',             href: '/cgu' },
+              { label: 'Contact',         href: '#' },
+            ].map(({ label, href }) => (
+              <motion.a key={label} href={href} whileHover={{ color: 'rgba(240,240,245,0.8)' }}
                 style={{ fontSize: 13, color: 'rgba(240,240,245,0.35)', textDecoration: 'none', cursor: 'pointer' }}>
-                {item}
+                {label}
               </motion.a>
             ))}
           </div>

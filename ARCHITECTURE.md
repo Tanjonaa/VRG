@@ -60,7 +60,7 @@ VRG/
 │
 ├── frontend/                        ← ÉQUIPE FRONTEND
 │   ├── src/
-│   │   ├── main.jsx                 point d'entrée — détecte /admin, /livreur et charge le bon app
+│   │   ├── main.jsx                 point d'entrée — détecte /admin, /livreur, /confidentialite, /cgu
 │   │   ├── App.jsx                  composant racine site client
 │   │   ├── index.css                styles globaux + @keyframes
 │   │   │
@@ -68,7 +68,7 @@ VRG/
 │   │   │   ├── Navbar.jsx
 │   │   │   ├── Hero.jsx
 │   │   │   ├── Products.jsx         ← charge /api/products (stock > 0 uniquement)
-│   │   │   ├── CartPanel.jsx        panier + checkout (envoie item.id pour décrémentation stock)
+│   │   │   ├── CartPanel.jsx        panier + checkout — achat bloqué si role ≠ 'client'
 │   │   │   ├── AccountPanel.jsx     profil + fidélité + parrainage + commandes
 │   │   │   ├── AuthModal.jsx        connexion / inscription (capture ?ref=CODE)
 │   │   │   ├── SupportChat.jsx      bulle chat flottante style Messenger (polling 4s)
@@ -77,10 +77,12 @@ VRG/
 │   │   │   ├── Pricing.jsx
 │   │   │   ├── Team.jsx             ← section équipe (charge /api/team, auto-cachée si vide)
 │   │   │   ├── CTA.jsx
-│   │   │   ├── Footer.jsx
+│   │   │   ├── Footer.jsx           liens : Confidentialité (/confidentialite), CGU (/cgu)
 │   │   │   ├── Marquee.jsx
 │   │   │   ├── Particles.jsx
-│   │   │   └── ScrollProgress.jsx
+│   │   │   ├── ScrollProgress.jsx
+│   │   │   ├── PrivacyPage.jsx      page standalone politique de confidentialité (/confidentialite)
+│   │   │   └── CGUPage.jsx          page standalone conditions générales d'utilisation (/cgu)
 │   │   │
 │   │   ├── admin/                   ← PANNEAU ADMIN (/admin)
 │   │   │   ├── AdminApp.jsx         layout admin (sidebar + routing interne)
@@ -99,7 +101,7 @@ VRG/
 │   │   │       └── Msgs.jsx         messagerie interne (5 onglets : Admins/Équipe/Livreurs/Direct/Clients)
 │   │   │
 │   │   └── livreur/                 ← ESPACE LIVREUR (/livreur)
-│   │       └── LivreurApp.jsx       app mobile-first livreur (login, livraisons, messages)
+│   │       └── LivreurApp.jsx       app mobile-first livreur (login, livraisons, messages groupe + clients)
 │   │   │
 │   │   ├── context/
 │   │   │   ├── AuthContext.jsx      utilisateur connecté, commandes, updateProfile
@@ -551,6 +553,8 @@ Accès :
 - **Site client** → http://localhost:3000
 - **Panneau admin** → http://localhost:3000/admin
 - **Espace livreur** → http://localhost:3000/livreur
+- **Confidentialité** → http://localhost:3000/confidentialite
+- **CGU** → http://localhost:3000/cgu
 - **Adminer (BDD)** → http://localhost:8080  
   `serveur: db` · `user: vrg_user` · `mdp: vrg_pass` · `base: vrg`
 
@@ -600,9 +604,11 @@ Admin (panneau /admin)          Client (site /)
 
 **Rôles**
 - `client` — accès site, commandes, profil
-- `moderator` — accès admin (sauf gestion des rôles utilisateurs)
-- `admin` — accès complet + changement de rôles
-- `livreur` — accès espace `/livreur` uniquement : liste des commandes Confirmées, prise en charge, livraison, messagerie groupe + clients
+- `moderator` — accès admin (sauf gestion des rôles utilisateurs) — redirigé vers `/admin` à la connexion
+- `admin` — accès complet + changement de rôles — redirigé vers `/admin` à la connexion
+- `livreur` — accès espace `/livreur` uniquement — redirigé vers `/livreur` à la connexion et au chargement
+
+**Achat** : le bouton "Passer la commande" dans `CartPanel.jsx` est remplacé par un message d'information pour tout utilisateur dont le rôle n'est pas `client` (admin, moderator, livreur).
 
 **Flux livraison**
 ```
