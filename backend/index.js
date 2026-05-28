@@ -222,6 +222,17 @@ const adminAuth = (req, res, next) => {
   } catch { res.status(401).json({ error: 'Session expirée' }) }
 }
 
+const livreurAuth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1]
+  if (!token) return res.status(401).json({ error: 'Non authentifié' })
+  try {
+    const user = jwt.verify(token, SECRET)
+    if (user.role !== 'livreur') return res.status(403).json({ error: 'Accès réservé aux livreurs' })
+    req.user = user
+    next()
+  } catch { res.status(401).json({ error: 'Session expirée' }) }
+}
+
 /* ── POST /auth/register ─────────────────────────────── */
 app.post('/auth/register', async (req, res) => {
   const { name, phone, password, referralCode } = req.body
@@ -617,7 +628,7 @@ app.get('/admin/users/:id/referrals', adminAuth, async (req, res) => {
 app.post('/admin/users', adminAuth, async (req, res) => {
   const { name, phone, password, role } = req.body
   if (!name || !phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
-  if (!['admin', 'moderator'].includes(role)) return res.status(400).json({ error: 'Rôle invalide' })
+  if (!['admin', 'moderator', 'livreur'].includes(role)) return res.status(400).json({ error: 'Rôle invalide' })
   try {
     const [existing] = await pool.execute('SELECT id FROM users WHERE phone = ?', [phone.trim()])
     if (existing.length) return res.status(409).json({ error: 'Ce numéro est déjà utilisé' })
@@ -634,7 +645,7 @@ app.post('/admin/users', adminAuth, async (req, res) => {
 /* ── PUT /admin/users/:id ────────────────────────────── */
 app.put('/admin/users/:id', adminAuth, async (req, res) => {
   const { role } = req.body
-  const allowed = ['client', 'moderator', 'admin']
+  const allowed = ['client', 'moderator', 'admin', 'livreur']
   if (!allowed.includes(role)) return res.status(400).json({ error: 'Rôle invalide' })
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Seul un admin peut changer les rôles' })
   try {
@@ -974,6 +985,34 @@ app.get('/chat/support/poll', auth, async (req, res) => {
     query += ' ORDER BY created_at ASC LIMIT 50'
     const [rows] = await pool.execute(query, params)
     res.json(rows)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ── GET /livreur/orders ─────────────────────────────── */
+app.get('/livreur/orders', livreurAuth, async (req, res) => {
+  try {
+    const [orders] = await pool.execute(
+      `SELECT o.*, u.name as user_name, u.phone as user_phone
+       FROM orders o JOIN users u ON u.id = o.user_id
+       WHERE o.status IN ('En attente','En cours')
+       ORDER BY o.created_at DESC`
+    )
+    const result = await Promise.all(orders.map(async (o) => {
+      const [items] = await pool.execute('SELECT * FROM order_items WHERE order_id=?', [o.id])
+      return { ...o, items, date: new Date(o.created_at).toLocaleDateString('fr-FR') }
+    }))
+    res.json(result)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ── PUT /livreur/orders/:id/status ─────────────────── */
+app.put('/livreur/orders/:id/status', livreurAuth, async (req, res) => {
+  const { status } = req.body
+  if (!['En cours', 'Livré'].includes(status))
+    return res.status(400).json({ error: 'Statut invalide' })
+  try {
+    await pool.execute('UPDATE orders SET status=? WHERE id=?', [status, req.params.id])
+    res.json({ ok: true, status })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
