@@ -3,30 +3,28 @@
 ## Vue d'ensemble
 
 ```
-Navigateur (client)          Navigateur (admin)
-       │                            │
-       │  HTTP  localhost:3000      │  HTTP  localhost:3000/admin
-       └──────────────┬─────────────┘
-                      ▼
+Navigateur (client/admin/livreur)
+       │  HTTP  localhost:3000 | /admin | /livreur
+       ▼
 ┌─────────────────────────────────────────────────────┐
-│                  Docker Compose                     │
+│                  Docker Compose (3 services)        │
 │                                                     │
-│  ┌──────────────┐        ┌──────────────────────┐  │
-│  │  app         │        │  api                 │  │
-│  │  nginx:alpine│──/api/─▶  node:22-alpine      │  │
-│  │  port 3000   │        │  Express.js port 4000│  │
-│  │  (React SPA) │        │  (backend REST)      │  │
-│  └──────────────┘        └──────────┬───────────┘  │
-│                                     │ SQL           │
-│                           ┌─────────▼───────────┐  │
-│                           │  db                 │  │
-│                           │  MariaDB 11         │  │
-│                           │  port 3306          │  │
-│                           └─────────────────────┘  │
+│  ┌──────────────────────────────────────────────┐  │
+│  │  app  (node:22-alpine + nginx:alpine)        │  │
+│  │                                              │  │
+│  │  nginx :80 ──/api/──▶ Node.js :4000         │  │
+│  │      │                (Express REST)         │  │
+│  │      │ /images/uploads/                      │  │
+│  │      └──▶ /app/uploads  (symlink)            │  │
+│  │                │ SQL                         │  │
+│  └────────────────┼─────────────────────────────┘  │
+│                   ▼                                 │
+│          ┌────────────────┐                         │
+│          │  db MariaDB 11 │  port 3306              │
+│          └────────────────┘                         │
 │                                                     │
 │  ┌──────────────┐                                   │
-│  │  adminer     │  ← interface web BDD              │
-│  │  port 8080   │      localhost:8080               │
+│  │  adminer     │  localhost:8080                   │
 │  └──────────────┘                                   │
 └─────────────────────────────────────────────────────┘
 ```
@@ -62,7 +60,7 @@ VRG/
 │
 ├── frontend/                        ← ÉQUIPE FRONTEND
 │   ├── src/
-│   │   ├── main.jsx                 point d'entrée — détecte /admin et charge AdminApp
+│   │   ├── main.jsx                 point d'entrée — détecte /admin, /livreur et charge le bon app
 │   │   ├── App.jsx                  composant racine site client
 │   │   ├── index.css                styles globaux + @keyframes
 │   │   │
@@ -93,12 +91,15 @@ VRG/
 │   │   │       ├── Dashboard.jsx    KPI ventes/commandes/clients/visites + graphiques
 │   │   │       ├── Products.jsx     CRUD articles actifs (filtre catégorie, recherche, scroll)
 │   │   │       ├── Orders.jsx       gestion commandes (filtre statut, accordion détail)
-│   │   │       ├── Users.jsx        liste clients/staff, création admin, dropdown rôle
+│   │   │       ├── Users.jsx        liste clients/staff, création admin/livreur, dropdown rôle
 │   │   │       ├── Stocks.jsx       alertes rupture, édition inline, ajout/suppression article
 │   │   │       ├── Team.jsx         CRUD membres de l'équipe (photo, nom, rôle, ordre)
 │   │   │       ├── Settings.jsx     paramètres site (bandeau, frais livraison, contacts)
 │   │   │       ├── Logs.jsx         historique des actions admin — pagination + filtres
-│   │   │       └── Msgs.jsx         messagerie interne (4 onglets : Admins/Équipe/Direct/Clients)
+│   │   │       └── Msgs.jsx         messagerie interne (5 onglets : Admins/Équipe/Livreurs/Direct/Clients)
+│   │   │
+│   │   └── livreur/                 ← ESPACE LIVREUR (/livreur)
+│   │       └── LivreurApp.jsx       app mobile-first livreur (login, livraisons, messages)
 │   │   │
 │   │   ├── context/
 │   │   │   ├── AuthContext.jsx      utilisateur connecté, commandes, updateProfile
@@ -119,21 +120,21 @@ VRG/
 │   │   └── uploads/                 ← volume Docker partagé api↔app (images uploadées)
 │   │
 │   ├── vite.config.js               proxy /api → :4000 (dev)
-│   ├── nginx.conf                   reverse proxy + SPA fallback (prod)
-│   └── Dockerfile                   build Vite → image nginx:alpine
+│   └── nginx.conf                   reverse proxy + SPA fallback (référence — non utilisé en prod)
 │
 ├── backend/                         ← ÉQUIPE BACKEND
 │   ├── index.js                     serveur Express — toutes les routes API
 │   ├── db/
-│   │   └── init.sql                 schéma BDD — exécuté au 1er démarrage
+│   │   └── init.sql                 schéma BDD — exécuté au 1er démarrage MariaDB
 │   ├── package.json
-│   └── Dockerfile                   image node:22-alpine
+│   └── Dockerfile                   image node:22-alpine (API seule — utilisé en dev séparé)
 │
 ├── bdd/
 │   └── schema.sql                   schéma complet annoté (référence équipe)
 │
+├── Dockerfile                       conteneur unique prod : nginx + Node.js (build frontend inclus)
 ├── ARCHITECTURE.md                  ce fichier
-├── docker-compose.yml               orchestration 4 services
+├── docker-compose.yml               orchestration 3 services (app, db, adminer)
 ├── .env                             secrets (ne pas committer)
 └── .gitignore
 ```
@@ -164,6 +165,7 @@ VRG/
 | **bcryptjs** | — | Hash mots de passe (pur JS, pas de binaire natif) |
 | **jsonwebtoken** | — | Auth JWT (tokens 30 jours) |
 | **multer** | — | Upload de fichiers images (5 Mo max, jpg/png/webp/avif/gif) |
+| **express-rate-limit** | — | Protection brute-force : 20 tentatives/15 min sur login, 120 req/min global |
 | **cors** | — | Requêtes cross-origin |
 
 ### Infrastructure
@@ -216,7 +218,7 @@ VRG/
 | `GET` | `/admin/orders` | Toutes les commandes |
 | `PUT` | `/admin/orders/:id` | Changer statut ou confirmer paiement |
 | `GET` | `/admin/users` | Tous les utilisateurs |
-| `POST` | `/admin/users` | Créer un compte admin ou modérateur (admin only) |
+| `POST` | `/admin/users` | Créer un compte admin, moderator ou livreur |
 | `PUT` | `/admin/users/:id` | Changer le rôle d'un utilisateur (admin only) |
 | `GET` | `/admin/stocks` | Produits actifs avec niveau de stock |
 | `PUT` | `/admin/stocks/:id` | Mettre à jour le stock |
@@ -227,11 +229,27 @@ VRG/
 | `GET` | `/admin/settings` | Lire tous les paramètres site |
 | `PUT` | `/admin/settings` | Modifier un ou plusieurs paramètres (`{ settings: [{key,value}] }`) |
 | `GET` | `/admin/logs` | Historique des actions (`?limit=&offset=&action=`) |
-| `GET` | `/admin/chat/rooms` | Salons accessibles (fixes + directs + support clients) |
+| `GET` | `/admin/chat/rooms` | Salons accessibles (fixes admin_only/admin_mod/livreur_group + directs + clients) |
 | `GET` | `/admin/chat/rooms/:id/messages` | Messages d'un salon (`?since=&limit=`) |
 | `POST` | `/admin/chat/rooms/:id/messages` | Envoyer un message dans un salon |
 | `GET` | `/admin/chat/staff` | Liste du staff pour créer un DM |
 | `POST` | `/admin/chat/direct/:userId` | Créer ou récupérer un salon direct avec un membre du staff |
+
+### Livreur (JWT + role livreur)
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `GET` | `/livreur/orders` | Commandes "Confirmé" (disponibles) + ses commandes "En livraison"/"Livré" |
+| `PUT` | `/livreur/orders/:id/status` | Changer statut (`En livraison` ou `Livré`) + `departure_time` optionnel |
+| `GET` | `/livreur/chat/rooms` | Salons accessibles (`{ group, clients }`) |
+| `GET` | `/livreur/chat/rooms/:id/messages` | Messages d'un salon (`?since=&limit=`) |
+| `POST` | `/livreur/chat/rooms/:id/messages` | Envoyer un message |
+| `GET` | `/livreur/chat/client/:orderId` | Récupère ou crée le salon support du client d'une commande |
+
+**Prise en charge** : quand un livreur passe une commande à `En livraison`, l'API :
+1. Met à jour `orders.livreur_id = livreur.id` de façon atomique (`WHERE status='Confirmé'` → 409 si déjà pris)
+2. Crée si besoin le salon support du client
+3. Insère un message automatique : nom du livreur, téléphone, heure de départ vers le client
 
 Header requis pour routes protégées :
 ```
@@ -336,13 +354,14 @@ Toute action sensible effectuée par un admin ou modérateur est automatiquement
 | Action | Déclencheur | old_value | new_value |
 |--------|-------------|-----------|-----------|
 | `product_add` | `POST /admin/products` | `null` | catégorie du produit |
-| `product_edit` | `PUT /admin/products/:id` | ancienne catégorie | nouvelle catégorie |
+| `product_edit` | `PUT /admin/products/:id` | champs modifiés avant (ex: `"prix: 15000 · stock: 5"`) | champs modifiés après (ex: `"prix: 18000 · stock: 10"`) — pas de log si aucun champ ne change |
 | `product_archive` | `DELETE /admin/products/:id` | `actif` | `archivé` |
 | `product_delete` | `DELETE /admin/products/:id/permanent` | nom du produit | `null` |
 | `order_status` | `PUT /admin/orders/:id` (status) | ancien statut | nouveau statut |
 | `order_payment` | `PUT /admin/orders/:id` (payment_confirmed) | `non confirmé` | `confirmé` |
-| `stock_update` | `PUT /admin/stocks/:id` | ancien stock | nouveau stock |
+| `stock_update` | `PUT /admin/stocks/:id` | ancien stock | nouveau stock — pas de log si valeur inchangée |
 | `settings_update` | `PUT /admin/settings` | ancienne valeur | nouvelle valeur |
+| `user_create` | `POST /admin/users` | `null` | rôle créé (admin/moderator/livreur) |
 | `role_change` | `PUT /admin/users/:id` | ancien rôle | nouveau rôle |
 | `team_add` | `POST /admin/team` | `null` | rôle/poste du membre |
 | `team_edit` | `PUT /admin/team/:id` | ancien rôle/poste | nouveau rôle/poste |
@@ -370,7 +389,7 @@ users
 ├── password      VARCHAR(255)        ← bcryptjs hash
 ├── referral_code VARCHAR(12) UNIQUE  ← généré à l'inscription
 ├── referred_by   INT FK→users.id     ← parrain
-├── role          VARCHAR(20)         ← client | moderator | admin
+├── role          VARCHAR(20)         ← client | moderator | admin | livreur
 └── created_at    TIMESTAMP
 
 products
@@ -386,21 +405,22 @@ products
 └── updated_at  TIMESTAMP
 
 orders
-├── id             INT  PK AUTO_INCREMENT
-├── user_id        INT  FK→users.id
-├── payment        VARCHAR(50)         ← mvola | airtel | orange | livraison
-├── address        TEXT
-├── zone           VARCHAR(50)         ← tana | peripherique
-├── delivery_fee   INT
-├── hours          VARCHAR(100)
-├── note           TEXT
-├── total          INT                 ← total TTC en Ar
-├── transfer_phone VARCHAR(30)
-├── transfer_name  VARCHAR(100)
-├── transfer_id    VARCHAR(100)
-├── status             VARCHAR(50)     ← En attente | Confirmé | En livraison | Livré | Annulé
-├── payment_confirmed  TINYINT(1)      ← 0 = non confirmé | 1 = paiement vérifié
-└── created_at         TIMESTAMP
+├── id                INT  PK AUTO_INCREMENT
+├── user_id           INT  FK→users.id
+├── payment           VARCHAR(50)         ← mvola | airtel | orange | livraison
+├── address           TEXT
+├── zone              VARCHAR(50)         ← tana | peripherique
+├── delivery_fee      INT
+├── hours             VARCHAR(100)
+├── note              TEXT
+├── total             INT                 ← total TTC en Ar
+├── transfer_phone    VARCHAR(30)
+├── transfer_name     VARCHAR(100)
+├── transfer_id       VARCHAR(100)
+├── status            VARCHAR(50)         ← En attente | Confirmé | En livraison | Livré | Annulé
+├── payment_confirmed TINYINT(1)          ← 0 = non confirmé | 1 = paiement vérifié
+├── livreur_id        INT FK→users.id     ← livreur assigné (NULL jusqu'à prise en charge)
+└── created_at        TIMESTAMP
 
 order_items
 ├── id       INT  PK AUTO_INCREMENT
@@ -458,11 +478,11 @@ admin_logs
 
 chat_rooms
 ├── id         INT  PK AUTO_INCREMENT
-├── type       ENUM  ← admin_only | admin_mod | direct | support
+├── type       ENUM  ← admin_only | admin_mod | livreur_group | direct | support
 ├── name       VARCHAR(255)             ← libellé affiché
 ├── client_id  INT FK→users.id NULL     ← pour type='support' uniquement
 └── created_at DATETIME
-  Salons permanents : id=1 admin_only, id=2 admin_mod
+  Salons permanents : id=1 admin_only, id=2 admin_mod, id=3 livreur_group
 
 chat_room_members (pour type='direct' uniquement)
 ├── room_id INT FK→chat_rooms.id  PK
@@ -491,16 +511,18 @@ Polling REST simple (pas de WebSocket). Chaque client appelle `?since=<datetime>
 |------|-------|------|
 | `admin_only` | admins uniquement | au démarrage (id=1) |
 | `admin_mod` | admins + modérateurs | au démarrage (id=2) |
+| `livreur_group` | livreurs + admins/modos en lecture | au démarrage (id=3) |
 | `direct` | deux membres du staff | `POST /admin/chat/direct/:userId` |
-| `support` | staff (tous) + le client concerné | au 1er message client |
+| `support` | staff (tous) + le client concerné + livreur assigné | au 1er message client |
 
 ### Côté admin (`admin/pages/Msgs.jsx`)
 
-4 onglets dans le panneau admin :
+5 onglets dans le panneau admin :
 1. **Admins** — salon `admin_only` (caché aux modérateurs)
 2. **Équipe** — salon `admin_mod`
-3. **Direct** — liste du staff à gauche, cliquer ouvre/crée un DM
-4. **Clients** — liste des fils support à gauche, polling 5s sur la liste
+3. **Livreurs** — salon `livreur_group` (visible par admin et modérateur)
+4. **Direct** — liste du staff à gauche, cliquer ouvre/crée un DM
+5. **Clients** — liste des fils support à gauche, polling 5s sur la liste
 
 ### Côté client (`components/SupportChat.jsx`)
 
@@ -518,23 +540,17 @@ Polling REST simple (pas de WebSocket). Chaque client appelle `?since=<datetime>
 # Première fois — construit et démarre tout
 docker compose up --build
 
-# Après modification backend (index.js, db/)
-docker compose up --build api -d
-
-# Après modification frontend (src/)
-docker compose up --build app -d
-
-# Les deux en même temps
-docker compose up --build api app -d
+# Après toute modification (backend ou frontend sont dans la même image)
+docker compose build --no-cache && docker compose up -d
 
 # Logs en direct
-docker compose logs -f api
 docker compose logs -f app
 ```
 
 Accès :
 - **Site client** → http://localhost:3000
 - **Panneau admin** → http://localhost:3000/admin
+- **Espace livreur** → http://localhost:3000/livreur
 - **Adminer (BDD)** → http://localhost:8080  
   `serveur: db` · `user: vrg_user` · `mdp: vrg_pass` · `base: vrg`
 
@@ -572,7 +588,7 @@ Admin (panneau /admin)          Client (site /)
 ## Règles métier
 
 **Fidélité**
-- 1 point par tranche de 1 000 Ar dépensé (commandes non annulées)
+- 1 point par tranche de 10 000 Ar dépensé (commandes non annulées)
 - 10 points par filleul parrainé
 - Niveaux : Bronze 0–199 · Argent 200–499 · Or 500–999 · Platine 1000+
 
@@ -585,3 +601,12 @@ Admin (panneau /admin)          Client (site /)
 - `client` — accès site, commandes, profil
 - `moderator` — accès admin (sauf gestion des rôles utilisateurs)
 - `admin` — accès complet + changement de rôles
+- `livreur` — accès espace `/livreur` uniquement : liste des commandes Confirmées, prise en charge, livraison, messagerie groupe + clients
+
+**Flux livraison**
+```
+En attente → Confirmé (admin) → En livraison (livreur, atomic) → Livré (livreur)
+                                      │
+                                      └── auto-message dans chat support du client
+                                          (nom livreur · téléphone · heure de départ)
+```

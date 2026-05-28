@@ -1,6 +1,6 @@
 -- ============================================================
 -- VaRyGasy — Schéma complet base de données MariaDB 11
--- Dernière mise à jour : 2026-05-26
+-- Dernière mise à jour : 2026-05-28
 -- ============================================================
 
 -- ── users ────────────────────────────────────────────────────
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   password      VARCHAR(255)  NOT NULL,            -- bcryptjs hash
   referral_code VARCHAR(12)   UNIQUE,              -- code parrainage unique (8 chars alphanum)
   referred_by   INT           NULL,                -- FK → users.id du parrain
-  role          VARCHAR(20)   DEFAULT 'client',    -- client | moderator | admin
+  role          VARCHAR(20)   DEFAULT 'client',    -- client | moderator | admin | livreur
   created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -32,22 +32,23 @@ CREATE TABLE IF NOT EXISTS products (
 
 -- ── orders ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS orders (
-  id             INT AUTO_INCREMENT PRIMARY KEY,
-  user_id        INT           NOT NULL,
-  payment        VARCHAR(50)   NOT NULL,           -- mvola | airtel | orange | livraison
-  address        TEXT          NOT NULL,
-  zone           VARCHAR(50)   NULL,               -- tana | peripherique
-  delivery_fee   INT           NOT NULL DEFAULT 0, -- frais en Ar
-  hours          VARCHAR(100)  NULL,               -- disponibilité client
-  note           TEXT,
-  total          INT           NOT NULL,           -- total TTC en Ar
-  transfer_phone VARCHAR(30)   NULL,               -- mobile money : numéro
-  transfer_name  VARCHAR(100)  NULL,               -- mobile money : nom
-  transfer_id    VARCHAR(100)  NULL,               -- mobile money : réf transaction
-  status            VARCHAR(50)  DEFAULT 'En attente',
+  id                INT AUTO_INCREMENT PRIMARY KEY,
+  user_id           INT           NOT NULL,
+  payment           VARCHAR(50)   NOT NULL,        -- mvola | airtel | orange | livraison
+  address           TEXT          NOT NULL,
+  zone              VARCHAR(50)   NULL,            -- tana | peripherique
+  delivery_fee      INT           NOT NULL DEFAULT 0, -- frais en Ar
+  hours             VARCHAR(100)  NULL,            -- disponibilité client
+  note              TEXT,
+  total             INT           NOT NULL,        -- total TTC en Ar
+  transfer_phone    VARCHAR(30)   NULL,            -- mobile money : numéro
+  transfer_name     VARCHAR(100)  NULL,            -- mobile money : nom
+  transfer_id       VARCHAR(100)  NULL,            -- mobile money : réf transaction
+  status            VARCHAR(50)   DEFAULT 'En attente',
                                                    -- En attente | Confirmé | En livraison | Livré | Annulé
-  payment_confirmed TINYINT(1)   DEFAULT 0,        -- 0 = non confirmé | 1 = paiement vérifié
-  created_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  payment_confirmed TINYINT(1)    DEFAULT 0,       -- 0 = non confirmé | 1 = paiement vérifié
+  livreur_id        INT           NULL DEFAULT NULL, -- FK→users.id du livreur assigné
+  created_at        TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -84,13 +85,16 @@ CREATE TABLE IF NOT EXISTS settings (
   `value`    TEXT,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   -- Clés pré-insérées :
-  --   announcement_active  '0'|'1'       bandeau annonce actif
-  --   announcement_text    TEXT           texte du bandeau
-  --   announcement_color   '#FF9900'      couleur du bandeau
-  --   delivery_fee_tana    '3000'         frais livraison Tana Ville (Ar)
-  --   delivery_fee_peripherique '5000'    frais livraison périphérique (Ar)
-  --   whatsapp             ''             numéro WhatsApp contact
-  --   business_hours       ''             horaires d'ouverture
+  --   announcement_active       '0'|'1'      bandeau annonce actif
+  --   announcement_text         TEXT          texte du bandeau
+  --   announcement_color        '#FF9900'     couleur du bandeau
+  --   delivery_fee_tana         '3000'        frais livraison Tana Ville (Ar)
+  --   delivery_fee_peripherique '5000'        frais livraison périphérique (Ar)
+  --   whatsapp / facebook / instagram         liens réseaux sociaux
+  --   business_hours            ''            horaires d'ouverture
+  --   reassurance_text                        bandeau réassurance
+  --   marquee_items             JSON          items du défilé d'annonces
+  --   team_badge / team_title / team_subtitle textes section équipe
 );
 
 INSERT IGNORE INTO settings (`key`, `value`) VALUES
@@ -126,42 +130,48 @@ CREATE TABLE IF NOT EXISTS admin_logs (
   id          INT AUTO_INCREMENT PRIMARY KEY,
   admin_id    INT           NOT NULL,
   admin_name  VARCHAR(100)  NOT NULL,
-  action      VARCHAR(50)   NOT NULL,    -- role_change | product_add/edit/archive | order_status | order_payment | stock_update | settings_update | team_add/edit/archive
+  action      VARCHAR(50)   NOT NULL,    -- user_create | role_change
+                                         -- product_add/edit/archive/delete
+                                         -- order_status | order_payment | stock_update
+                                         -- settings_update | team_add/edit/archive
   target_type VARCHAR(30)   NOT NULL,    -- user | product | order | setting | team_member
   target_id   INT           NOT NULL,
   target_name VARCHAR(100)  NOT NULL,
-  old_value   TEXT,                      -- ancienne valeur (rôle, statut…)
-  new_value   TEXT,                      -- nouvelle valeur
+  old_value   TEXT,                      -- ancienne valeur — pour product_edit : "prix: X · stock: Y"
+  new_value   TEXT,                      -- nouvelle valeur — pour product_edit : "prix: X' · stock: Y'"
   created_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
   -- Route : GET /api/admin/logs (adminAuth)
+  -- product_edit : seuls les champs réellement modifiés apparaissent (nom/prix/catégorie/stock)
+  -- stock_update : pas de log si l'ancienne valeur == la nouvelle
 );
 
 -- ── chat_rooms ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS chat_rooms (
   id         INT AUTO_INCREMENT PRIMARY KEY,
-  type       ENUM('admin_only','admin_mod','direct','support') NOT NULL,
-             -- admin_only : groupe réservé aux admins
-             -- admin_mod  : groupe admins + modérateurs
-             -- direct     : conversation privée entre deux membres du staff
-             -- support    : conversation entre l'équipe et un client
+  type       ENUM('admin_only','admin_mod','direct','support','livreur_group') NOT NULL,
+             -- admin_only    : groupe réservé aux admins
+             -- admin_mod     : groupe admins + modérateurs
+             -- livreur_group : groupe tous les livreurs (visible aussi par admins/modos)
+             -- direct        : conversation privée entre deux membres du staff
+             -- support       : conversation entre l'équipe et un client
   name       VARCHAR(255),                         -- libellé affiché dans la liste
   client_id  INT NULL,                             -- FK→users.id pour type='support'
   created_at DATETIME DEFAULT NOW(),
   FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Salons fixes créés au démarrage de l'API (CREATE IF NOT EXISTS)
+-- Salons permanents créés au démarrage de l'API
 INSERT IGNORE INTO chat_rooms (id, type, name) VALUES
-  (1, 'admin_only', 'Admins'),
-  (2, 'admin_mod',  'Équipe');
+  (1, 'admin_only',    'Admins'),
+  (2, 'admin_mod',     'Équipe'),
+  (3, 'livreur_group', 'Livreurs');
 
 -- ── chat_room_members ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS chat_room_members (
   room_id INT NOT NULL,                            -- FK→chat_rooms.id
   user_id INT NOT NULL,                            -- FK→users.id (staff uniquement)
   PRIMARY KEY (room_id, user_id)
-  -- Utilisé uniquement pour type='direct' (salons privés)
-  -- Les salons fixed (admin_only / admin_mod) et support n'ont pas de membres en DB
+  -- Utilisé uniquement pour type='direct' (salons privés staff-à-staff)
 );
 
 -- ── chat_messages ─────────────────────────────────────────────
@@ -176,13 +186,14 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 
 -- ── Index ────────────────────────────────────────────────────
-CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
-CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);
-CREATE INDEX IF NOT EXISTS idx_referrals_ref ON referrals(referrer_id);
-CREATE INDEX IF NOT EXISTS idx_products_cat  ON products(category);
-CREATE INDEX IF NOT EXISTS idx_products_act  ON products(active);
-CREATE INDEX IF NOT EXISTS idx_team_order    ON team_members(active, order_index);
-CREATE INDEX IF NOT EXISTS idx_logs_created  ON admin_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_orders_user    ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_livreur ON orders(livreur_id);
+CREATE INDEX IF NOT EXISTS idx_items_order    ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_ref  ON referrals(referrer_id);
+CREATE INDEX IF NOT EXISTS idx_products_cat   ON products(category);
+CREATE INDEX IF NOT EXISTS idx_products_act   ON products(active);
+CREATE INDEX IF NOT EXISTS idx_team_order     ON team_members(active, order_index);
+CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
 
 -- ============================================================
 -- Règles métier (appliquées côté API — backend/index.js)
@@ -191,12 +202,20 @@ CREATE INDEX IF NOT EXISTS idx_logs_created  ON admin_logs(created_at);
 --   est décrémenté : UPDATE products SET stock = GREATEST(0, stock - qty)
 --   Le site client (GET /products) filtre stock > 0.
 -- ── Messagerie ──────────────────────────────────────────────
---   Salons permanents id=1 (admin_only) et id=2 (admin_mod) créés au démarrage.
+--   Salons permanents id=1 (admin_only), id=2 (admin_mod), id=3 (livreur_group).
 --   Salons directs créés à la demande (POST /admin/chat/direct/:userId).
 --   Salons support : un par client, créé au 1er message (GET /chat/support).
 --   Polling toutes les 3-4 s via param since= (datetime ISO).
+--   Livreur → client : auto-message lors de la prise en charge (nom + téléphone + heure départ).
+-- ── Livraisons ──────────────────────────────────────────────
+--   Flux statut : En attente → Confirmé → En livraison → Livré | Annulé
+--   Confirmé : admin confirme la commande, visible par les livreurs
+--   En livraison : livreur prend en charge (orders.livreur_id = livreur.id)
+--                  → auto-message envoyé dans le chat support du client
+--   Livré : livreur marque livrée
+--   livreur_id : FK optionnelle vers users.id (rôle='livreur')
 -- ── Points de fidélité ──────────────────────────────────────
---   1 pt par tranche de 1 000 Ar dépensé (orders.total, status ≠ Annulé)
+--   1 pt par tranche de 10 000 Ar dépensé (orders.total, status ≠ Annulé)
 --   10 pts par filleul parrainé (referrals)
 --   Total = orderPoints + referralPoints
 --   Niveaux : Bronze 0-199 | Argent 200-499 | Or 500-999 | Platine 1000+
@@ -208,6 +227,7 @@ CREATE INDEX IF NOT EXISTS idx_logs_created  ON admin_logs(created_at);
 --   client    : accès au site, commandes, profil
 --   moderator : accès au panneau admin (lecture + gestion commandes/stocks)
 --   admin     : accès complet (+ gestion utilisateurs, changement de rôles)
+--   livreur   : accès espace livreur (/livreur), gestion livraisons, chat groupe + clients
 -- ── Produits ────────────────────────────────────────────────
 --   active=0  : archivé (soft delete), invisible sur le site client
 --   stock=0   : badge "Rupture" côté client, bouton désactivé
@@ -221,4 +241,10 @@ CREATE INDEX IF NOT EXISTS idx_logs_created  ON admin_logs(created_at);
 -- ── Settings ────────────────────────────────────────────────
 --   clé/valeur simple, lue par l'API et exposée aux composants
 --   ne pas ajouter de colonne ici — utiliser une nouvelle clé
+-- ── Sécurité ────────────────────────────────────────────────
+--   Rate limiting : 20 tentatives/15 min sur /auth/login, 120 req/min global
+--   POST /orders bloqué pour admin | moderator | livreur
+--   POST /admin/users réservé au rôle admin uniquement
+--   PUT /admin/users/:id : admin ne peut pas modifier son propre rôle
+--   JWT_SECRET : warning au démarrage si valeur par défaut détectée
 -- ============================================================

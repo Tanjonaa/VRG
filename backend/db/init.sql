@@ -1,6 +1,7 @@
 -- ============================================================
 -- VaRyGasy — init.sql  (MariaDB 11)
 -- Exécuté automatiquement au premier démarrage du conteneur db
+-- Dernière mise à jour : 2026-05-28
 -- ============================================================
 
 -- ── users ────────────────────────────────────────────────────
@@ -11,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   password      VARCHAR(255)  NOT NULL,
   referral_code VARCHAR(12)   UNIQUE,
   referred_by   INT           NULL,
-  role          VARCHAR(20)   DEFAULT 'client',   -- client | moderator | admin
+  role          VARCHAR(20)   DEFAULT 'client',   -- client | moderator | admin | livreur
   created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -32,21 +33,23 @@ CREATE TABLE IF NOT EXISTS products (
 
 -- ── orders ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS orders (
-  id             INT AUTO_INCREMENT PRIMARY KEY,
-  user_id        INT           NOT NULL,
-  payment        VARCHAR(50)   NOT NULL,           -- mvola | airtel | orange | livraison
-  address        TEXT          NOT NULL,
-  zone           VARCHAR(50),                      -- tana | peripherique
-  delivery_fee   INT           NOT NULL DEFAULT 0,
-  hours          VARCHAR(100),
-  note           TEXT,
-  total          INT           NOT NULL,
-  transfer_phone VARCHAR(30),
-  transfer_name  VARCHAR(100),
-  transfer_id    VARCHAR(100),
-  status             VARCHAR(50)   DEFAULT 'En attente',
-  payment_confirmed  TINYINT(1)    DEFAULT 0,
-  created_at         TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  id                INT AUTO_INCREMENT PRIMARY KEY,
+  user_id           INT           NOT NULL,
+  payment           VARCHAR(50)   NOT NULL,        -- mvola | airtel | orange | livraison
+  address           TEXT          NOT NULL,
+  zone              VARCHAR(50),                   -- tana | peripherique
+  delivery_fee      INT           NOT NULL DEFAULT 0,
+  hours             VARCHAR(100),
+  note              TEXT,
+  total             INT           NOT NULL,
+  transfer_phone    VARCHAR(30),
+  transfer_name     VARCHAR(100),
+  transfer_id       VARCHAR(100),
+  status            VARCHAR(50)   DEFAULT 'En attente',
+                                                   -- En attente | Confirmé | En livraison | Livré | Annulé
+  payment_confirmed TINYINT(1)    DEFAULT 0,       -- 0 = non confirmé | 1 = paiement vérifié
+  livreur_id        INT           NULL DEFAULT NULL, -- FK→users.id (livreur assigné)
+  created_at        TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -117,7 +120,10 @@ CREATE TABLE IF NOT EXISTS admin_logs (
   id          INT AUTO_INCREMENT PRIMARY KEY,
   admin_id    INT           NOT NULL,
   admin_name  VARCHAR(100)  NOT NULL,
-  action      VARCHAR(50)   NOT NULL,    -- role_change | product_add/edit/archive | order_status | order_payment | stock_update | settings_update | team_add/edit/archive
+  action      VARCHAR(50)   NOT NULL,    -- user_create | role_change
+                                         -- product_add/edit/archive/delete
+                                         -- order_status | order_payment | stock_update
+                                         -- settings_update | team_add/edit/archive
   target_type VARCHAR(30)   NOT NULL,    -- user | product | order | setting | team_member
   target_id   INT           NOT NULL,
   target_name VARCHAR(100)  NOT NULL,
@@ -129,16 +135,22 @@ CREATE TABLE IF NOT EXISTS admin_logs (
 -- ── chat_rooms ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS chat_rooms (
   id         INT AUTO_INCREMENT PRIMARY KEY,
-  type       ENUM('admin_only','admin_mod','direct','support') NOT NULL,
+  type       ENUM('admin_only','admin_mod','direct','support','livreur_group') NOT NULL,
+             -- admin_only    : groupe réservé aux admins
+             -- admin_mod     : groupe admins + modérateurs
+             -- livreur_group : groupe tous les livreurs (+ admins en lecture)
+             -- direct        : conversation privée entre deux membres du staff
+             -- support       : conversation entre l'équipe et un client
   name       VARCHAR(255),
-  client_id  INT NULL,
+  client_id  INT NULL,                             -- FK→users.id pour type='support'
   created_at DATETIME DEFAULT NOW(),
   FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 INSERT IGNORE INTO chat_rooms (id, type, name) VALUES
-  (1, 'admin_only', 'Admins'),
-  (2, 'admin_mod',  'Équipe');
+  (1, 'admin_only',    'Admins'),
+  (2, 'admin_mod',     'Équipe'),
+  (3, 'livreur_group', 'Livreurs');
 
 -- ── chat_room_members ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS chat_room_members (
@@ -159,10 +171,11 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 
 -- ── Index ────────────────────────────────────────────────────
-CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id);
-CREATE INDEX IF NOT EXISTS idx_items_order   ON order_items(order_id);
-CREATE INDEX IF NOT EXISTS idx_referrals_ref ON referrals(referrer_id);
-CREATE INDEX IF NOT EXISTS idx_products_cat  ON products(category);
-CREATE INDEX IF NOT EXISTS idx_products_act  ON products(active);
-CREATE INDEX IF NOT EXISTS idx_team_order    ON team_members(active, order_index);
-CREATE INDEX IF NOT EXISTS idx_logs_created  ON admin_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_orders_user    ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_livreur ON orders(livreur_id);
+CREATE INDEX IF NOT EXISTS idx_items_order    ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_ref  ON referrals(referrer_id);
+CREATE INDEX IF NOT EXISTS idx_products_cat   ON products(category);
+CREATE INDEX IF NOT EXISTS idx_products_act   ON products(active);
+CREATE INDEX IF NOT EXISTS idx_team_order     ON team_members(active, order_index);
+CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
