@@ -19,6 +19,9 @@ COPY backend/ .
 # Frontend statique
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
 
+# Lien symbolique : nginx sert les uploads depuis /app/uploads
+RUN mkdir -p /app/uploads && ln -s /app/uploads /usr/share/nginx/html/images/uploads
+
 # Script de démarrage — configure le port nginx dynamiquement
 RUN printf '#!/bin/sh\n\
 PORT=${PORT:-80}\n\

@@ -72,6 +72,15 @@ export default function AdminApp() {
       .then(r => r.json()).then(d => setAlerts(d?.alerts?.low_stock || 0)).catch(() => {})
   }, [user])
 
+  const isAdmin = user?.role === 'admin'
+  const visibleNav = NAV.filter(n => !n.adminOnly || isAdmin)
+
+  useEffect(() => {
+    if (!user) return
+    const allowed = visibleNav.map(n => n.id)
+    if (!allowed.includes(page)) setPage('dashboard')
+  }, [user?.role])
+
   if (loading) return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#07070f', color: '#fff', fontSize: 14 }}>
       Chargement…
@@ -80,11 +89,7 @@ export default function AdminApp() {
 
   if (!user) return <AdminLogin onLogin={login} />
 
-  const isAdmin = user.role === 'admin'
-  const visibleNav = NAV.filter(n => !n.adminOnly || isAdmin)
-  const allowedPages = new Set(visibleNav.map(n => n.id))
-  const safePage = allowedPages.has(page) ? page : 'dashboard'
-  if (page !== safePage) setPage('dashboard')
+  const safePage = visibleNav.some(n => n.id === page) ? page : 'dashboard'
 
   const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: UsersPage, stocks: Stocks, team: TeamAdmin, settings: SettingsPage, logs: LogsPage, msgs: MsgsPage }[safePage]
 

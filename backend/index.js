@@ -183,6 +183,9 @@ const SECRET = process.env.JWT_SECRET || 'change_this_in_production'
   if (!r1) await pool.execute("INSERT INTO chat_rooms (type, name) VALUES ('admin_only', 'Admins')")
   const [[r2]] = await pool.execute("SELECT id FROM chat_rooms WHERE type='admin_mod' LIMIT 1")
   if (!r2) await pool.execute("INSERT INTO chat_rooms (type, name) VALUES ('admin_mod', 'Equipe')")
+  await pool.execute(`ALTER TABLE chat_rooms MODIFY type ENUM('admin_only','admin_mod','direct','support','livreur_group') NOT NULL`).catch(() => {})
+  const [[rLiv]] = await pool.execute("SELECT id FROM chat_rooms WHERE type='livreur_group' LIMIT 1")
+  if (!rLiv) await pool.execute("INSERT INTO chat_rooms (type, name) VALUES ('livreur_group', 'Livreurs')")
 
   console.log('DB initialisee')
 })().catch(e => console.error('DB init error:', e))
@@ -360,7 +363,7 @@ app.get('/orders', auth, async (req, res) => {
 
 /* ── POST /orders ────────────────────────────────────── */
 app.post('/orders', auth, async (req, res) => {
-  if (['admin', 'moderator'].includes(req.user.role))
+  if (['admin', 'moderator', 'livreur'].includes(req.user.role))
     return res.status(403).json({ error: 'Les comptes staff ne peuvent pas passer de commande' })
   const { payment, address, zone, delivery_fee, hours, note, total, transfer, items } = req.body
   if (!payment || !address || !total) return res.status(400).json({ error: 'Données incomplètes' })
@@ -628,6 +631,7 @@ app.get('/admin/users/:id/referrals', adminAuth, async (req, res) => {
 
 /* ── POST /admin/users ───────────────────────────────── */
 app.post('/admin/users', adminAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Seul un admin peut créer des comptes staff' })
   const { name, phone, password, role } = req.body
   if (!name || !phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
   if (!['admin', 'moderator', 'livreur'].includes(role)) return res.status(400).json({ error: 'Rôle invalide' })
@@ -816,8 +820,8 @@ app.get('/admin/chat/rooms', adminAuth, async (req, res) => {
     const isAdmin = req.user.role === 'admin'
     const [fixed] = await pool.execute(
       isAdmin
-        ? "SELECT id, type, name FROM chat_rooms WHERE type IN ('admin_only','admin_mod') ORDER BY id"
-        : "SELECT id, type, name FROM chat_rooms WHERE type='admin_mod' ORDER BY id"
+        ? "SELECT id, type, name FROM chat_rooms WHERE type IN ('admin_only','admin_mod','livreur_group') ORDER BY id"
+        : "SELECT id, type, name FROM chat_rooms WHERE type IN ('admin_mod','livreur_group') ORDER BY id"
     )
     const [directs] = await pool.execute(`
       SELECT cr.id, cr.type, cr.name,
@@ -1011,7 +1015,7 @@ app.get('/livreur/orders', livreurAuth, async (req, res) => {
 
 /* ── PUT /livreur/orders/:id/status ─────────────────── */
 app.put('/livreur/orders/:id/status', livreurAuth, async (req, res) => {
-  const { status } = req.body
+  const { status, departure_time } = req.body
   if (!['En livraison', 'Livré'].includes(status))
     return res.status(400).json({ error: 'Statut invalide' })
   try {
@@ -1022,6 +1026,22 @@ app.put('/livreur/orders/:id/status', livreurAuth, async (req, res) => {
       )
       if (r.affectedRows === 0)
         return res.status(409).json({ error: 'Commande déjà prise en charge par un autre livreur' })
+      // Auto-message to client
+      try {
+        const [[order]] = await pool.execute('SELECT user_id FROM orders WHERE id=?', [req.params.id])
+        const [[lvrr]] = await pool.execute('SELECT name, phone FROM users WHERE id=?', [req.user.id])
+        if (order && lvrr) {
+          let [[room]] = await pool.execute("SELECT id FROM chat_rooms WHERE type='support' AND client_id=? LIMIT 1", [order.user_id])
+          if (!room) {
+            const [[u]] = await pool.execute('SELECT name FROM users WHERE id=?', [order.user_id])
+            const [r2] = await pool.execute("INSERT INTO chat_rooms (type, name, client_id) VALUES ('support',?,?)", [u?.name || 'Client', order.user_id])
+            room = { id: r2.insertId }
+          }
+          const timeStr = departure_time || new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+          const msgBody = `🛵 Votre commande est prise en charge !\n👤 Livreur : ${lvrr.name}\n📞 Téléphone : ${lvrr.phone}\n🕐 Départ vers chez vous : ${timeStr}`
+          await pool.execute('INSERT INTO chat_messages (room_id, sender_id, sender_name, body) VALUES (?,?,?,?)', [room.id, req.user.id, lvrr.name, msgBody])
+        }
+      } catch {}
     } else {
       const [r] = await pool.execute(
         `UPDATE orders SET status='Livré' WHERE id=? AND livreur_id=? AND status='En livraison'`,
@@ -1031,6 +1051,86 @@ app.put('/livreur/orders/:id/status', livreurAuth, async (req, res) => {
         return res.status(403).json({ error: 'Action non autorisée' })
     }
     res.json({ ok: true, status })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ── GET /livreur/chat/rooms ─────────────────────────── */
+app.get('/livreur/chat/rooms', livreurAuth, async (req, res) => {
+  try {
+    const [[group]] = await pool.execute("SELECT id, type, name FROM chat_rooms WHERE type='livreur_group' LIMIT 1")
+    const [clients] = await pool.execute(`
+      SELECT cr.id, cr.type, cr.name, cr.client_id, u.name AS client_name,
+             o.id AS order_id, o.status AS order_status,
+             (SELECT body FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_msg,
+             (SELECT created_at FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_at
+      FROM orders o
+      JOIN users u ON u.id = o.user_id
+      LEFT JOIN chat_rooms cr ON cr.type='support' AND cr.client_id = o.user_id
+      WHERE o.livreur_id = ? AND o.status IN ('En livraison','Livré')
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+    `, [req.user.id])
+    res.json({ group: group || null, clients })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ── GET /livreur/chat/rooms/:id/messages ────────────── */
+app.get('/livreur/chat/rooms/:id/messages', livreurAuth, async (req, res) => {
+  try {
+    const roomId = Number(req.params.id)
+    const { since, limit = 60 } = req.query
+    const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [roomId])
+    if (!room) return res.status(404).json({ error: 'Salon introuvable' })
+    if (room.type === 'livreur_group') {
+      // all livreurs OK
+    } else if (room.type === 'support') {
+      const [[order]] = await pool.execute('SELECT id FROM orders WHERE user_id=? AND livreur_id=? LIMIT 1', [room.client_id, req.user.id])
+      if (!order) return res.status(403).json({ error: 'Accès refusé' })
+    } else { return res.status(403).json({ error: 'Accès refusé' }) }
+    let query = 'SELECT * FROM chat_messages WHERE room_id=?'
+    const params = [roomId]
+    if (since) { query += ' AND created_at > ?'; params.push(since) }
+    query += ' ORDER BY created_at ASC LIMIT ?'
+    params.push(Number(limit))
+    const [rows] = await pool.execute(query, params)
+    res.json(rows)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ── POST /livreur/chat/rooms/:id/messages ───────────── */
+app.post('/livreur/chat/rooms/:id/messages', livreurAuth, async (req, res) => {
+  const { body } = req.body
+  if (!body?.trim()) return res.status(400).json({ error: 'Message vide' })
+  try {
+    const roomId = Number(req.params.id)
+    const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [roomId])
+    if (!room) return res.status(404).json({ error: 'Salon introuvable' })
+    if (room.type === 'livreur_group') {
+      // OK
+    } else if (room.type === 'support') {
+      const [[order]] = await pool.execute('SELECT id FROM orders WHERE user_id=? AND livreur_id=? LIMIT 1', [room.client_id, req.user.id])
+      if (!order) return res.status(403).json({ error: 'Accès refusé' })
+    } else { return res.status(403).json({ error: 'Accès refusé' }) }
+    const [r] = await pool.execute('INSERT INTO chat_messages (room_id, sender_id, sender_name, body) VALUES (?,?,?,?)', [roomId, req.user.id, req.user.name, body.trim()])
+    const [[msg]] = await pool.execute('SELECT * FROM chat_messages WHERE id=?', [r.insertId])
+    res.json(msg)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ── GET /livreur/chat/client/:orderId ───────────────── */
+/* Crée ou récupère le salon support du client d'une commande livreur */
+app.get('/livreur/chat/client/:orderId', livreurAuth, async (req, res) => {
+  try {
+    const [[order]] = await pool.execute('SELECT user_id FROM orders WHERE id=? AND livreur_id=?', [req.params.orderId, req.user.id])
+    if (!order) return res.status(403).json({ error: 'Accès refusé' })
+    let [[room]] = await pool.execute("SELECT * FROM chat_rooms WHERE type='support' AND client_id=? LIMIT 1", [order.user_id])
+    if (!room) {
+      const [[u]] = await pool.execute('SELECT name FROM users WHERE id=?', [order.user_id])
+      const [r] = await pool.execute("INSERT INTO chat_rooms (type, name, client_id) VALUES ('support',?,?)", [u?.name || 'Client', order.user_id])
+      const [[nr]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [r.insertId])
+      room = nr
+    }
+    res.json({ room_id: room.id })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
