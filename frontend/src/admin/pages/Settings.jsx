@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Radio, Layout, Star, Image, Package, Megaphone, Truck, Phone, Save, Check, Plus, Trash2, GripVertical, Upload } from 'lucide-react'
+import { Radio, Layout, Star, Image, Package, Megaphone, Truck, Phone, Save, Check, Plus, Trash2, GripVertical, Upload, Clock } from 'lucide-react'
 
 const BASE = '/api'
 const h = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
 const hAuth = () => ({ Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
 
 const SECTIONS = [
+  { id: 'comingsoon',   label: 'Coming Soon', icon: Clock,     desc: 'Mode maintenance' },
   { id: 'ticker',       label: 'Ticker',      icon: Radio,     desc: 'Messages défilants' },
   { id: 'hero',         label: 'Héro',        icon: Layout,    desc: 'Section principale' },
   { id: 'features',     label: 'Avantages',   icon: Star,      desc: '3 cartes produits' },
@@ -20,6 +21,8 @@ const SECTIONS = [
 const DEF = {
   delivery_fee_tana: '3000', delivery_fee_peripherique: '5000',
   whatsapp: '', business_hours: '', facebook: '', instagram: '',
+  coming_soon: '0', coming_soon_date: '',
+  coming_soon_message: 'Nous préparons quelque chose d\'exceptionnel. La boutique ouvre bientôt !',
 }
 const DEF_TICKER = [
   { text: 'Finger Sleeves Gaming dispo maintenant' },
@@ -167,6 +170,63 @@ export default function Settings() {
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
+
+        {/* ── COMING SOON ── */}
+        {section === 'comingsoon' && <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Toggle principal */}
+          {card(<>
+            {sectionTitle('Activation')}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#f0f0f5' }}>Mode Coming Soon</div>
+                <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)', marginTop: 3 }}>
+                  Remplace le site par la page d'attente avec compte à rebours
+                </div>
+              </div>
+              <button
+                onClick={() => setFlat(v => ({ ...v, coming_soon: v.coming_soon === '1' ? '0' : '1' }))}
+                style={{
+                  width: 52, height: 28, borderRadius: 99, border: 'none', cursor: 'pointer',
+                  background: flat.coming_soon === '1' ? '#FF9900' : 'rgba(255,255,255,0.1)',
+                  position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+                }}>
+                <span style={{
+                  position: 'absolute', top: 3,
+                  left: flat.coming_soon === '1' ? 26 : 3,
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: '#fff', transition: 'left 0.2s',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                }} />
+              </button>
+            </div>
+            {flat.coming_soon === '1' && (
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(255,153,0,0.08)', border: '1px solid rgba(255,153,0,0.2)', fontSize: 12, color: '#FF9900', fontWeight: 600 }}>
+                Le site est actuellement en mode Coming Soon — les visiteurs voient la page d'attente
+              </div>
+            )}
+          </>)}
+
+          {/* Date cible */}
+          {card(<>
+            {sectionTitle('Date et heure d\'ouverture')}
+            {field('Date cible', 'Laisse vide pour afficher la page sans compte à rebours',
+              <input
+                type="datetime-local"
+                value={flat.coming_soon_date || ''}
+                onChange={e => setFlat(v => ({ ...v, coming_soon_date: e.target.value }))}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#f0f0f5', fontSize: 13, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }}
+              />
+            )}
+          </>)}
+
+          {/* Message */}
+          {card(<>
+            {sectionTitle('Message affiché')}
+            {field('Texte sous le titre', 'Visible sur la page d\'attente',
+              ta(flat.coming_soon_message, v => setFlat(fv => ({ ...fv, coming_soon_message: v })), 'Nous préparons quelque chose…', 3)
+            )}
+          </>)}
+        </div>}
 
         {/* ── TICKER ── */}
         {section === 'ticker' && card(<>

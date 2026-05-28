@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { CartProvider } from './context/CartContext.jsx'
+import { useSettings } from './hooks/useSettings.js'
 import CartPanel from './components/CartPanel.jsx'
 import Navbar from './components/Navbar.jsx'
 import Hero from './components/Hero.jsx'
@@ -16,12 +17,23 @@ import ScrollProgress from './components/ScrollProgress.jsx'
 import AuthModal from './components/AuthModal.jsx'
 import AccountPanel from './components/AccountPanel.jsx'
 import SupportChat from './components/SupportChat.jsx'
+import ComingSoon from './components/ComingSoon.jsx'
 
 function AppInner() {
   const { user } = useAuth()
+  const settings = useSettings()
   const [showAuth, setShowAuth]       = useState(false)
   const [showAccount, setShowAccount] = useState(false)
   const [showCart, setShowCart]       = useState(false)
+
+  // Attendre que les settings soient chargés avant d'afficher quoi que ce soit
+  const loaded = Object.keys(settings).length > 0
+
+  if (!loaded) return (
+    <div style={{ height: '100dvh', background: '#07070f' }} />
+  )
+
+  if (settings.coming_soon === '1') return <ComingSoon settings={settings} />
 
   const handleOpenAuth = () => {
     if (user) setShowAccount(true)

@@ -183,6 +183,9 @@ if (SECRET === 'change_this_in_production')
     ['marquee_items','[{"text":"Finger Sleeves Gaming dispo maintenant"},{"text":"Livraison 24h sur Antananarivo"},{"text":"+1 200 gamers équipés à Madagascar"},{"text":"Ventilateurs Turbo — stock limité"},{"text":"Garantie 6 mois sur tous les produits"},{"text":"Support WhatsApp 7j/7 — réponse en 5 min"}]'],
     ['team_badge','Notre équipe'],['team_title','Les personnes derrière'],
     ['team_subtitle','Une équipe passionnée au service de vos commandes à Madagascar.'],
+    ['coming_soon','0'],
+    ['coming_soon_date',''],
+    ['coming_soon_message','Nous préparons quelque chose d\'exceptionnel. La boutique ouvre bientôt !'],
   ]
   for (const [k, v] of seeds)
     await pool.execute('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)', [k, v])
