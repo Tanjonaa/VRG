@@ -342,13 +342,29 @@ app.get('/referral', auth, async (req, res) => {
       await pool.execute('UPDATE users SET referral_code = ? WHERE id = ?', [code, req.user.id])
     }
     const [referrals] = await pool.execute(
-      `SELECT u.name, u.created_at FROM referrals r
+      `SELECT u.name, u.created_at,
+              COALESCE(SUM(CASE WHEN o.status != 'Annulé' THEN o.total ELSE 0 END), 0) AS total_spent
+       FROM referrals r
        JOIN users u ON u.id = r.referred_id
-       WHERE r.referrer_id = ? ORDER BY r.created_at DESC`,
+       LEFT JOIN orders o ON o.user_id = r.referred_id
+       WHERE r.referrer_id = ?
+       GROUP BY r.referred_id, u.name, u.created_at
+       ORDER BY u.created_at DESC`,
       [req.user.id]
     )
-    res.json({ code, count: referrals.length, points: referrals.length * 10,
-      referrals: referrals.map(r => ({ name: r.name, date: new Date(r.created_at).toLocaleDateString('fr-FR') })) })
+    const THRESHOLD = 5000
+    const validated = referrals.filter(r => Number(r.total_spent) >= THRESHOLD)
+    res.json({
+      code,
+      count:    validated.length,
+      points:   validated.length * 10,
+      referrals: referrals.map(r => ({
+        name:      r.name,
+        date:      new Date(r.created_at).toLocaleDateString('fr-FR'),
+        validated: Number(r.total_spent) >= THRESHOLD,
+        spent:     Number(r.total_spent),
+      })),
+    })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
@@ -614,7 +630,10 @@ app.get('/admin/users', adminAuth, async (req, res) => {
       `SELECT u.id, u.name, u.phone, u.role, u.referral_code, u.created_at,
         COUNT(DISTINCT o.id)      as order_count,
         COALESCE(SUM(o.total), 0) as total_spent,
-        COUNT(DISTINCT r.referred_id) as referral_count
+        COUNT(DISTINCT CASE WHEN (
+          SELECT COALESCE(SUM(o2.total),0) FROM orders o2
+          WHERE o2.user_id = r.referred_id AND o2.status != 'Annulé'
+        ) >= 5000 THEN r.referred_id END) as referral_count
        FROM users u
        LEFT JOIN orders    o ON o.user_id      = u.id
        LEFT JOIN referrals r ON r.referrer_id  = u.id

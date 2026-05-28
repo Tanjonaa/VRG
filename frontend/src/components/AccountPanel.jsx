@@ -449,7 +449,7 @@ function ReferralSection({ data, onRefresh }) {
 
           {/* Stats */}
           <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard value={data?.count ?? 0} label="Filleuls" color="#a78bfa" />
+            <StatCard value={data?.count ?? 0} label="Filleuls validés" color="#a78bfa" />
             <StatCard value={data?.points ?? 0} label="Points gagnés" color="#fbbf24" suffix=" pts" />
           </div>
 
@@ -473,7 +473,7 @@ function ReferralSection({ data, onRefresh }) {
             </div>
 
             <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.25)', marginTop: 10, lineHeight: 1.6 }}>
-              Partage ce lien — chaque ami qui s'inscrit te rapporte <strong style={{ color: '#a78bfa' }}>+10 points</strong> de fidélité.
+              Partage ce lien — tu gagnes <strong style={{ color: '#a78bfa' }}>+10 points</strong> dès que ton filleul dépense <strong style={{ color: '#a78bfa' }}>5 000 Ar</strong>.
             </div>
           </div>
 
@@ -484,17 +484,22 @@ function ReferralSection({ data, onRefresh }) {
                 Amis parrainés
               </div>
               {data.referrals.map((r, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 10, padding: '9px 12px' }}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: r.validated ? 'rgba(167,139,250,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${r.validated ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.05)'}`, borderRadius: 10, padding: '9px 12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#a78bfa' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: r.validated ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${r.validated ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: r.validated ? '#a78bfa' : 'rgba(240,240,245,0.3)' }}>
                       {r.name?.[0]?.toUpperCase()}
                     </div>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#f0f0f5' }}>{r.name}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.3)' }}>{r.date}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: r.validated ? '#f0f0f5' : 'rgba(240,240,245,0.45)' }}>{r.name}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.3)' }}>
+                        {r.validated ? r.date : `Ar ${(r.spent || 0).toLocaleString('fr-FR')} / 5 000 dépensé`}
+                      </div>
                     </div>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24' }}>+10 pts</span>
+                  {r.validated
+                    ? <span style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24' }}>+10 pts</span>
+                    : <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(240,240,245,0.3)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 99, padding: '3px 8px' }}>⏳ En attente</span>
+                  }
                 </div>
               ))}
             </div>
