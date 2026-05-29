@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Trash2, Plus, Minus, ShoppingCart, MapPin, CheckCircle, ChevronLeft, LogIn, Copy, Check, Phone, User, Hash, Navigation } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import AdminDropdown from '../admin/components/AdminDropdown.jsx'
 
 const PAYMENT_METHODS = [
   { id: 'mvola',     name: 'MVola',          sub: 'Telma',         color: '#00A651', bg: 'rgba(0,166,81,0.1)',   border: 'rgba(0,166,81,0.3)',   emoji: '🟢', merchantNumber: '034 XX XXX XX' },
@@ -483,31 +484,35 @@ function DeliveryScheduler({ onChange }) {
     onChange(`${label}, ${startH}h → ${endH}h`)
   }, [date, startH, endH])
 
-  const validEnd = HOURS.filter(h => Number(h) > Number(startH))
-  const safeEnd  = validEnd.includes(endH) ? endH : validEnd[0] || '22'
+  const validEnd  = HOURS.filter(h => Number(h) > Number(startH))
+  const safeEnd   = validEnd.includes(endH) ? endH : validEnd[0] || '22'
+  const startOpts = HOURS.map(h => ({ value: h, label: `${h}h00` }))
+  const endOpts   = validEnd.map(h => ({ value: h, label: `${h}h00` }))
 
-  const field = {
+  const dateField = {
     background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
     borderRadius: 10, padding: '11px 12px', fontSize: 14, color: '#f0f0f5',
-    fontFamily: 'inherit', outline: 'none', width: '100%',
+    fontFamily: 'inherit', outline: 'none', width: '100%', cursor: 'pointer',
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <input type="date" value={date} min={todayStr}
         onChange={e => { if (e.target.value) setDate(e.target.value) }}
-        style={{ ...field, cursor: 'pointer' }} />
+        style={dateField} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8 }}>
-        <select value={startH} onChange={e => setStartH(e.target.value)}
-          className="vrg-dark" style={field}>
-          {HOURS.map(h => <option key={h} value={h}>{h}h00</option>)}
-        </select>
+        <AdminDropdown
+          value={startH}
+          options={startOpts}
+          onChange={v => { setStartH(v); if (Number(v) >= Number(safeEnd)) setEndH(validEnd[0] || '22') }}
+        />
         <span style={{ color: 'rgba(240,240,245,0.35)', fontSize: 13, fontWeight: 700, userSelect: 'none' }}>→</span>
-        <select value={safeEnd} onChange={e => setEndH(e.target.value)}
-          className="vrg-dark" style={field}>
-          {validEnd.map(h => <option key={h} value={h}>{h}h00</option>)}
-        </select>
+        <AdminDropdown
+          value={safeEnd}
+          options={endOpts}
+          onChange={setEndH}
+        />
       </div>
     </div>
   )
