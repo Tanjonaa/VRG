@@ -757,17 +757,16 @@ app.post('/admin/users/purge-inactive', adminAuth, async (req, res) => {
 })
 
 /* ── DELETE /admin/users/:id ─────────────────────────── */
-/* Supprime un client (admin only) — les commandes/parrainages cascadent */
+/* Supprime un compte (client/moderator/admin) — admin only, jamais soi-même */
 app.delete('/admin/users/:id', adminAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Seul un admin peut supprimer un compte' })
   if (String(req.params.id) === String(req.user.id)) return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' })
   try {
     const [[target]] = await pool.execute('SELECT name, phone, role FROM users WHERE id=?', [req.params.id])
     if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' })
-    if (target.role !== 'client') return res.status(400).json({ error: 'Seuls les clients peuvent être supprimés ici' })
     await pool.execute('DELETE FROM users WHERE id=?', [req.params.id])
     await writeLog(req.user.id, req.user.name, 'user_delete', 'user', req.params.id,
-      `${target.name} (${target.phone})`, 'client', 'supprimé')
+      `${target.name} (${target.phone})`, target.role, 'supprimé')
     res.json({ ok: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })

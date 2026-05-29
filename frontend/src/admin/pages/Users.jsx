@@ -58,8 +58,9 @@ export default function UsersPage({ user: adminUser }) {
     setUpdating(null)
   }
 
-  const deleteClient = async (u) => {
-    if (!confirm(`Supprimer définitivement le client « ${u.name} » ?\nCette action est irréversible (commandes incluses).`)) return
+  const deleteUser = async (u) => {
+    const roleLabel = u.role === 'client' ? 'le client' : u.role === 'livreur' ? 'le livreur' : u.role === 'moderator' ? 'le modérateur' : "l'admin"
+    if (!confirm(`Supprimer définitivement ${roleLabel} « ${u.name} » ?\nCette action est irréversible (commandes incluses).`)) return
     setUpdating(u.id)
     const res = await fetch(`${BASE}/admin/users/${u.id}`, { method: 'DELETE', headers: h() })
     if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Erreur'); setUpdating(null); return }
@@ -175,7 +176,7 @@ export default function UsersPage({ user: adminUser }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              {['Client', tab === 'staff' ? 'Ventes effectuées' : 'Fidélité', 'Commandes', 'Total dépensé', 'Parrainages', 'Code parrain', 'Inscrit le', ...(tab === 'staff' && adminUser?.role === 'admin' ? ['Accès'] : [])].map(c => (
+              {['Client', tab === 'staff' ? 'Ventes effectuées' : 'Fidélité', 'Commandes', 'Total dépensé', 'Parrainages', 'Code parrain', 'Inscrit le', ...(tab === 'staff' && isAdmin ? ['Accès'] : []), ...(isAdmin ? ['Actions'] : [])].map(c => (
                 <th key={c} style={{ padding: '12px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>{c}</th>
               ))}
             </tr>
@@ -251,7 +252,7 @@ export default function UsersPage({ user: adminUser }) {
                   <td style={{ padding: '13px 14px', color: 'rgba(240,240,245,0.4)', fontSize: 12, whiteSpace: 'nowrap' }}>{u.date}</td>
 
                   {/* Accès (staff tab, admin only) */}
-                  {tab === 'staff' && adminUser?.role === 'admin' && (
+                  {tab === 'staff' && isAdmin && (
                     <td style={{ padding: '13px 14px' }} onClick={e => e.stopPropagation()}>
                       {u.id !== adminUser.id ? (
                         <AdminDropdown
@@ -269,12 +270,27 @@ export default function UsersPage({ user: adminUser }) {
                     </td>
                   )}
 
+                  {/* Actions — suppression (admin only) */}
+                  {isAdmin && (
+                    <td style={{ padding: '13px 14px' }} onClick={e => e.stopPropagation()}>
+                      {u.id !== adminUser?.id ? (
+                        <button onClick={() => deleteUser(u)} disabled={updating === u.id}
+                          title="Supprimer le compte"
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(248,113,113,0.25)', cursor: updating === u.id ? 'default' : 'pointer', background: 'rgba(248,113,113,0.08)', color: '#f87171', opacity: updating === u.id ? 0.5 : 1 }}>
+                          <Trash2 size={14} />
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: 11, color: 'rgba(240,240,245,0.2)' }}>—</span>
+                      )}
+                    </td>
+                  )}
+
                 </tr>
 
                 {/* Expanded detail */}
                 {isOpen && (
                   <tr style={{ borderBottom: i < list.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                    <td colSpan={tab === 'staff' && adminUser?.role === 'admin' ? 8 : 7} style={{ padding: '0 14px 14px' }}>
+                    <td colSpan={7 + (tab === 'staff' && isAdmin ? 1 : 0) + (isAdmin ? 1 : 0)} style={{ padding: '0 14px 14px' }}>
                       <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
 
                         <InfoBlock label="Nom complet" value={u.name} />
@@ -313,20 +329,6 @@ export default function UsersPage({ user: adminUser }) {
                             : '—'
                         } />
 
-                        {/* Suppression client (admin only) */}
-                        {tab === 'clients' && isAdmin && (
-                          <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                            <div style={{ fontSize: 12, color: 'rgba(240,240,245,0.4)' }}>
-                              {u.order_count === 0
-                                ? 'Ce client n\'a passé aucune commande (inactif).'
-                                : `Ce client a passé ${u.order_count} commande${u.order_count > 1 ? 's' : ''}.`}
-                            </div>
-                            <button onClick={e => { e.stopPropagation(); deleteClient(u) }} disabled={updating === u.id}
-                              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, border: '1px solid rgba(248,113,113,0.3)', cursor: updating === u.id ? 'default' : 'pointer', fontSize: 12, fontWeight: 700, background: 'rgba(248,113,113,0.1)', color: '#f87171', opacity: updating === u.id ? 0.6 : 1 }}>
-                              <Trash2 size={13} /> {updating === u.id ? 'Suppression…' : 'Supprimer le client'}
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </td>
                   </tr>

@@ -226,7 +226,7 @@ VRG/
 | `GET` | `/admin/users` | Tous les utilisateurs |
 | `POST` | `/admin/users` | Créer un compte admin, moderator ou livreur |
 | `PUT` | `/admin/users/:id` | Changer le rôle d'un utilisateur (admin only) |
-| `DELETE` | `/admin/users/:id` | Supprimer un client (admin only, clients uniquement — cascade commandes/parrainages) |
+| `DELETE` | `/admin/users/:id` | Supprimer un compte client/moderator/admin (admin only, jamais soi-même — cascade) |
 | `POST` | `/admin/users/purge-inactive` | Supprimer tous les clients sans aucune commande (admin only) |
 | `GET` | `/admin/stocks` | Produits actifs avec niveau de stock |
 | `PUT` | `/admin/stocks/:id` | Mettre à jour le stock |
@@ -628,11 +628,11 @@ Admin (panneau /admin)          Client (site /)
 - CartPanel réel (panier partagé avec le site vitrine), AuthModal réel
 - Gate Coming Soon : si `coming_soon=1` dans settings → affiche ComingSoon au lieu du catalogue
 
-**Gestion des clients (admin)**
+**Gestion des comptes (admin)**
+- Colonne "Actions" avec bouton corbeille sur **chaque ligne** (clients, modérateurs, admins, livreurs) — visible admin only
+- Suppression réservée à `admin`, jamais son propre compte — cascade SQL sur commandes/parrainages
 - Carte stat "Clients inactifs" = clients avec 0 commande
 - Bouton "Purger inactifs (N)" → `POST /admin/users/purge-inactive` (supprime tous les clients sans commande)
-- Détail client déplié → bouton "Supprimer le client" → `DELETE /admin/users/:id`
-- Suppression réservée à `admin`, clients uniquement, jamais soi-même — cascade SQL sur commandes/parrainages
 - Actions tracées dans `admin_logs` (`user_delete`, `user_purge`)
 
 **Inscription — unicité du numéro**
