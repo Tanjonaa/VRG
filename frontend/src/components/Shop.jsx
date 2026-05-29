@@ -1030,7 +1030,7 @@ function ComingSoonGate({ children }) {
 }
 
 /* ─── Root ─── */
-export default function ShopDemo() {
+export default function Shop() {
   return (
     <AuthProvider>
       <CartProvider>

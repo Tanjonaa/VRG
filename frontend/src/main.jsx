@@ -5,7 +5,7 @@ import AdminApp from './admin/AdminApp.jsx'
 import LivreurApp from './livreur/LivreurApp.jsx'
 import PrivacyPage from './components/PrivacyPage.jsx'
 import CGUPage from './components/CGUPage.jsx'
-import ShopDemo from './components/ShopDemo.jsx'
+import Shop from './components/Shop.jsx'
 import './index.css'
 
 const path = window.location.pathname
@@ -21,7 +21,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
      isLivreur   ? <LivreurApp /> :
      isPrivacy   ? <PrivacyPage />:
      isCGU       ? <CGUPage />    :
-     isCatalogue ? <ShopDemo />   :
+     isCatalogue ? <Shop />        :
      <App />}
   </React.StrictMode>,
 )
