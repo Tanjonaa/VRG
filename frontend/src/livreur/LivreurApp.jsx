@@ -1,78 +1,34 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { LogOut, MapPin, Package, Clock, Phone, User, ChevronDown, ChevronUp, RefreshCw, MessageSquare, ChevronLeft, Send, ChevronRight } from 'lucide-react'
 
-const TOKEN_KEY = 'vrg_livreur_token'
+const TOKEN_KEY = 'vrg_token'
 const BASE = '/api'
 const h = () => ({ Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` })
 
-/* ── Auth ── */
+/* ── Auth — lit le token du site principal ── */
 function useAuth() {
-  const [user, setUser]     = useState(null)
-  const [loading, setLoad]  = useState(true)
+  const [user, setUser]    = useState(null)
+  const [loading, setLoad] = useState(true)
 
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY)
-    if (!token) { setLoad(false); return }
+    if (!token) { setLoad(false); window.location.href = '/'; return }
     fetch(`${BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(({ user }) => { if (user?.role === 'livreur') setUser(user) })
-      .catch(() => {})
+      .then(({ user }) => {
+        if (user?.role === 'livreur') { setUser(user) }
+        else { window.location.href = '/' }
+      })
+      .catch(() => { window.location.href = '/' })
       .finally(() => setLoad(false))
   }, [])
 
-  const login = async (phone, password) => {
-    const res  = await fetch(`${BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, password }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error)
-    if (data.user?.role !== 'livreur') throw new Error('Compte non autorisé')
-    localStorage.setItem(TOKEN_KEY, data.token)
-    setUser(data.user)
+  const logout = () => {
+    localStorage.removeItem(TOKEN_KEY)
+    window.location.href = '/'
   }
 
-  const logout = () => { localStorage.removeItem(TOKEN_KEY); setUser(null) }
-  return { user, loading, login, logout }
-}
-
-/* ── Login screen ── */
-function Login({ onLogin }) {
-  const [phone, setPhone]   = useState('')
-  const [pass, setPass]     = useState('')
-  const [err, setErr]       = useState('')
-  const [busy, setBusy]     = useState(false)
-
-  const submit = async (e) => {
-    e.preventDefault()
-    setBusy(true); setErr('')
-    try { await onLogin(phone, pass) }
-    catch (e) { setErr(e.message) }
-    finally { setBusy(false) }
-  }
-
-  return (
-    <div style={{ minHeight: '100dvh', background: '#07070f', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 360 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <img src="/images/logo/logo.svg" alt="VRG" style={{ width: 52, height: 52, borderRadius: 14, marginBottom: 14 }} />
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#FF9900', letterSpacing: '-0.5px' }}>Espace Livreur</div>
-          <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.4)', marginTop: 4 }}>VaRyGasy — Livraisons</div>
-        </div>
-
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Numéro de téléphone" style={inputStyle} />
-          <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="Mot de passe" style={inputStyle} />
-          {err && <div style={{ fontSize: 13, color: '#f87171', background: 'rgba(239,68,68,0.1)', borderRadius: 10, padding: '10px 14px' }}>{err}</div>}
-          <button type="submit" disabled={busy}
-            style={{ padding: '14px', borderRadius: 12, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 700, background: busy ? 'rgba(255,153,0,0.4)' : 'linear-gradient(135deg,#FF9900,#CC5500)', color: '#fff', marginTop: 4 }}>
-            {busy ? 'Connexion...' : 'Se connecter'}
-          </button>
-        </form>
-      </div>
-    </div>
-  )
+  return { user, loading, logout }
 }
 
 /* ── Chat view ── */
@@ -539,8 +495,8 @@ const inputStyle = {
 }
 
 export default function LivreurApp() {
-  const { user, loading, login, logout } = useAuth()
+  const { user, loading, logout } = useAuth()
   if (loading) return <div style={{ height: '100dvh', background: '#07070f', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(240,240,245,0.3)', fontSize: 14 }}>Chargement…</div>
-  if (!user) return <Login onLogin={login} />
+  if (!user) return null
   return <DeliveryPage user={user} logout={logout} />
 }
