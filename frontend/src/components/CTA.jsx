@@ -92,7 +92,7 @@ export default function CTA() {
                   <MessageCircle size={20} />
                   {content.btn_whatsapp}
                 </motion.a>
-                <motion.button whileHover={{ background: 'rgba(255,255,255,0.09)', scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                <motion.button onClick={() => window.location.href = '/catalogue'} whileHover={{ background: 'rgba(255,255,255,0.09)', scale: 1.02 }} whileTap={{ scale: 0.97 }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.06)', color: 'rgba(240,240,245,0.8)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 14, padding: '17px 28px', fontSize: 17, fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>
                   {content.btn_products} <ArrowRight size={18} />
                 </motion.button>

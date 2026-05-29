@@ -60,27 +60,29 @@ VRG/
 │
 ├── frontend/                        ← ÉQUIPE FRONTEND
 │   ├── src/
-│   │   ├── main.jsx                 point d'entrée — détecte /admin, /livreur, /confidentialite, /cgu
-│   │   ├── App.jsx                  composant racine site client
+│   │   ├── main.jsx                 point d'entrée — routes : /admin /livreur /catalogue /confidentialite /cgu
+│   │   ├── App.jsx                  composant racine site vitrine (Coming Soon gate + site client)
 │   │   ├── index.css                styles globaux + @keyframes
 │   │   │
 │   │   ├── components/              composants UI site client
 │   │   │   ├── Navbar.jsx
-│   │   │   ├── Hero.jsx
-│   │   │   ├── Products.jsx         ← charge /api/products (stock > 0 uniquement)
-│   │   │   ├── CartPanel.jsx        panier + checkout — achat bloqué si role ≠ 'client'
+│   │   │   ├── Hero.jsx             btn "Voir les produits" → /catalogue
+│   │   │   ├── Products.jsx         charge /api/products · btn "Voir tous nos produits" → /catalogue
+│   │   │   ├── CartPanel.jsx        panier + checkout — affiche prix promo barré + badge -%
 │   │   │   ├── AccountPanel.jsx     profil + fidélité + parrainage + commandes
 │   │   │   ├── AuthModal.jsx        connexion / inscription (capture ?ref=CODE)
 │   │   │   ├── SupportChat.jsx      bulle chat flottante style Messenger (polling 4s)
 │   │   │   ├── Features.jsx
 │   │   │   ├── Gallery.jsx
 │   │   │   ├── Pricing.jsx
-│   │   │   ├── Team.jsx             ← section équipe (charge /api/team, auto-cachée si vide)
-│   │   │   ├── CTA.jsx
+│   │   │   ├── Team.jsx             section équipe (charge /api/team, auto-cachée si vide)
+│   │   │   ├── CTA.jsx              btn "Voir tous les produits" → /catalogue
 │   │   │   ├── Footer.jsx           liens : Confidentialité (/confidentialite), CGU (/cgu)
 │   │   │   ├── Marquee.jsx
 │   │   │   ├── Particles.jsx
 │   │   │   ├── ScrollProgress.jsx
+│   │   │   ├── ComingSoon.jsx       page Coming Soon avec compte à rebours (gate admin-contrôlé)
+│   │   │   ├── ShopDemo.jsx         catalogue premium (/catalogue) — Catalogue/Nouveautés/Promotions
 │   │   │   ├── PrivacyPage.jsx      page standalone politique de confidentialité (/confidentialite)
 │   │   │   └── CGUPage.jsx          page standalone conditions générales d'utilisation (/cgu)
 │   │   │
@@ -217,6 +219,7 @@ VRG/
 | `DELETE` | `/admin/products/:id/permanent` | Supprimer définitivement (hard delete, stock=0 ou inactif) |
 | `GET` | `/admin/categories` | Liste distincte des catégories (`SELECT DISTINCT category`) |
 | `POST` | `/admin/upload` | Upload image → `{ src: "/images/uploads/<fichier>" }` |
+| `PUT` | `/admin/products/:id/promo` | Activer/désactiver une promotion (`{ promo_percent, promo_active }`) |
 | `GET` | `/admin/orders` | Toutes les commandes |
 | `PUT` | `/admin/orders/:id` | Changer statut ou confirmer paiement |
 | `GET` | `/admin/users` | Tous les utilisateurs |
@@ -395,16 +398,18 @@ users
 └── created_at    TIMESTAMP
 
 products
-├── id          INT  PK AUTO_INCREMENT
-├── name        VARCHAR(255)
-├── description TEXT
-├── price       INT                   ← en Ar
-├── category    VARCHAR(100)          ← Ventilateur | Finger Sleeve | Câble | …
-├── stock       INT
-├── images      LONGTEXT              ← JSON [{"src":"/images/..."}]
-├── active      TINYINT(1)            ← 0 = archivé (invisible côté client)
-├── created_at  TIMESTAMP
-└── updated_at  TIMESTAMP
+├── id            INT  PK AUTO_INCREMENT
+├── name          VARCHAR(255)
+├── description   TEXT
+├── price         INT                   ← en Ar
+├── category      VARCHAR(100)          ← Ventilateur | Finger Sleeve | Câble | …
+├── stock         INT
+├── images        LONGTEXT              ← JSON [{"src":"/images/..."}]
+├── active        TINYINT(1)            ← 0 = archivé (invisible côté client)
+├── promo_percent INT                   ← % de réduction (0 = aucune promo)
+├── promo_active  TINYINT(1)            ← 1 = promo visible dans /catalogue > Promotions
+├── created_at    TIMESTAMP
+└── updated_at    TIMESTAMP
 
 orders
 ├── id                INT  PK AUTO_INCREMENT
@@ -550,7 +555,8 @@ docker compose logs -f app
 ```
 
 Accès :
-- **Site client** → http://localhost:3000
+- **Site vitrine** → http://localhost:3000
+- **Catalogue premium** → http://localhost:3000/catalogue
 - **Panneau admin** → http://localhost:3000/admin
 - **Espace livreur** → http://localhost:3000/livreur
 - **Confidentialité** → http://localhost:3000/confidentialite
@@ -601,6 +607,23 @@ Admin (panneau /admin)          Client (site /)
 - À l'inscription avec `?ref=CODE` → ligne dans `referrals`
 - **+10 pts validés uniquement quand le filleul a dépensé ≥ 5 000 Ar** (commandes non annulées)
 - Avant 5 000 Ar : parrainage visible mais `⏳ En attente` — aucun point crédité
+
+**Système de promotions**
+- Admin → Articles → bouton `%` sur chaque produit → modal : toggle ON/OFF + slider réduction 5–90%
+- `PUT /admin/products/:id/promo` met à jour `promo_percent` et `promo_active`
+- `GET /products` expose `promo_percent` et `promo_active` au frontend
+- Prix côté client : `ROUND(price × (1 - promo_percent / 100))`
+- Onglet **Promotions** dans `/catalogue` filtre `promo_active = 1`
+- CartPanel : prix promo en rouge, prix original barré, badge `-X%`, ligne économies
+- La réduction est appliquée au moment de l'ajout au panier (prix final stocké dans CartContext)
+
+**Catalogue `/catalogue` (ShopDemo.jsx)**
+- 3 onglets : **Catalogue** (sidebar filtres), **Nouveautés** (tri par `created_at`, filtres 7j/30j/3m), **Promotions** (promo_active=1)
+- Badge vert sur "Nouveautés" (nb ajoutés cette semaine), badge rouge sur "Promotions" (nb promos actives)
+- Vue grille / liste, tri prix/nom/stock, recherche texte, filtre catégorie + prix max + stock
+- Modal produit : galerie multi-images, stock en temps réel, ajout panier
+- CartPanel réel (panier partagé avec le site vitrine), AuthModal réel
+- Gate Coming Soon : si `coming_soon=1` dans settings → affiche ComingSoon au lieu du catalogue
 
 **Rôles**
 - `client` — accès site, commandes, profil

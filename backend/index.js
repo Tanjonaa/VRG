@@ -104,6 +104,8 @@ if (SECRET === 'change_this_in_production')
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`)
   await pool.execute(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS livreur_id INT NULL DEFAULT NULL`)
+  await pool.execute(`ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_percent INT NOT NULL DEFAULT 0`)
+  await pool.execute(`ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_active TINYINT(1) NOT NULL DEFAULT 0`)
   await pool.execute(`CREATE TABLE IF NOT EXISTS order_items (
     id       INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT          NOT NULL,
@@ -488,7 +490,7 @@ app.post('/admin/upload', adminAuth, upload.single('image'), (req, res) => {
 app.get('/products', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT id, name, description, price, category, stock, images FROM products WHERE active=1 AND stock > 0 ORDER BY category, id'
+      'SELECT id, name, description, price, category, stock, images, created_at, promo_percent, promo_active FROM products WHERE active=1 AND stock > 0 ORDER BY created_at DESC'
     )
     const products = rows.map(p => ({
       ...p,
@@ -560,6 +562,24 @@ app.put('/admin/products/:id', adminAuth, async (req, res) => {
       }
     }
     res.json(rows[0])
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── PUT /admin/products/:id/promo ──────────────────── */
+app.put('/admin/products/:id/promo', adminAuth, async (req, res) => {
+  const { promo_percent, promo_active } = req.body
+  try {
+    const [[prev]] = await pool.execute('SELECT name FROM products WHERE id=?', [req.params.id])
+    await pool.execute(
+      'UPDATE products SET promo_percent=?, promo_active=? WHERE id=?',
+      [Number(promo_percent) || 0, promo_active ? 1 : 0, req.params.id]
+    )
+    await writeLog(req.user.id, req.user.name, 'product_edit', 'product', req.params.id,
+      prev?.name || '—',
+      promo_active ? null : `promo ${promo_percent}%`,
+      promo_active ? `promo ${promo_percent}%` : 'promo désactivée'
+    )
+    res.json({ ok: true })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 

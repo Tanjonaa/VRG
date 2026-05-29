@@ -25,6 +25,9 @@ export default function Products() {
   const [msg,         setMsg]         = useState(null)
   const [catFilter,   setCatFilter]   = useState('all')
   const [search,      setSearch]      = useState('')
+  const [promoModal,  setPromoModal]  = useState(null)  // product en cours
+  const [promoForm,   setPromoForm]   = useState({ promo_active: false, promo_percent: 10 })
+  const [promoBusy,   setPromoBusy]   = useState(false)
 
   /* Image upload state */
   const [imageFile,    setImageFile]    = useState(null)   // File sélectionné
@@ -111,6 +114,24 @@ export default function Products() {
     if (!confirm('Archiver cet article ?')) return
     await fetch(`${BASE}/admin/products/${id}`, { method: 'DELETE', headers: h() })
     load()
+  }
+
+  const openPromo = (p) => {
+    setPromoModal(p)
+    setPromoForm({ promo_active: !!p.promo_active, promo_percent: p.promo_percent || 10 })
+  }
+
+  const savePromo = async () => {
+    if (!promoModal) return
+    setPromoBusy(true)
+    try {
+      await fetch(`${BASE}/admin/products/${promoModal.id}/promo`, {
+        method: 'PUT', headers: h(),
+        body: JSON.stringify({ promo_percent: Number(promoForm.promo_percent), promo_active: promoForm.promo_active }),
+      })
+      await load()
+      setPromoModal(null)
+    } catch {} finally { setPromoBusy(false) }
   }
 
   const active   = products.filter(p => p.active)
@@ -215,7 +236,23 @@ export default function Products() {
                     </div>
                   </td>
                   <td style={{ padding: '13px 16px', color: 'rgba(240,240,245,0.5)' }}>{p.category || '—'}</td>
-                  <td style={{ padding: '13px 16px', color: '#fbbf24', fontWeight: 700 }}>Ar {Number(p.price).toLocaleString('fr-FR')}</td>
+                  <td style={{ padding: '13px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ color: p.promo_active ? 'rgba(240,240,245,0.35)' : '#fbbf24', fontWeight: 700, textDecoration: p.promo_active ? 'line-through' : 'none', fontSize: p.promo_active ? 11 : 13 }}>
+                        Ar {Number(p.price).toLocaleString('fr-FR')}
+                      </span>
+                      {p.promo_active ? (
+                        <span style={{ color: '#f87171', fontWeight: 800, fontSize: 13 }}>
+                          Ar {Math.round(p.price * (1 - p.promo_percent / 100)).toLocaleString('fr-FR')}
+                        </span>
+                      ) : null}
+                    </div>
+                    {p.promo_active && (
+                      <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 99, background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' }}>
+                        -{p.promo_percent}%
+                      </span>
+                    )}
+                  </td>
                   <td style={{ padding: '13px 16px' }}>
                     <span style={{ fontWeight: 700, color: p.stock <= 5 ? '#ef4444' : p.stock <= 15 ? '#f59e0b' : '#22c55e' }}>{p.stock}</span>
                     {p.stock <= 5 && <span style={{ marginLeft: 6, fontSize: 10, color: '#ef4444', fontWeight: 700 }}>RUPTURE</span>}
@@ -228,6 +265,11 @@ export default function Products() {
                   <td style={{ padding: '13px 16px' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => openEdit(p)} style={btnIcon} title="Modifier"><Pencil size={13} /></button>
+                      <button onClick={() => openPromo(p)}
+                        style={{ ...btnIcon, color: p.promo_active ? '#f87171' : 'rgba(240,240,245,0.5)', background: p.promo_active ? 'rgba(248,113,113,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${p.promo_active ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.08)'}` }}
+                        title="Gérer la promotion">
+                        <span style={{ fontSize: 11, fontWeight: 900, lineHeight: 1 }}>%</span>
+                      </button>
                       {p.active && <button onClick={() => archive(p.id)} style={{ ...btnIcon, color: '#f87171' }} title="Archiver"><Trash2 size={13} /></button>}
                     </div>
                   </td>
@@ -243,6 +285,84 @@ export default function Products() {
           )}
         </div>
       </div>
+
+      {/* ── Modal Promotion ─────────────────────────────────── */}
+      {promoModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => e.target === e.currentTarget && setPromoModal(null)}>
+          <div style={{ background: '#0f0f1f', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, width: '100%', maxWidth: 380, padding: 24, display: 'flex', flexDirection: 'column', gap: 18, animation: 'rowIn 0.2s ease' }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#f0f0f5' }}>Promotion</div>
+                <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.4)', marginTop: 2 }}>{promoModal.name}</div>
+              </div>
+              <button onClick={() => setPromoModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,240,245,0.4)', display: 'flex' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: 12, background: promoForm.promo_active ? 'rgba(248,113,113,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${promoForm.promo_active ? 'rgba(248,113,113,0.25)' : 'rgba(255,255,255,0.08)'}` }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5' }}>Promotion active</div>
+                <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.4)', marginTop: 2 }}>
+                  {promoForm.promo_active ? 'Visible dans l\'onglet Promotions' : 'Désactivée'}
+                </div>
+              </div>
+              <button onClick={() => setPromoForm(f => ({ ...f, promo_active: !f.promo_active }))}
+                style={{ width: 48, height: 26, borderRadius: 99, border: 'none', cursor: 'pointer', background: promoForm.promo_active ? '#f87171' : 'rgba(255,255,255,0.1)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                <span style={{ position: 'absolute', top: 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', left: promoForm.promo_active ? 25 : 3, transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
+              </button>
+            </div>
+
+            {/* Pourcentage */}
+            <div>
+              <label style={labelStyle}>Réduction (%)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input
+                  type="range" min={5} max={90} step={5}
+                  value={promoForm.promo_percent}
+                  onChange={e => setPromoForm(f => ({ ...f, promo_percent: Number(e.target.value) }))}
+                  style={{ flex: 1, accentColor: '#f87171', cursor: 'pointer' }}
+                />
+                <div style={{ width: 52, height: 36, borderRadius: 9, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, color: '#f87171', flexShrink: 0 }}>
+                  -{promoForm.promo_percent}%
+                </div>
+              </div>
+            </div>
+
+            {/* Prix résultant */}
+            <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)', marginBottom: 3 }}>Prix après réduction</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: '#f87171', letterSpacing: '-0.5px' }}>
+                  Ar {Math.round(promoModal.price * (1 - promoForm.promo_percent / 100)).toLocaleString('fr-FR')}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)', marginBottom: 3 }}>Économie</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#22c55e' }}>
+                  Ar {Math.round(promoModal.price * promoForm.promo_percent / 100).toLocaleString('fr-FR')}
+                </div>
+              </div>
+            </div>
+
+            {/* Boutons */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setPromoModal(null)}
+                style={{ flex: 1, padding: 11, borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: 'rgba(240,240,245,0.5)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                Annuler
+              </button>
+              <button onClick={savePromo} disabled={promoBusy}
+                style={{ flex: 1, padding: 11, borderRadius: 10, border: 'none', background: promoForm.promo_active ? 'linear-gradient(135deg,#f87171,#dc2626)' : 'rgba(255,255,255,0.07)', color: promoForm.promo_active ? '#fff' : 'rgba(240,240,245,0.6)', cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: promoBusy ? 0.6 : 1 }}>
+                {promoBusy ? '…' : promoForm.promo_active ? '🏷 Activer' : 'Désactiver'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal ───────────────────────────────────────────── */}
       {modal && (

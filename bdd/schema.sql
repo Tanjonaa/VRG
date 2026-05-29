@@ -18,16 +18,20 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- ── products ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS products (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  name        VARCHAR(255) NOT NULL,
-  description TEXT,
-  price       INT          NOT NULL DEFAULT 0,     -- prix en Ar
-  category    VARCHAR(100),                        -- Ventilateur | Finger Sleeve | Câble | …
-  stock       INT          NOT NULL DEFAULT 0,
-  images      LONGTEXT,                            -- JSON : [{"src":"/images/..."}]
-  active      TINYINT(1)   DEFAULT 1,              -- 0 = archivé (soft delete)
-  created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-  updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(255) NOT NULL,
+  description   TEXT,
+  price         INT          NOT NULL DEFAULT 0,     -- prix en Ar
+  category      VARCHAR(100),                        -- Ventilateur | Finger Sleeve | Câble | …
+  stock         INT          NOT NULL DEFAULT 0,
+  images        LONGTEXT,                            -- JSON : [{"src":"/images/..."}]
+  active        TINYINT(1)   DEFAULT 1,              -- 0 = archivé (soft delete)
+  promo_percent INT          NOT NULL DEFAULT 0,     -- % de réduction (5-90)
+  promo_active  TINYINT(1)   NOT NULL DEFAULT 0,     -- 1 = affiché dans /catalogue > Promotions
+  created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  -- Routes promo : PUT /api/admin/products/:id/promo { promo_percent, promo_active }
+  -- Prix client : ROUND(price * (1 - promo_percent / 100))
 );
 
 -- ── orders ───────────────────────────────────────────────────

@@ -97,13 +97,13 @@ export default function Hero() {
           }}>
             {hero.btn_primary} <ArrowRight size={18} />
           </MagneticButton>
-          <MagneticButton style={{
+          <MagneticButton onClick={() => window.location.href = '/catalogue'} style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             background: 'rgba(255,255,255,0.05)', color: 'rgba(240,240,245,0.85)',
             border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12,
             padding: '15px 28px', fontSize: 16, fontWeight: 500, cursor: 'pointer', backdropFilter: 'blur(8px)',
           }}>
-            {hero.btn_secondary}
+            {hero.btn_secondary} <ArrowRight size={16} />
           </MagneticButton>
         </motion.div>
 
@@ -161,7 +161,7 @@ function FloatingProductImg({ src, side, delay, accentColor }) {
   )
 }
 
-function MagneticButton({ children, style, primary = false, href, target, rel }) {
+function MagneticButton({ children, style, primary = false, href, target, rel, onClick }) {
   const ref = useRef(null)
   const x = useMotionValue(0), y = useMotionValue(0)
   const sx = useSpring(x, { stiffness: 200, damping: 20 })
@@ -173,7 +173,7 @@ function MagneticButton({ children, style, primary = false, href, target, rel })
   }
   const Tag = href ? motion.a : motion.button
   return (
-    <Tag ref={ref} href={href} target={target} rel={rel}
+    <Tag ref={ref} href={href} target={target} rel={rel} onClick={onClick}
       onMouseMove={handleMouse} onMouseLeave={() => { x.set(0); y.set(0) }}
       style={{ x: sx, y: sy, ...style }} whileTap={{ scale: 0.96 }}
       {...(primary

@@ -135,9 +135,10 @@ function CartView({ items, removeItem, updateQty, total, user, onCheckout, onOpe
         <ShoppingCart size={52} color="rgba(240,240,245,0.15)" />
         <p style={{ fontSize: 16, fontWeight: 600, color: 'rgba(240,240,245,0.5)' }}>Votre panier est vide</p>
         <p style={{ fontSize: 13, color: 'rgba(240,240,245,0.3)', lineHeight: 1.5 }}>Parcourez nos produits et ajoutez-les à votre panier</p>
-        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onClose}
+        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+          onClick={() => { onClose(); window.location.href = '/catalogue' }}
           style={{ marginTop: 8, padding: '11px 24px', borderRadius: 10, border: '1px solid rgba(255,153,0,0.3)', background: 'rgba(255,153,0,0.1)', color: '#FF9900', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-          Voir les produits
+          Voir les produits →
         </motion.button>
       </motion.div>
     )
@@ -157,7 +158,21 @@ function CartView({ items, removeItem, updateQty, total, user, onCheckout, onOpe
                 <img src={item.image} alt={item.name} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', flexShrink: 0, background: 'rgba(255,255,255,0.05)' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 14, fontWeight: 600, color: '#f0f0f5', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#FF9900', marginBottom: 8 }}>Ar {item.price.toLocaleString('fr-FR')}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: item.original_price ? '#f87171' : '#FF9900' }}>
+                      Ar {item.price.toLocaleString('fr-FR')}
+                    </span>
+                    {item.original_price && (
+                      <>
+                        <span style={{ fontSize: 11, color: 'rgba(240,240,245,0.3)', textDecoration: 'line-through' }}>
+                          Ar {item.original_price.toLocaleString('fr-FR')}
+                        </span>
+                        <span style={{ fontSize: 9, fontWeight: 900, padding: '1px 6px', borderRadius: 99, background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}>
+                          -{item.promo_percent}%
+                        </span>
+                      </>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '3px' }}>
                       <button onClick={() => updateQty(item.id, item.qty - 1)}
@@ -184,6 +199,16 @@ function CartView({ items, removeItem, updateQty, total, user, onCheckout, onOpe
 
       {/* Bottom total + CTA */}
       <div style={{ padding: '16px 24px 24px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        {/* Économies promo */}
+        {items.some(i => i.original_price) && (() => {
+          const saving = items.reduce((s, i) => s + (i.original_price ? (i.original_price - i.price) * i.qty : 0), 0)
+          return (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>Économies promo</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#22c55e' }}>-Ar {saving.toLocaleString('fr-FR')}</span>
+            </div>
+          )
+        })()}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <span style={{ fontSize: 15, color: 'rgba(240,240,245,0.6)' }}>Total</span>
           <span style={{ fontSize: 22, fontWeight: 700, color: '#FF9900', letterSpacing: '-0.02em' }}>

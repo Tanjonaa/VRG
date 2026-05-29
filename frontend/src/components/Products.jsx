@@ -157,6 +157,19 @@ export default function Products() {
             </motion.button>
           </motion.div>
         )}
+
+        {/* Voir tout le catalogue */}
+        <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+          style={{ display: 'flex', justifyContent: 'center', marginTop: 48 }}>
+          <motion.button
+            onClick={() => window.location.href = '/catalogue'}
+            whileHover={{ scale: 1.03, background: 'rgba(255,255,255,0.09)' }}
+            whileTap={{ scale: 0.97 }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '14px 32px', borderRadius: 99, border: '1px solid rgba(255,255,255,0.13)', background: 'rgba(255,255,255,0.06)', color: 'rgba(240,240,245,0.8)', fontSize: 15, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s', letterSpacing: '0.01em' }}>
+            Voir tous nos produits
+            <ChevronRight size={17} />
+          </motion.button>
+        </motion.div>
       </div>
     </section>
   )

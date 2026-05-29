@@ -19,16 +19,18 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- ── products ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS products (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  name        VARCHAR(255) NOT NULL,
-  description TEXT,
-  price       INT          NOT NULL DEFAULT 0,
-  category    VARCHAR(100),
-  stock       INT          NOT NULL DEFAULT 0,
-  images      LONGTEXT,                           -- JSON : [{"src":"/images/..."}]
-  active      TINYINT(1)   DEFAULT 1,
-  created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-  updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(255) NOT NULL,
+  description   TEXT,
+  price         INT          NOT NULL DEFAULT 0,
+  category      VARCHAR(100),
+  stock         INT          NOT NULL DEFAULT 0,
+  images        LONGTEXT,                           -- JSON : [{"src":"/images/..."}]
+  active        TINYINT(1)   DEFAULT 1,
+  promo_percent INT          NOT NULL DEFAULT 0,    -- % de réduction (ex: 20 = -20%)
+  promo_active  TINYINT(1)   NOT NULL DEFAULT 0,    -- 1 = promo visible dans /catalogue > Promotions
+  created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- ── orders ───────────────────────────────────────────────────
