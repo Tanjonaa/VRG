@@ -251,6 +251,17 @@ const livreurAuth = (req, res, next) => {
   } catch { res.status(401).json({ error: 'Session expirée' }) }
 }
 
+/* ── GET /auth/check-phone ───────────────────────────── */
+/* Vérifie en temps réel si un numéro est disponible (inscription) */
+app.get('/auth/check-phone', async (req, res) => {
+  const phone = (req.query.phone || '').trim()
+  if (!phone) return res.json({ available: false })
+  try {
+    const [rows] = await pool.execute('SELECT id FROM users WHERE phone = ?', [phone])
+    res.json({ available: rows.length === 0 })
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
 /* ── POST /auth/register ─────────────────────────────── */
 app.post('/auth/register', async (req, res) => {
   const { name, phone, password, referralCode } = req.body
@@ -260,6 +271,14 @@ app.post('/auth/register', async (req, res) => {
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
+
+    /* Vérifie d'abord que le numéro est disponible */
+    const [existing] = await conn.execute('SELECT id FROM users WHERE phone = ?', [phone.trim()])
+    if (existing.length) {
+      await conn.rollback()
+      return res.status(409).json({ error: 'Ce numéro est déjà enregistré' })
+    }
+
     const hash = await bcrypt.hash(password, 10)
     const code = makeReferralCode()
 
@@ -713,6 +732,44 @@ app.put('/admin/users/:id', adminAuth, async (req, res) => {
     await writeLog(req.user.id, req.user.name, 'role_change', 'user', req.params.id, target.name, target.role, role)
     res.json({ ok: true })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── POST /admin/users/purge-inactive ────────────────── */
+/* Supprime tous les clients sans aucune commande (admin only) */
+app.post('/admin/users/purge-inactive', adminAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Seul un admin peut purger les comptes' })
+  try {
+    const [rows] = await pool.execute(
+      `SELECT u.id, u.name, u.phone FROM users u
+       LEFT JOIN orders o ON o.user_id = u.id
+       WHERE u.role = 'client'
+       GROUP BY u.id
+       HAVING COUNT(o.id) = 0`
+    )
+    if (rows.length === 0) return res.json({ ok: true, deleted: 0 })
+    const ids = rows.map(r => r.id)
+    const placeholders = ids.map(() => '?').join(',')
+    await pool.execute(`DELETE FROM users WHERE id IN (${placeholders})`, ids)
+    await writeLog(req.user.id, req.user.name, 'user_purge', 'user', 0,
+      `${rows.length} client(s) inactif(s)`, null, `supprimés : ${rows.length}`)
+    res.json({ ok: true, deleted: rows.length })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ── DELETE /admin/users/:id ─────────────────────────── */
+/* Supprime un client (admin only) — les commandes/parrainages cascadent */
+app.delete('/admin/users/:id', adminAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Seul un admin peut supprimer un compte' })
+  if (String(req.params.id) === String(req.user.id)) return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' })
+  try {
+    const [[target]] = await pool.execute('SELECT name, phone, role FROM users WHERE id=?', [req.params.id])
+    if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    if (target.role !== 'client') return res.status(400).json({ error: 'Seuls les clients peuvent être supprimés ici' })
+    await pool.execute('DELETE FROM users WHERE id=?', [req.params.id])
+    await writeLog(req.user.id, req.user.name, 'user_delete', 'user', req.params.id,
+      `${target.name} (${target.phone})`, 'client', 'supprimé')
+    res.json({ ok: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 /* ── GET /admin/stocks ───────────────────────────────── */

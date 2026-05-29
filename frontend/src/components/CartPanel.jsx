@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Trash2, Plus, Minus, ShoppingCart, MapPin, CheckCircle, ChevronLeft, LogIn, Copy, Check, Phone, User, Hash, Clock, Navigation } from 'lucide-react'
+import { X, Trash2, Plus, Minus, ShoppingCart, MapPin, CheckCircle, ChevronLeft, LogIn, Copy, Check, Phone, User, Hash, Navigation } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -304,17 +304,10 @@ function CheckoutView({ payment, setPayment, address, setAddress, zone, setZone,
             </div>
           </div>
 
-          {/* Heures de disponibilité */}
+          {/* Date et heures de disponibilité */}
           <div>
-            <Label>Heures de disponibilité</Label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px' }}>
-              <Clock size={15} color="rgba(240,240,245,0.3)" />
-              <input
-                value={hours} onChange={e => setHours(e.target.value)}
-                placeholder="Ex : 08h–12h ou 14h–18h"
-                style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit' }}
-              />
-            </div>
+            <Label>Date et heures de disponibilité</Label>
+            <DeliveryScheduler onChange={setHours} />
           </div>
 
           {/* Payment method selector */}
@@ -473,6 +466,50 @@ function SuccessView({ order, onDone }) {
         Fermer
       </motion.button>
     </motion.div>
+  )
+}
+
+function DeliveryScheduler({ onChange }) {
+  const todayStr = new Date().toISOString().split('T')[0]
+  const [date, setDate]     = React.useState(todayStr)
+  const [startH, setStartH] = React.useState('08')
+  const [endH, setEndH]     = React.useState('12')
+
+  const HOURS = Array.from({ length: 17 }, (_, i) => String(i + 6).padStart(2, '0'))
+
+  React.useEffect(() => {
+    const d = new Date(date + 'T12:00:00')
+    const label = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    onChange(`${label}, ${startH}h → ${endH}h`)
+  }, [date, startH, endH])
+
+  const validEnd = HOURS.filter(h => Number(h) > Number(startH))
+  const safeEnd  = validEnd.includes(endH) ? endH : validEnd[0] || '22'
+
+  const field = {
+    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 10, padding: '11px 12px', fontSize: 14, color: '#f0f0f5',
+    fontFamily: 'inherit', outline: 'none', width: '100%',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <input type="date" value={date} min={todayStr}
+        onChange={e => { if (e.target.value) setDate(e.target.value) }}
+        style={{ ...field, cursor: 'pointer' }} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8 }}>
+        <select value={startH} onChange={e => setStartH(e.target.value)}
+          className="vrg-dark" style={field}>
+          {HOURS.map(h => <option key={h} value={h}>{h}h00</option>)}
+        </select>
+        <span style={{ color: 'rgba(240,240,245,0.35)', fontSize: 13, fontWeight: 700, userSelect: 'none' }}>→</span>
+        <select value={safeEnd} onChange={e => setEndH(e.target.value)}
+          className="vrg-dark" style={field}>
+          {validEnd.map(h => <option key={h} value={h}>{h}h00</option>)}
+        </select>
+      </div>
+    </div>
   )
 }
 

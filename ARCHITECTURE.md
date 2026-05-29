@@ -188,7 +188,8 @@ VRG/
 
 | Méthode | Route | Description |
 |---------|-------|-------------|
-| `POST` | `/auth/register` | Inscription (nom, téléphone, mot de passe, referralCode?) |
+| `POST` | `/auth/register` | Inscription — vérifie que le numéro est libre avant insertion (409 sinon) |
+| `GET` | `/auth/check-phone` | Disponibilité d'un numéro en temps réel (`?phone=` → `{ available }`) |
 | `POST` | `/auth/login` | Connexion → retourne JWT |
 | `GET` | `/products` | Liste des produits actifs avec `stock > 0` (catalogue client) |
 | `POST` | `/visits` | Incrémente le compteur de visites du jour |
@@ -225,6 +226,8 @@ VRG/
 | `GET` | `/admin/users` | Tous les utilisateurs |
 | `POST` | `/admin/users` | Créer un compte admin, moderator ou livreur |
 | `PUT` | `/admin/users/:id` | Changer le rôle d'un utilisateur (admin only) |
+| `DELETE` | `/admin/users/:id` | Supprimer un client (admin only, clients uniquement — cascade commandes/parrainages) |
+| `POST` | `/admin/users/purge-inactive` | Supprimer tous les clients sans aucune commande (admin only) |
 | `GET` | `/admin/stocks` | Produits actifs avec niveau de stock |
 | `PUT` | `/admin/stocks/:id` | Mettre à jour le stock |
 | `GET` | `/admin/team` | Tous les membres équipe (actifs + archivés) |
@@ -624,6 +627,18 @@ Admin (panneau /admin)          Client (site /)
 - Modal produit : galerie multi-images, stock en temps réel, ajout panier
 - CartPanel réel (panier partagé avec le site vitrine), AuthModal réel
 - Gate Coming Soon : si `coming_soon=1` dans settings → affiche ComingSoon au lieu du catalogue
+
+**Gestion des clients (admin)**
+- Carte stat "Clients inactifs" = clients avec 0 commande
+- Bouton "Purger inactifs (N)" → `POST /admin/users/purge-inactive` (supprime tous les clients sans commande)
+- Détail client déplié → bouton "Supprimer le client" → `DELETE /admin/users/:id`
+- Suppression réservée à `admin`, clients uniquement, jamais soi-même — cascade SQL sur commandes/parrainages
+- Actions tracées dans `admin_logs` (`user_delete`, `user_purge`)
+
+**Inscription — unicité du numéro**
+- `users.phone` est `UNIQUE` en base
+- `POST /auth/register` interroge la BD avant insertion (rollback + 409 si pris)
+- AuthModal vérifie en temps réel via `GET /auth/check-phone` (debounce 500ms) : icône ✓/⚠ + message, bouton désactivé si numéro pris
 
 **Rôles**
 - `client` — accès site, commandes, profil

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Shield, User, Search, Users, Gift, ShoppingBag, TrendingUp, ChevronDown, ChevronUp, Plus, X, Eye, EyeOff } from 'lucide-react'
+import { Shield, User, Search, Users, Gift, ShoppingBag, TrendingUp, ChevronDown, ChevronUp, Plus, X, Eye, EyeOff, Trash2, UserX } from 'lucide-react'
 import AdminDropdown from '../components/AdminDropdown.jsx'
 
 const BASE = '/api'
@@ -58,6 +58,29 @@ export default function UsersPage({ user: adminUser }) {
     setUpdating(null)
   }
 
+  const deleteClient = async (u) => {
+    if (!confirm(`Supprimer définitivement le client « ${u.name} » ?\nCette action est irréversible (commandes incluses).`)) return
+    setUpdating(u.id)
+    const res = await fetch(`${BASE}/admin/users/${u.id}`, { method: 'DELETE', headers: h() })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Erreur'); setUpdating(null); return }
+    setExpanded(null)
+    await load()
+    setUpdating(null)
+  }
+
+  const purgeInactive = async () => {
+    const inactive = clients.filter(u => u.order_count === 0).length
+    if (inactive === 0) { alert('Aucun client inactif à supprimer.'); return }
+    if (!confirm(`Supprimer les ${inactive} client(s) sans aucune commande ?\nCette action est irréversible.`)) return
+    setUpdating('purge')
+    const res = await fetch(`${BASE}/admin/users/purge-inactive`, { method: 'POST', headers: h() })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) { alert(d.error || 'Erreur'); setUpdating(null); return }
+    await load()
+    setUpdating(null)
+    alert(`${d.deleted} client(s) inactif(s) supprimé(s).`)
+  }
+
   const openModal = () => { setNewForm({ name: '', phone: '', password: '', role: tab === 'livreurs' ? 'livreur' : 'moderator' }); setNewError(''); setShowModal(true) }
   const closeModal = () => setShowModal(false)
 
@@ -85,9 +108,11 @@ export default function UsersPage({ user: adminUser }) {
     !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.phone.includes(search)
   )
 
-  const totalRevenue   = clients.reduce((s, u) => s + Number(u.total_spent), 0)
-  const totalReferrals = clients.reduce((s, u) => s + Number(u.referral_count), 0)
-  const activeClients  = clients.filter(u => u.order_count > 0).length
+  const totalRevenue    = clients.reduce((s, u) => s + Number(u.total_spent), 0)
+  const totalReferrals  = clients.reduce((s, u) => s + Number(u.referral_count), 0)
+  const activeClients   = clients.filter(u => u.order_count > 0).length
+  const inactiveClients = clients.filter(u => u.order_count === 0).length
+  const isAdmin         = adminUser?.role === 'admin'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -98,7 +123,7 @@ export default function UsersPage({ user: adminUser }) {
           {[
             { icon: <Users size={15} />,      label: 'Total clients',    value: clients.length,                                   color: '#60a5fa' },
             { icon: <ShoppingBag size={15} />, label: 'Clients actifs',  value: activeClients,                                    color: '#22c55e' },
-            { icon: <Gift size={15} />,        label: 'Parrainages',     value: totalReferrals,                                   color: '#a78bfa' },
+            { icon: <UserX size={15} />,       label: 'Clients inactifs', value: inactiveClients,                                  color: '#f87171' },
             { icon: <TrendingUp size={15} />,  label: 'Revenu total',    value: `Ar ${totalRevenue.toLocaleString('fr-FR')}`,     color: '#fbbf24' },
           ].map((s, i) => (
             <div key={i} style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -130,6 +155,12 @@ export default function UsersPage({ user: adminUser }) {
         {(tab === 'staff' || tab === 'livreurs') && adminUser?.role === 'admin' && (
           <button onClick={openModal} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, border: '1px solid rgba(255,153,0,0.3)', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'rgba(255,153,0,0.1)', color: '#FF9900' }}>
             <Plus size={14} /> {tab === 'livreurs' ? 'Ajouter un livreur' : 'Ajouter un admin'}
+          </button>
+        )}
+        {tab === 'clients' && isAdmin && inactiveClients > 0 && (
+          <button onClick={purgeInactive} disabled={updating === 'purge'}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, border: '1px solid rgba(248,113,113,0.3)', cursor: updating === 'purge' ? 'default' : 'pointer', fontSize: 13, fontWeight: 600, background: 'rgba(248,113,113,0.1)', color: '#f87171', opacity: updating === 'purge' ? 0.6 : 1 }}>
+            <UserX size={14} /> {updating === 'purge' ? 'Suppression…' : `Purger inactifs (${inactiveClients})`}
           </button>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, padding: '8px 12px' }}>
@@ -281,6 +312,21 @@ export default function UsersPage({ user: adminUser }) {
                             ? <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#FF9900', fontWeight: 700 }}>{u.referral_code}</span>
                             : '—'
                         } />
+
+                        {/* Suppression client (admin only) */}
+                        {tab === 'clients' && isAdmin && (
+                          <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                            <div style={{ fontSize: 12, color: 'rgba(240,240,245,0.4)' }}>
+                              {u.order_count === 0
+                                ? 'Ce client n\'a passé aucune commande (inactif).'
+                                : `Ce client a passé ${u.order_count} commande${u.order_count > 1 ? 's' : ''}.`}
+                            </div>
+                            <button onClick={e => { e.stopPropagation(); deleteClient(u) }} disabled={updating === u.id}
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, border: '1px solid rgba(248,113,113,0.3)', cursor: updating === u.id ? 'default' : 'pointer', fontSize: 12, fontWeight: 700, background: 'rgba(248,113,113,0.1)', color: '#f87171', opacity: updating === u.id ? 0.6 : 1 }}>
+                              <Trash2 size={13} /> {updating === u.id ? 'Suppression…' : 'Supprimer le client'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>

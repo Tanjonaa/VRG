@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Phone, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { X, Phone, Lock, User, Eye, EyeOff, AlertCircle, Check, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
@@ -8,6 +8,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const [showPwd, setShowPwd] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [phoneStatus, setPhoneStatus] = useState(null) // null | 'checking' | 'available' | 'taken'
 
   const refCode = new URLSearchParams(window.location.search).get('ref') ||
                   sessionStorage.getItem('vrg_ref') || ''
@@ -17,6 +18,21 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const { register, login } = useAuth()
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+
+  /* Vérification temps réel de la disponibilité du numéro (inscription) */
+  useEffect(() => {
+    if (tab !== 'register') { setPhoneStatus(null); return }
+    const cleaned = form.phone.replace(/\s/g, '')
+    if (cleaned.length < 10) { setPhoneStatus(null); return }
+    setPhoneStatus('checking')
+    const t = setTimeout(() => {
+      fetch(`/api/auth/check-phone?phone=${encodeURIComponent(form.phone.trim())}`)
+        .then(r => r.json())
+        .then(d => setPhoneStatus(d.available ? 'available' : 'taken'))
+        .catch(() => setPhoneStatus(null))
+    }, 500)
+    return () => clearTimeout(t)
+  }, [form.phone, tab])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -28,6 +44,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       }
       if (form.phone.replace(/\s/g, '').length < 10) {
         setError('Numéro de téléphone invalide')
+        return
+      }
+      if (phoneStatus === 'taken') {
+        setError('Ce numéro est déjà enregistré')
         return
       }
       if (form.password.length < 8) {
@@ -52,7 +72,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     }
   }
 
-  const switchTab = (t) => { setTab(t); setError(''); setForm({ name: '', phone: '', password: '' }) }
+  const switchTab = (t) => { setTab(t); setError(''); setPhoneStatus(null); setForm({ name: '', phone: '', password: '' }) }
 
   return (
     <AnimatePresence>
@@ -140,7 +160,34 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                   )}
                 </AnimatePresence>
 
-                <Field icon={<Phone size={15} />} placeholder="Numéro de téléphone" type="tel" value={form.phone} onChange={v => set('phone', v)} />
+                <div>
+                  <Field
+                    icon={<Phone size={15} />}
+                    placeholder="Numéro de téléphone" type="tel"
+                    value={form.phone} onChange={v => set('phone', v)}
+                    suffix={tab === 'register' && phoneStatus && (
+                      phoneStatus === 'checking'
+                        ? <Loader2 size={15} color="rgba(240,240,245,0.4)" style={{ animation: 'spin 0.8s linear infinite' }} />
+                        : phoneStatus === 'available'
+                          ? <Check size={15} color="#22c55e" />
+                          : <AlertCircle size={15} color="#f87171" />
+                    )}
+                  />
+                  <AnimatePresence>
+                    {tab === 'register' && phoneStatus === 'taken' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                        style={{ fontSize: 12, color: '#f87171', marginTop: 6, paddingLeft: 4, overflow: 'hidden' }}>
+                        Ce numéro est déjà enregistré — connecte-toi plutôt.
+                      </motion.div>
+                    )}
+                    {tab === 'register' && phoneStatus === 'available' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                        style={{ fontSize: 12, color: '#22c55e', marginTop: 6, paddingLeft: 4, overflow: 'hidden' }}>
+                        Numéro disponible ✓
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
 
                 <Field
                   icon={<Lock size={15} />}
@@ -167,14 +214,20 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                   )}
                 </AnimatePresence>
 
-                <motion.button
-                  whileHover={!busy ? { scale: 1.02, boxShadow: '0 6px 28px rgba(202,138,4,0.4)' } : {}}
-                  whileTap={!busy ? { scale: 0.97 } : {}}
-                  type="submit"
-                  disabled={busy}
-                  style={{ marginTop: 8, padding: '15px', borderRadius: 12, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 700, fontFamily: 'inherit', background: busy ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg, #ca8a04, #d97706)', color: busy ? 'rgba(240,240,245,0.4)' : '#fff', boxShadow: busy ? 'none' : '0 4px 20px rgba(202,138,4,0.28)', transition: 'all 0.2s' }}>
-                  {busy ? '...' : tab === 'register' ? 'Créer mon compte' : 'Se connecter'}
-                </motion.button>
+                {(() => {
+                  const blocked = busy || (tab === 'register' && (phoneStatus === 'taken' || phoneStatus === 'checking'))
+                  return (
+                    <motion.button
+                      whileHover={!blocked ? { scale: 1.02, boxShadow: '0 6px 28px rgba(202,138,4,0.4)' } : {}}
+                      whileTap={!blocked ? { scale: 0.97 } : {}}
+                      type="submit"
+                      disabled={blocked}
+                      style={{ marginTop: 8, padding: '15px', borderRadius: 12, border: 'none', cursor: blocked ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 700, fontFamily: 'inherit', background: blocked ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg, #ca8a04, #d97706)', color: blocked ? 'rgba(240,240,245,0.4)' : '#fff', boxShadow: blocked ? 'none' : '0 4px 20px rgba(202,138,4,0.28)', transition: 'all 0.2s' }}>
+                      {busy ? '...' : tab === 'register' ? 'Créer mon compte' : 'Se connecter'}
+                    </motion.button>
+                  )
+                })()}
+                <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
               </form>
             </div>
           </motion.div>
