@@ -9,8 +9,8 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "3306:3306"
+    expose:
+      - "3306"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
@@ -40,7 +40,7 @@ services:
     volumes:
       - uploads:/app/uploads
     ports:
-      - "3000:80"
+      - "8000:80"
     depends_on:
       db:
         condition: service_healthy
