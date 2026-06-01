@@ -600,19 +600,6 @@ function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, 
   return (
     <header style={{ background:'rgba(5,5,13,0.95)', backdropFilter:'blur(20px)', borderBottom:`1px solid ${T.border}`, position:'sticky', top:0, zIndex:30 }}>
 
-      {/* Topbar — desktop only */}
-      {!isMobile && (
-        <div style={{ padding:'5px 40px', borderBottom:'1px solid rgba(255,255,255,0.04)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ fontSize:11, color:T.textDim, letterSpacing:'0.03em' }}>
-            ✦ Livraison 24h sur Antananarivo · Paiement à la livraison · Retour sous 7 jours
-          </div>
-          <div style={{ display:'flex', gap:20 }}>
-            {['Confidentialité','CGU','Contact'].map(l => (
-              <a key={l} href="#" style={{ fontSize:11, color:T.textDim, textDecoration:'none' }}>{l}</a>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Main nav */}
       <div style={{ padding: isMobile ? '10px 16px' : '14px 40px', display:'flex', alignItems:'center', gap: isMobile ? 10 : 24 }}>
@@ -1152,9 +1139,6 @@ function ShopInner() {
       {/* Filter drawer — mobile */}
       <FilterDrawer open={showFilters} onClose={()=>setShowFilters(false)} categories={cats} active={active} setActive={setActive} price={price} setPrice={setPrice} inStock={inStock} setInStock={setInStock} total={products.length} />
 
-      <div style={{ position:'fixed', bottom:90, left:24, zIndex:20 }}>
-        <Btn variant="ghost" size="sm" onClick={()=>window.location.href='/'}>← Retour au site</Btn>
-      </div>
 
     </div>
   )
