@@ -463,6 +463,25 @@ app.post('/visits', async (req, res) => {
    ════════════════════════════════════════════════════════ */
 
 /* ── GET /admin/stats ────────────────────────────────── */
+/* ── GET /admin/notifications ────────────────────────── */
+app.get('/admin/notifications', adminAuth, async (req, res) => {
+  try {
+    const { since } = req.query
+    const [[{ pending_orders }]] = await pool.execute(
+      "SELECT COUNT(*) as pending_orders FROM orders WHERE status = 'En attente'"
+    )
+    let unread_msgs = 0
+    if (since) {
+      const [[{ count }]] = await pool.execute(
+        'SELECT COUNT(*) as count FROM chat_messages WHERE created_at > ? AND sender_id != ?',
+        [since, req.user.id]
+      )
+      unread_msgs = count
+    }
+    res.json({ pending_orders, unread_msgs })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 app.get('/admin/stats', adminAuth, async (req, res) => {
   try {
     const [[{ total_sales }]] = await pool.execute("SELECT COALESCE(SUM(total),0) as total_sales FROM orders WHERE status != 'Annulé'")
