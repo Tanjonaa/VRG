@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Trash2, Plus, Minus, ShoppingCart, MapPin, CheckCircle, ChevronLeft, LogIn, Copy, Check, Phone, User, Hash, Navigation } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import AdminDropdown from '../admin/components/AdminDropdown.jsx'
 
 const PAYMENT_METHODS = [
   { id: 'mvola',     name: 'MVola',          sub: 'Telma',         color: '#00A651', bg: 'rgba(0,166,81,0.1)',   border: 'rgba(0,166,81,0.3)',   emoji: '🟢', merchantNumber: '034 XX XXX XX' },
@@ -470,6 +469,42 @@ function SuccessView({ order, onDone }) {
   )
 }
 
+/* Dropdown sombre inline — sans portal pour éviter le décalage dans le cart scrollable */
+function HourPick({ value, options, onChange }) {
+  const [open, setOpen] = React.useState(false)
+  const ref = React.useRef(null)
+
+  React.useEffect(() => {
+    if (!open) return
+    const fn = e => { if (!ref.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.04)', border: `1px solid ${open ? 'rgba(255,153,0,0.4)' : 'rgba(255,255,255,0.09)'}`, borderRadius: 10, padding: '11px 12px', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit', cursor: 'pointer', outline: 'none', transition: 'border-color 0.15s' }}>
+        <span>{value}h00</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(240,240,245,0.4)" strokeWidth="2" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+
+      {open && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#13131f', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, boxShadow: '0 12px 32px rgba(0,0,0,0.6)', zIndex: 50, maxHeight: 200, overflowY: 'auto' }}>
+          {options.map(h => (
+            <button key={h} type="button"
+              onClick={() => { onChange(h); setOpen(false) }}
+              style={{ width: '100%', padding: '9px 12px', background: h === value ? 'rgba(255,153,0,0.1)' : 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: h === value ? '#FF9900' : '#f0f0f5', fontWeight: h === value ? 700 : 400, fontFamily: 'inherit', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {h}h00
+              {h === value && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function DeliveryScheduler({ onChange }) {
   const todayStr = new Date().toISOString().split('T')[0]
   const [date, setDate]     = React.useState(todayStr)
@@ -484,35 +519,20 @@ function DeliveryScheduler({ onChange }) {
     onChange(`${label}, ${startH}h → ${endH}h`)
   }, [date, startH, endH])
 
-  const validEnd  = HOURS.filter(h => Number(h) > Number(startH))
-  const safeEnd   = validEnd.includes(endH) ? endH : validEnd[0] || '22'
-  const startOpts = HOURS.map(h => ({ value: h, label: `${h}h00` }))
-  const endOpts   = validEnd.map(h => ({ value: h, label: `${h}h00` }))
-
-  const dateField = {
-    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 10, padding: '11px 12px', fontSize: 14, color: '#f0f0f5',
-    fontFamily: 'inherit', outline: 'none', width: '100%', cursor: 'pointer',
-  }
+  const validEnd = HOURS.filter(h => Number(h) > Number(startH))
+  const safeEnd  = validEnd.includes(endH) ? endH : validEnd[0] || '22'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <input type="date" value={date} min={todayStr}
         onChange={e => { if (e.target.value) setDate(e.target.value) }}
-        style={dateField} />
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '11px 12px', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit', outline: 'none', width: '100%', cursor: 'pointer' }} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8 }}>
-        <AdminDropdown
-          value={startH}
-          options={startOpts}
-          onChange={v => { setStartH(v); if (Number(v) >= Number(safeEnd)) setEndH(validEnd[0] || '22') }}
-        />
+        <HourPick value={startH} options={HOURS}
+          onChange={v => { setStartH(v); if (Number(v) >= Number(safeEnd)) setEndH(validEnd[0] || '22') }} />
         <span style={{ color: 'rgba(240,240,245,0.35)', fontSize: 13, fontWeight: 700, userSelect: 'none' }}>→</span>
-        <AdminDropdown
-          value={safeEnd}
-          options={endOpts}
-          onChange={setEndH}
-        />
+        <HourPick value={safeEnd} options={validEnd} onChange={setEndH} />
       </div>
     </div>
   )
