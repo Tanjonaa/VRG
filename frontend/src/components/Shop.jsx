@@ -8,6 +8,17 @@ import AuthModal from './AuthModal.jsx'
 import SupportChat from './SupportChat.jsx'
 import ComingSoon from './ComingSoon.jsx'
 
+/* ─── useMobile hook ─── */
+function useMobile(bp = 768) {
+  const [m, setM] = useState(() => typeof window !== 'undefined' && window.innerWidth < bp)
+  useEffect(() => {
+    const fn = () => setM(window.innerWidth < bp)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [bp])
+  return m
+}
+
 /* ─── helpers ─── */
 const fmt = n => Number(n).toLocaleString('fr-FR')
 const djb2 = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h*33)^s.charCodeAt(i))>>>0; return h }
@@ -263,7 +274,7 @@ function ProductModal({ product, onClose, onAdd }) {
           initial={{ scale:0.9, opacity:0, y:20 }} animate={{ scale:1, opacity:1, y:0 }} exit={{ scale:0.9, opacity:0 }}
           transition={{ type:'spring', damping:26, stiffness:300 }}
           onClick={e => e.stopPropagation()}
-          style={{ background:'#0b0b1a', border:`1px solid ${T.border}`, borderRadius:28, maxWidth:740, width:'100%', overflow:'hidden', display:'flex', boxShadow:'0 40px 120px rgba(0,0,0,0.7)' }}>
+          style={{ background:'#0b0b1a', border:`1px solid ${T.border}`, borderRadius:28, maxWidth:740, width:'100%', overflow:'hidden', display:'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', maxHeight: window.innerWidth < 768 ? '90dvh' : 'auto', overflowY: window.innerWidth < 768 ? 'auto' : 'visible', boxShadow:'0 40px 120px rgba(0,0,0,0.7)' }}>
 
           {/* Left — Images */}
           <div style={{ width:340, flexShrink:0, background:'rgba(255,255,255,0.02)', display:'flex', flexDirection:'column' }}>
@@ -346,6 +357,98 @@ function ProductModal({ product, onClose, onAdd }) {
 }
 
 /* ══════════════════════════════════════════
+   FILTER DRAWER — mobile bottom sheet
+══════════════════════════════════════════ */
+function FilterDrawer({ open, onClose, categories, active, setActive, price, setPrice, inStock, setInStock, total }) {
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [open])
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            onClick={onClose}
+            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:50, backdropFilter:'blur(4px)' }} />
+
+          <motion.div
+            initial={{ y:'100%' }} animate={{ y:0 }} exit={{ y:'100%' }}
+            transition={{ type:'spring', damping:32, stiffness:320 }}
+            style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:51, background:'#0e0e1e', borderTop:`1px solid ${T.border}`, borderRadius:'24px 24px 0 0', padding:'0 0 32px', maxHeight:'85dvh', overflowY:'auto' }}>
+
+            {/* Handle */}
+            <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 8px' }}>
+              <div style={{ width:40, height:4, borderRadius:99, background:'rgba(255,255,255,0.15)' }} />
+            </div>
+
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 20px 16px' }}>
+              <span style={{ fontSize:16, fontWeight:800, color:T.text }}>Filtres</span>
+              <button onClick={onClose} style={{ background:'rgba(255,255,255,0.06)', border:`1px solid ${T.border}`, borderRadius:99, padding:'6px 14px', cursor:'pointer', color:T.textMuted, fontSize:12, fontWeight:700 }}>Fermer</button>
+            </div>
+
+            <div style={{ padding:'0 16px', display:'flex', flexDirection:'column', gap:12 }}>
+              {/* Catégories */}
+              <GlassCard>
+                <div style={{ padding:'14px 16px' }}>
+                  <div style={{ fontSize:10, fontWeight:800, color:T.textDim, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>Catégories</div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                    <button onClick={() => setActive(null)}
+                      style={{ padding:'7px 14px', borderRadius:99, fontSize:12, fontWeight:700, border:'1px solid', cursor:'pointer', background: active===null?T.accentDim:'rgba(255,255,255,0.04)', borderColor: active===null?'rgba(255,153,0,0.3)':T.border, color: active===null?T.accent:T.textMuted }}>
+                      Tous ({total})
+                    </button>
+                    {categories.map(c => (
+                      <button key={c.name} onClick={() => { setActive(c.name); onClose() }}
+                        style={{ padding:'7px 14px', borderRadius:99, fontSize:12, fontWeight:700, border:'1px solid', cursor:'pointer', background: active===c.name?T.accentDim:'rgba(255,255,255,0.04)', borderColor: active===c.name?'rgba(255,153,0,0.3)':T.border, color: active===c.name?T.accent:T.textMuted }}>
+                        {c.name} ({c.count})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </GlassCard>
+
+              {/* Prix */}
+              <GlassCard>
+                <div style={{ padding:'14px 16px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12 }}>
+                    <div style={{ fontSize:10, fontWeight:800, color:T.textDim, textTransform:'uppercase', letterSpacing:'0.1em' }}>Prix maximum</div>
+                    <span style={{ fontSize:13, fontWeight:800, color:T.accent }}>{fmt(price)} Ar</span>
+                  </div>
+                  <div style={{ position:'relative', height:4, borderRadius:99, background:'rgba(255,255,255,0.08)', marginBottom:-4 }}>
+                    <div style={{ position:'absolute', left:0, top:0, height:'100%', borderRadius:99, background:`linear-gradient(90deg,${T.accent},#e67e00)`, width:`${(price/200000)*100}%` }} />
+                  </div>
+                  <input type="range" min={0} max={200000} step={5000} value={price} onChange={e => setPrice(Number(e.target.value))}
+                    style={{ width:'100%', accentColor:T.accent, cursor:'pointer', opacity:0, marginTop:-4, height:24 }} />
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:T.textDim }}>
+                    <span>0 Ar</span><span>200 000 Ar</span>
+                  </div>
+                </div>
+              </GlassCard>
+
+              {/* Stock */}
+              <GlassCard>
+                <div style={{ padding:'14px 16px' }}>
+                  <button onClick={() => setInStock(s => !s)}
+                    style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+                    <span style={{ fontSize:13, fontWeight:600, color:inStock?T.text:T.textMuted }}>En stock uniquement</span>
+                    <div style={{ width:44, height:24, borderRadius:99, background: inStock?T.accent:'rgba(255,255,255,0.08)', position:'relative', transition:'background 0.2s', flexShrink:0 }}>
+                      <div style={{ position:'absolute', top:4, width:16, height:16, borderRadius:'50%', background:'#fff', left: inStock?24:4, transition:'left 0.2s', boxShadow:'0 1px 4px rgba(0,0,0,0.4)' }} />
+                    </div>
+                  </button>
+                </div>
+              </GlassCard>
+
+              <Btn variant="primary" size="md" full onClick={onClose}>Appliquer les filtres</Btn>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  )
+}
+
+/* ══════════════════════════════════════════
    SIDEBAR — PREMIUM
 ══════════════════════════════════════════ */
 function Sidebar({ categories, active, setActive, price, setPrice, inStock, setInStock, total }) {
@@ -415,26 +518,37 @@ function SideBtn({ active, onClick, count, label, dot }) {
 /* ══════════════════════════════════════════
    SORT BAR
 ══════════════════════════════════════════ */
-function SortBar({ count, sort, setSort, view, setView }) {
+function SortBar({ count, sort, setSort, view, setView, isMobile, onFilter }) {
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:24, flexWrap:'wrap' }}>
+    <div style={{ display:'flex', alignItems:'center', gap: isMobile?8:12, marginBottom: isMobile?14:24, flexWrap:'wrap' }}>
       <div style={{ fontSize:13, color:T.textMuted, flex:1 }}>
         <span style={{ color:T.text, fontWeight:800 }}>{count}</span> produit{count!==1?'s':''}
       </div>
+
+      {/* Filtre button — mobile only */}
+      {isMobile && onFilter && (
+        <button onClick={onFilter}
+          style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:99, border:`1px solid ${T.border}`, background:'rgba(255,255,255,0.05)', color:T.textMuted, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="12" y1="18" x2="12" y2="18" strokeLinecap="round"/></svg>
+          Filtres
+        </button>
+      )}
+
       <select value={sort} onChange={e => setSort(e.target.value)}
-        style={{ padding:'9px 16px', borderRadius:99, border:`1px solid ${T.border}`, background:'rgba(255,255,255,0.04)', color:T.text, fontSize:12, fontWeight:600, outline:'none', cursor:'pointer' }}>
+        style={{ padding: isMobile?'8px 12px':'9px 16px', borderRadius:99, border:`1px solid ${T.border}`, background:'rgba(255,255,255,0.04)', color:T.text, fontSize:12, fontWeight:600, outline:'none', cursor:'pointer', maxWidth: isMobile?140:'none' }}>
         <option value="default">Tri par défaut</option>
-        <option value="price_asc">Prix : croissant</option>
-        <option value="price_desc">Prix : décroissant</option>
+        <option value="price_asc">Prix ↑</option>
+        <option value="price_desc">Prix ↓</option>
         <option value="name">Nom A → Z</option>
-        <option value="stock">Stock disponible</option>
+        <option value="stock">Stock</option>
       </select>
+
       <div style={{ display:'flex', gap:4, background:'rgba(255,255,255,0.04)', borderRadius:99, padding:4, border:`1px solid ${T.border}` }}>
         {[{ v:'grid', path:'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
           { v:'list', path:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' }].map(b => (
           <button key={b.v} onClick={() => setView(b.v)}
-            style={{ width:30, height:30, borderRadius:99, border:'none', cursor:'pointer', background: view===b.v ? T.accentDim : 'none', display:'flex', alignItems:'center', justifyContent:'center', transition:'background 0.15s' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill={view===b.v?T.accent:'none'} stroke={view===b.v?T.accent:T.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            style={{ width:30, height:30, borderRadius:99, border:'none', cursor:'pointer', background: view===b.v?T.accentDim:'none', display:'flex', alignItems:'center', justifyContent:'center', transition:'background 0.15s' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill={view===b.v?T.accent:'none'} stroke={view===b.v?T.accent:T.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d={b.path}/>
             </svg>
           </button>
@@ -475,6 +589,7 @@ function CartFloatBar({ onOpen }) {
 function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, newCount, promoCount }) {
   const { user } = useAuth()
   const { count } = useCart()
+  const isMobile = useMobile()
 
   const NAV = [
     { id:'catalogue',  label:'Catalogue' },
@@ -483,71 +598,80 @@ function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, 
   ]
 
   return (
-    <header style={{ background:'rgba(5,5,13,0.92)', backdropFilter:'blur(20px)', borderBottom:`1px solid ${T.border}`, position:'sticky', top:0, zIndex:30 }}>
-      {/* Topbar */}
-      <div style={{ padding:'5px 40px', borderBottom:'1px solid rgba(255,255,255,0.04)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <div style={{ fontSize:11, color:T.textDim, letterSpacing:'0.03em' }}>
-          ✦ Livraison 24h sur Antananarivo  ·  Paiement à la livraison  ·  Retour sous 7 jours
+    <header style={{ background:'rgba(5,5,13,0.95)', backdropFilter:'blur(20px)', borderBottom:`1px solid ${T.border}`, position:'sticky', top:0, zIndex:30 }}>
+
+      {/* Topbar — desktop only */}
+      {!isMobile && (
+        <div style={{ padding:'5px 40px', borderBottom:'1px solid rgba(255,255,255,0.04)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ fontSize:11, color:T.textDim, letterSpacing:'0.03em' }}>
+            ✦ Livraison 24h sur Antananarivo · Paiement à la livraison · Retour sous 7 jours
+          </div>
+          <div style={{ display:'flex', gap:20 }}>
+            {['Confidentialité','CGU','Contact'].map(l => (
+              <a key={l} href="#" style={{ fontSize:11, color:T.textDim, textDecoration:'none' }}>{l}</a>
+            ))}
+          </div>
         </div>
-        <div style={{ display:'flex', gap:20 }}>
-          {['Confidentialité','CGU','Contact'].map(l => (
-            <a key={l} href="#" style={{ fontSize:11, color:T.textDim, textDecoration:'none', transition:'color 0.15s' }}
-              onMouseEnter={e => e.currentTarget.style.color=T.textMuted}
-              onMouseLeave={e => e.currentTarget.style.color=T.textDim}>{l}</a>
-          ))}
-        </div>
-      </div>
+      )}
+
       {/* Main nav */}
-      <div style={{ padding:'14px 40px', display:'flex', alignItems:'center', gap:24 }}>
+      <div style={{ padding: isMobile ? '10px 16px' : '14px 40px', display:'flex', alignItems:'center', gap: isMobile ? 10 : 24 }}>
+
         {/* Logo */}
-        <a href="/" style={{ display:'flex', alignItems:'center', gap:10, textDecoration:'none', flexShrink:0 }}>
-          <div style={{ width:36, height:36, borderRadius:11, background:'linear-gradient(135deg, #FF9900, #e67e00)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 14px rgba(255,153,0,0.4)' }}>
-            <img src="/images/logo/logo.svg" alt="VRG" style={{ width:24, height:24 }} onError={e => { e.target.style.display='none' }} />
+        <a href="/" style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none', flexShrink:0 }}>
+          <div style={{ width: isMobile?32:36, height: isMobile?32:36, borderRadius:11, background:'linear-gradient(135deg,#FF9900,#e67e00)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 14px rgba(255,153,0,0.4)' }}>
+            <img src="/images/logo/logo.svg" alt="VRG" style={{ width: isMobile?20:24, height: isMobile?20:24 }} onError={e => { e.target.style.display='none' }} />
           </div>
           <div>
-            <div style={{ fontSize:16, fontWeight:900, color:T.text, letterSpacing:'-0.5px', lineHeight:1 }}>VaRyGasy</div>
-            <div style={{ fontSize:9, color:T.textDim, fontWeight:600, letterSpacing:'0.15em', textTransform:'uppercase' }}>Gaming Store</div>
+            <div style={{ fontSize: isMobile?14:16, fontWeight:900, color:T.text, letterSpacing:'-0.5px', lineHeight:1 }}>VaRyGasy</div>
+            {!isMobile && <div style={{ fontSize:9, color:T.textDim, fontWeight:600, letterSpacing:'0.15em', textTransform:'uppercase' }}>Gaming Store</div>}
           </div>
         </a>
 
-        {/* Nav */}
-        <nav style={{ display:'flex', gap:2, marginLeft:8 }}>
-          {NAV.map(n => {
-            const active = navTab === n.id
-            return (
-              <button key={n.id} onClick={() => setNavTab(n.id)}
-                style={{ position:'relative', padding:'8px 15px', borderRadius:99, fontSize:13, fontWeight:600, cursor:'pointer', background: active ? T.accentDim : 'none', color: active ? T.accent : T.textMuted, border: active ? `1px solid rgba(255,153,0,0.2)` : '1px solid transparent', transition:'all 0.15s', display:'flex', alignItems:'center', gap:6 }}>
-                {n.label}
-                {n.badge && (
-                  <span style={{ background: n.badgeColor || '#4ade80', color:'#000', fontSize:9, fontWeight:900, borderRadius:99, padding:'1px 6px', lineHeight:1.4 }}>
-                    {n.badge}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </nav>
+        {/* Nav — desktop inline / mobile hidden (nav chips below) */}
+        {!isMobile && (
+          <nav style={{ display:'flex', gap:2, marginLeft:8 }}>
+            {NAV.map(n => {
+              const active = navTab === n.id
+              return (
+                <button key={n.id} onClick={() => setNavTab(n.id)}
+                  style={{ position:'relative', padding:'8px 15px', borderRadius:99, fontSize:13, fontWeight:600, cursor:'pointer', background: active?T.accentDim:'none', color: active?T.accent:T.textMuted, border: active?`1px solid rgba(255,153,0,0.2)`:'1px solid transparent', transition:'all 0.15s', display:'flex', alignItems:'center', gap:6 }}>
+                  {n.label}
+                  {n.badge && <span style={{ background:n.badgeColor||'#4ade80', color:'#000', fontSize:9, fontWeight:900, borderRadius:99, padding:'1px 6px', lineHeight:1.4 }}>{n.badge}</span>}
+                </button>
+              )
+            })}
+          </nav>
+        )}
 
         {/* Search */}
-        <div style={{ flex:1, maxWidth:320, marginLeft:'auto', position:'relative' }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.textDim} strokeWidth="2.5" style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
+        <div style={{ flex:1, maxWidth: isMobile?'100%':320, marginLeft: isMobile?0:'auto', position:'relative' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.textDim} strokeWidth="2.5" style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un produit…"
-            style={{ width:'100%', padding:'10px 16px 10px 38px', borderRadius:99, border:`1px solid ${T.border}`, background:'rgba(255,255,255,0.04)', color:T.text, fontSize:12, outline:'none', boxSizing:'border-box', fontFamily:'inherit', transition:'border-color 0.2s' }}
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…"
+            style={{ width:'100%', padding:'9px 14px 9px 34px', borderRadius:99, border:`1px solid ${T.border}`, background:'rgba(255,255,255,0.05)', color:T.text, fontSize:13, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }}
             onFocus={e => e.target.style.borderColor = T.borderHi}
             onBlur={e => e.target.style.borderColor = T.border} />
         </div>
 
         {/* Actions */}
-        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-          <Btn variant="ghost" size="sm" onClick={onOpenAuth}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            {user ? user.name.split(' ')[0] : 'Connexion'}
-          </Btn>
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexShrink:0 }}>
+          {!isMobile && (
+            <Btn variant="ghost" size="sm" onClick={onOpenAuth}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              {user ? user.name.split(' ')[0] : 'Connexion'}
+            </Btn>
+          )}
+          {isMobile && (
+            <button onClick={onOpenAuth}
+              style={{ width:38, height:38, borderRadius:99, border:`1px solid ${T.border}`, background:T.glass, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </button>
+          )}
           <button onClick={onOpenCart}
-            style={{ position:'relative', width:42, height:42, borderRadius:99, border:`1px solid ${count>0 ? T.borderHi : T.border}`, background: count>0 ? T.accentDim : T.glass, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.2s' }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={count>0?T.accent:T.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            style={{ position:'relative', width: isMobile?38:42, height: isMobile?38:42, borderRadius:99, border:`1px solid ${count>0?T.borderHi:T.border}`, background: count>0?T.accentDim:T.glass, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.2s' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={count>0?T.accent:T.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
             </svg>
@@ -560,6 +684,22 @@ function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, 
           </button>
         </div>
       </div>
+
+      {/* Nav chips — mobile only, horizontal scroll */}
+      {isMobile && (
+        <div style={{ display:'flex', gap:8, padding:'0 16px 10px', overflowX:'auto', scrollbarWidth:'none', msOverflowStyle:'none' }}>
+          {NAV.map(n => {
+            const active = navTab === n.id
+            return (
+              <button key={n.id} onClick={() => setNavTab(n.id)}
+                style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'7px 16px', borderRadius:99, fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, background: active?T.accentDim:'rgba(255,255,255,0.05)', color: active?T.accent:T.textMuted, border: active?`1px solid rgba(255,153,0,0.3)`:`1px solid ${T.border}`, transition:'all 0.15s' }}>
+                {n.label}
+                {n.badge && <span style={{ background:n.badgeColor, color:'#000', fontSize:9, fontWeight:900, borderRadius:99, padding:'1px 6px' }}>{n.badge}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </header>
   )
 }
@@ -857,6 +997,7 @@ function PromosView({ products, onAdd, onView }) {
 function ShopInner() {
   const { user } = useAuth()
   const { addItem } = useCart()
+  const isMobile = useMobile()
   const [products, setProducts] = useState([])
   const [loading, setLoading]   = useState(true)
   const [navTab, setNavTab]     = useState('catalogue')
@@ -869,6 +1010,7 @@ function ShopInner() {
   const [modal, setModal]       = useState(null)
   const [showCart, setShowCart] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
     fetch('/api/products').then(r=>r.json()).then(d=>{setProducts(Array.isArray(d)?d:[]); setLoading(false)}).catch(()=>setLoading(false))
@@ -917,7 +1059,7 @@ function ShopInner() {
         <Header search={search} setSearch={setSearch} onOpenAuth={()=>!user&&setShowAuth(true)} onOpenCart={()=>setShowCart(true)} navTab={navTab} setNavTab={setNavTab} newCount={newCount} promoCount={promoCount} />
 
         {/* Breadcrumb */}
-        <div style={{ padding:'10px 40px', borderBottom:`1px solid ${T.border}`, display:'flex', alignItems:'center', gap:6, fontSize:12, color:T.textDim }}>
+        <div style={{ padding: isMobile ? '8px 16px' : '10px 40px', borderBottom:`1px solid ${T.border}`, display:'flex', alignItems:'center', gap:6, fontSize:12, color:T.textDim }}>
           <a href="/" style={{ color:'inherit', textDecoration:'none' }}>Accueil</a>
           <span style={{ opacity:0.4 }}>/</span>
           <span style={{ color:T.accent, fontWeight:700 }}>{breadcrumbLabel}</span>
@@ -925,10 +1067,10 @@ function ShopInner() {
         </div>
 
         {/* Body */}
-        <div style={{ maxWidth:1320, margin:'0 auto', padding:'32px 40px', display:'flex', gap:28, alignItems:'flex-start' }}>
+        <div style={{ maxWidth:1320, margin:'0 auto', padding: isMobile ? '16px 12px' : '32px 40px', display:'flex', gap:28, alignItems:'flex-start' }}>
 
-          {/* Sidebar — seulement en mode catalogue */}
-          {navTab === 'catalogue' && (
+          {/* Sidebar — desktop uniquement */}
+          {!isMobile && navTab === 'catalogue' && (
             <Sidebar categories={cats} active={active} setActive={setActive} price={price} setPrice={setPrice} inStock={inStock} setInStock={setInStock} total={products.length} />
           )}
 
@@ -944,11 +1086,11 @@ function ShopInner() {
             {/* ── Onglet Catalogue ── */}
             {navTab === 'catalogue' && (
               <>
-                <SortBar count={filtered.length} sort={sort} setSort={setSort} view={view} setView={setView} />
+                <SortBar count={filtered.length} sort={sort} setSort={setSort} view={view} setView={setView} isMobile={isMobile} onFilter={isMobile ? () => setShowFilters(true) : null} />
                 {loading ? <Loader /> : filtered.length===0 ? (
                   <EmptyState onReset={()=>{ setActive(null); setSearch(''); setInStock(false); setPrice(200000) }} />
                 ) : view==='grid' ? (
-                  <motion.div layout style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:18 }}>
+                  <motion.div layout style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: isMobile ? 10 : 18 }}>
                     <AnimatePresence>
                       {filtered.map((p,i) => (
                         <motion.div key={p.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}>
@@ -1006,6 +1148,9 @@ function ShopInner() {
 
       <CartPanel isOpen={showCart} onClose={()=>setShowCart(false)} onOpenAuth={()=>{ setShowCart(false); setShowAuth(true) }} />
       <AuthModal isOpen={showAuth} onClose={()=>setShowAuth(false)} onSuccess={()=>setShowAuth(false)} />
+
+      {/* Filter drawer — mobile */}
+      <FilterDrawer open={showFilters} onClose={()=>setShowFilters(false)} categories={cats} active={active} setActive={setActive} price={price} setPrice={setPrice} inStock={inStock} setInStock={setInStock} total={products.length} />
 
       <div style={{ position:'fixed', bottom:90, left:24, zIndex:20 }}>
         <Btn variant="ghost" size="sm" onClick={()=>window.location.href='/'}>← Retour au site</Btn>
