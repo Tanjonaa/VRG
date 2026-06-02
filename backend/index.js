@@ -13,13 +13,27 @@ const app = express()
 app.use(express.json())
 app.use(cors())
 
+/* ── Préfixe /api ─────────────────────────────────────────
+   Le front appelle toujours /api/...
+   • Docker  : nginx retire déjà /api (proxy_pass) → ce middleware est no-op
+   • o2switch: app Node unique qui sert tout → on retire /api ici          */
+app.use((req, res, next) => {
+  if (req.url === '/api' || req.url.startsWith('/api/')) {
+    req.isApi = true
+    req.url = req.url === '/api' ? '/' : req.url.slice(4)
+  }
+  next()
+})
+
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Trop de tentatives, réessaie dans 15 minutes' } })
-const apiLimiter   = rateLimit({ windowMs: 60 * 1000, max: 120, message: { error: 'Trop de requêtes, ralentis' } })
+const apiLimiter   = rateLimit({ windowMs: 60 * 1000, max: 120, message: { error: 'Trop de requêtes, ralentis' },
+  /* En mode app-unique (o2switch), ne pas limiter le chargement des fichiers statiques */
+  skip: req => !!process.env.FRONTEND_DIST && !req.isApi })
 app.use('/auth/login', loginLimiter)
 app.use(apiLimiter)
 
 /* ── Multer : upload images ──────────────────────────────── */
-const UPLOAD_DIR = '/app/uploads'
+const UPLOAD_DIR = process.env.UPLOAD_DIR || '/app/uploads'
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 
 const storage = multer.diskStorage({
@@ -1261,4 +1275,25 @@ app.get('/livreur/chat/client/:orderId', livreurAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
-app.listen(4000, () => console.log('VRG API port 4000'))
+/* ═══════════════════════════════════════════════════════════
+   FICHIERS STATIQUES — mode app unique (o2switch)
+   Sur Docker, nginx s'en charge ; ces handlers ne sont jamais atteints.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Images uploadées (servies depuis UPLOAD_DIR) */
+app.use('/images/uploads', express.static(UPLOAD_DIR))
+
+/* Frontend React — activé seulement si FRONTEND_DIST est défini */
+if (process.env.FRONTEND_DIST) {
+  const dist = process.env.FRONTEND_DIST
+  app.use(express.static(dist))
+  /* Fallback SPA : toute route inconnue → index.html (sauf API) */
+  app.get('*', (req, res) => {
+    if (req.isApi) return res.status(404).json({ error: 'Route introuvable' })
+    res.sendFile(path.join(dist, 'index.html'))
+  })
+  console.log('Frontend servi depuis', dist)
+}
+
+const PORT = process.env.API_PORT || process.env.PORT || 4000
+app.listen(PORT, () => console.log('VRG API on port ' + PORT))

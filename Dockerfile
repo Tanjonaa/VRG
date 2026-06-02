@@ -48,7 +48,7 @@ server {\n\
 }\n\
 EOF\n\
 nginx -g "daemon off;" &\n\
-exec node /app/index.js\n\
+exec env API_PORT=4000 node /app/index.js\n\
 ' > /start.sh && chmod +x /start.sh
 
 EXPOSE 80
