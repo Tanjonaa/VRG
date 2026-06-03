@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "VaRyGasy - SaaS Landing Page",
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

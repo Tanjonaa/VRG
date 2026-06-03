@@ -23,15 +23,31 @@ Docker, pas de nginx, pas d'Adminer → phpMyAdmin à la place).
 
 ---
 
-## 1. Build du frontend (en local)
+## ⚠️ Versions Node requises
+
+- **Backend (runtime)** : Node **≥ 18** — sélectionne au minimum 18 dans cPanel
+- **Frontend (build Vite 8)** : Node **≥ 20.19**
+
+→ Le plus simple : choisis **Node 20.x** dans cPanel (couvre les deux).
+→ Le plus robuste : **build le frontend en local** (étape 1) et n'uploade que
+  `dist/`. Le serveur n'a alors besoin que de Node 18+ pour le backend, et tu
+  évites tout souci de version au build.
+
+⚠️ Ne laisse **jamais** le Node 10.x proposé par défaut : `npm install` échouera
+(express-rate-limit, mysql2, vite exigent des versions récentes).
+
+---
+
+## 1. Build du frontend (en local, recommandé)
 
 ```bash
 cd frontend
 npm install
-npm run build        # produit frontend/dist/
+npm run build        # produit frontend/dist/  (nécessite Node ≥ 20.19)
 ```
 
 Le dossier `frontend/dist/` contient le site statique à uploader.
+Tu peux aussi le builder sur le serveur **si** le Node sélectionné est ≥ 20.19.
 
 ---
 
