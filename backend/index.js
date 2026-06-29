@@ -1,4 +1,6 @@
-﻿const express   = require('express')
+﻿require('dotenv').config()
+
+const express   = require('express')
 const mysql     = require('mysql2/promise')
 const bcrypt    = require('bcryptjs')
 const jwt       = require('jsonwebtoken')
