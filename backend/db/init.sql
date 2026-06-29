@@ -184,3 +184,7 @@ CREATE INDEX IF NOT EXISTS idx_products_cat   ON products(category);
 CREATE INDEX IF NOT EXISTS idx_products_act   ON products(active);
 CREATE INDEX IF NOT EXISTS idx_team_order     ON team_members(active, order_index);
 CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
+
+-- Admin compte mdp: Admin123
+INSERT IGNORE INTO users (name, phone, password, role) 
+VALUES ('Admin VRG', '0340000000', '$2a$12$ZxjXhUtKONbhnn6MwP.z6unJsI9BQ57kO7/GKSpurb/IvoHhdCNma', 'admin');
