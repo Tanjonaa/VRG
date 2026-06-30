@@ -8,7 +8,7 @@ dist/
 frontend/dist/
 
 # Variables d'environnement (NE JAMAIS COMMITTER)
-.env
+
 .env.local
 .env.production
 
@@ -25,7 +25,7 @@ db_data/
 __pycache__/
 *.pyc
 
-# OS
+# OSsource /home/toka5412/nodevenv/repositories/VRG/backend/20/bin/activate && cd /home/toka5412/repositories/VRG/backend
 .DS_Store
 desktop.ini
 Thumbs.db
