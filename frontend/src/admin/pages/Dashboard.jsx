@@ -38,14 +38,14 @@ export default function Dashboard() {
       </div>
 
       {/* Order status */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div className="adm-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
         <StatusCard icon={<Clock size={15} />} label="En attente" value={stats.orders.pending} color="#f59e0b" />
         <StatusCard icon={<CheckCircle size={15} />} label="Confirmées" value={stats.orders.confirmed} color="#22c55e" />
         <StatusCard icon={<Package size={15} />} label="Livrées" value={stats.orders.delivered} color="#60a5fa" />
       </div>
 
       {/* Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
         {/* Sales chart */}
         <Card title="Ventes mensuelles (Ar)">

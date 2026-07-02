@@ -190,7 +190,7 @@ function Badge({ count, color = '#ef4444' }) {
 export default function AdminApp() {
   const { user, loading, login, logout } = useAdminAuth()
   const [page, setPage]         = useState('dashboard')
-  const [sideOpen, setSideOpen] = useState(true)
+  const [sideOpen, setSideOpen] = useState(() => window.innerWidth > 768)
   const [alerts, setAlerts]     = useState(0)
   const { notifs, toasts, clearMsgs, clearOrders } = useNotifications(user)
 
@@ -335,7 +335,7 @@ export default function AdminApp() {
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+        <main className="adm-main" style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
           <PageComponent user={user} onAlertsChange={setAlerts} />
         </main>
       </div>
