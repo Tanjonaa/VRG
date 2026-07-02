@@ -174,9 +174,11 @@ function useNotifications(user) {
 }
 
 /* ── Présence staff (polling 15s) ── */
+const TOAST_COOLDOWN = 10 * 60 * 1000
 function useOnlineStaff(user, addToast) {
   const [online, setOnline] = useState([])
   const prevIds = useRef(null)
+  const lastToastAt = useRef({})   // id → timestamp du dernier toast (anti-boucle)
 
   useEffect(() => {
     if (!user) return
@@ -186,11 +188,20 @@ function useOnlineStaff(user, addToast) {
         if (!res.ok) return
         const rows = await res.json()
         setOnline(rows)
-        /* Notifie les nouvelles connexions (pas au premier chargement, pas soi-même) */
+        /* Notifie les nouvelles connexions : pas au premier chargement, pas
+           soi-même, seulement si l'activité est réellement récente (ago < 60 s),
+           et au plus un toast par personne par période de cooldown — sinon le
+           throttling des onglets en arrière-plan fait "flapper" la présence
+           et le même toast revient en boucle */
         if (prevIds.current) {
           rows.forEach(r => {
-            if (!prevIds.current.has(r.id) && r.id !== user.id && (r.ago ?? 0) < 60)
+            const isNew    = !prevIds.current.has(r.id) && r.id !== user.id
+            const isFresh  = (r.ago ?? 999) < 60
+            const cooledDown = !lastToastAt.current[r.id] || Date.now() - lastToastAt.current[r.id] > TOAST_COOLDOWN
+            if (isNew && isFresh && cooledDown) {
               addToast(`🟢 ${r.name} (${r.role === 'admin' ? 'admin' : 'modérateur'}) est en ligne`, '#22c55e')
+              lastToastAt.current[r.id] = Date.now()
+            }
           })
         }
         prevIds.current = new Set(rows.map(r => r.id))
