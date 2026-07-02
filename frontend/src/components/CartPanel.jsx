@@ -505,13 +505,19 @@ function HourPick({ value, options, onChange }) {
   )
 }
 
+/* Livraison à J+1 minimum, créneau horaire entre 10h et 17h */
 function DeliveryScheduler({ onChange }) {
-  const todayStr = new Date().toISOString().split('T')[0]
-  const [date, setDate]     = React.useState(todayStr)
-  const [startH, setStartH] = React.useState('08')
+  /* Date locale (pas toISOString : UTC décale d'un jour tôt le matin à Madagascar) */
+  const localStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const minStr = localStr(tomorrow)
+
+  const [date, setDate]     = React.useState(minStr)
+  const [startH, setStartH] = React.useState('10')
   const [endH, setEndH]     = React.useState('12')
 
-  const HOURS = Array.from({ length: 17 }, (_, i) => String(i + 6).padStart(2, '0'))
+  const HOURS = Array.from({ length: 8 }, (_, i) => String(i + 10).padStart(2, '0'))  // 10 → 17
 
   React.useEffect(() => {
     const d = new Date(date + 'T12:00:00')
@@ -520,17 +526,17 @@ function DeliveryScheduler({ onChange }) {
   }, [date, startH, endH])
 
   const validEnd = HOURS.filter(h => Number(h) > Number(startH))
-  const safeEnd  = validEnd.includes(endH) ? endH : validEnd[0] || '22'
+  const safeEnd  = validEnd.includes(endH) ? endH : validEnd[0] || '17'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <input type="date" value={date} min={todayStr}
-        onChange={e => { if (e.target.value) setDate(e.target.value) }}
+      <input type="date" value={date} min={minStr}
+        onChange={e => { if (e.target.value && e.target.value >= minStr) setDate(e.target.value) }}
         style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '11px 12px', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit', outline: 'none', width: '100%', cursor: 'pointer' }} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8 }}>
-        <HourPick value={startH} options={HOURS}
-          onChange={v => { setStartH(v); if (Number(v) >= Number(safeEnd)) setEndH(validEnd[0] || '22') }} />
+        <HourPick value={startH} options={HOURS.slice(0, -1)}
+          onChange={v => { setStartH(v); if (Number(v) >= Number(safeEnd)) setEndH(String(Number(v) + 1).padStart(2, '0')) }} />
         <span style={{ color: 'rgba(240,240,245,0.35)', fontSize: 13, fontWeight: 700, userSelect: 'none' }}>→</span>
         <HourPick value={safeEnd} options={validEnd} onChange={setEndH} />
       </div>
