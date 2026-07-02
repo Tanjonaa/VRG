@@ -512,11 +512,12 @@ app.get('/admin/notifications', adminAuth, async (req, res) => {
 })
 
 /* ── GET /admin/online ───────────────────────────────── */
-/* Staff (admin/modérateur) vu actif dans les 2 dernières minutes */
+/* Staff vu dans les 2 dernières minutes ; ago (s) permet au front
+   d'afficher vert < 60s puis rouge 60-120s avant disparition */
 app.get('/admin/online', adminAuth, async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      "SELECT id, name, role FROM users WHERE role IN ('admin','moderator') AND last_seen > NOW() - INTERVAL 2 MINUTE ORDER BY name"
+      "SELECT id, name, role, TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS ago FROM users WHERE role IN ('admin','moderator') AND last_seen > NOW() - INTERVAL 2 MINUTE ORDER BY name"
     )
     res.json(rows)
   } catch (e) { res.status(500).json({ error: e.message }) }
