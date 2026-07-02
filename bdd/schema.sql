@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   referral_code VARCHAR(12)   UNIQUE,              -- code parrainage unique (8 chars alphanum)
   referred_by   INT           NULL,                -- FK → users.id du parrain
   role          VARCHAR(20)   DEFAULT 'client',    -- client | moderator | admin | livreur
+  last_seen     DATETIME      NULL,                -- présence staff (maj par le polling /admin/notifications)
   created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL
 );

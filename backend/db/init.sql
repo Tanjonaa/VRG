@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   referral_code VARCHAR(12)   UNIQUE,
   referred_by   INT           NULL,
   role          VARCHAR(20)   DEFAULT 'client',   -- client | moderator | admin | livreur
+  last_seen     DATETIME      NULL,               -- présence staff (liste "en ligne")
   created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL
 );
