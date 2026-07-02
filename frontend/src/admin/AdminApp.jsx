@@ -69,6 +69,29 @@ function useAdminAuth() {
   return { user, loading, login, logout }
 }
 
+/* ── Déconnexion auto après inactivité ── */
+const IDLE_TIMEOUT = 5 * 60 * 1000
+function useIdleLogout(user, logout) {
+  const lastActivity = useRef(Date.now())
+  useEffect(() => {
+    if (!user) return
+    lastActivity.current = Date.now()
+    const bump = () => { lastActivity.current = Date.now() }
+    const events = ['mousemove', 'mousedown', 'keydown', 'wheel', 'scroll', 'touchstart']
+    events.forEach(e => window.addEventListener(e, bump, { capture: true, passive: true }))
+    const t = setInterval(() => {
+      if (Date.now() - lastActivity.current >= IDLE_TIMEOUT) {
+        sessionStorage.setItem('vrg_idle_logout', '1')
+        logout()
+      }
+    }, 10000)
+    return () => {
+      events.forEach(e => window.removeEventListener(e, bump, { capture: true }))
+      clearInterval(t)
+    }
+  }, [user])
+}
+
 /* ── Notifications temps réel (polling 5s) ── */
 function useNotifications(user) {
   const [notifs, setNotifs] = useState({ orders: 0, msgs: 0 })
@@ -223,6 +246,7 @@ function Badge({ count, color = '#ef4444' }) {
 
 export default function AdminApp() {
   const { user, loading, login, logout } = useAdminAuth()
+  useIdleLogout(user, logout)
   const [page, setPage]         = useState('dashboard')
   const [sideOpen, setSideOpen] = useState(() => window.innerWidth > 768)
   const [alerts, setAlerts]     = useState(0)

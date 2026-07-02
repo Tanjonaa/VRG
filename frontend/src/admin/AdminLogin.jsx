@@ -7,6 +7,11 @@ export default function AdminLogin({ onLogin }) {
   const [showPwd, setShowPwd] = useState(false)
   const [error, setError]     = useState('')
   const [busy, setBusy]       = useState(false)
+  const [notice] = useState(() => {
+    if (!sessionStorage.getItem('vrg_idle_logout')) return ''
+    sessionStorage.removeItem('vrg_idle_logout')
+    return 'Session expirée après 5 minutes d\'inactivité'
+  })
 
   const handle = async (e) => {
     e.preventDefault()
@@ -26,6 +31,12 @@ export default function AdminLogin({ onLogin }) {
           <div style={{ fontSize: 22, fontWeight: 800, color: '#f0f0f5', letterSpacing: '-0.5px' }}>VaRyGasy Admin</div>
           <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.35)', marginTop: 6 }}>Espace réservé aux administrateurs</div>
         </div>
+
+        {notice && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#fbbf24', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 9, padding: '9px 12px', marginBottom: 14 }}>
+            <AlertCircle size={13} /> {notice}
+          </div>
+        )}
 
         <form onSubmit={handle} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
