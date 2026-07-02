@@ -166,7 +166,7 @@ function useOnlineStaff(user, addToast) {
         /* Notifie les nouvelles connexions (pas au premier chargement, pas soi-même) */
         if (prevIds.current) {
           rows.forEach(r => {
-            if (!prevIds.current.has(r.id) && r.id !== user.id)
+            if (!prevIds.current.has(r.id) && r.id !== user.id && (r.ago ?? 0) < 60)
               addToast(`🟢 ${r.name} (${r.role === 'admin' ? 'admin' : 'modérateur'}) est en ligne`, '#22c55e')
           })
         }
@@ -325,18 +325,21 @@ export default function AdminApp() {
           {sideOpen && online.length > 0 && (
             <div style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
-                En ligne ({online.length})
+                En ligne ({online.filter(o => (o.ago ?? 0) < 60).length})
               </div>
               <div style={{ maxHeight: 96, overflowY: 'auto' }}>
-                {online.map(o => (
-                  <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '2px 0', color: 'rgba(240,240,245,0.6)' }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0, boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}{o.id === user.id ? ' (toi)' : ''}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 800, color: o.role === 'admin' ? '#FF9900' : '#60a5fa', flexShrink: 0 }}>
-                      {o.role === 'admin' ? 'ADMIN' : 'MOD'}
-                    </span>
-                  </div>
-                ))}
+                {online.map(o => {
+                  const active = (o.ago ?? 0) < 60
+                  return (
+                    <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '2px 0', color: 'rgba(240,240,245,0.6)', opacity: active ? 1 : 0.55 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: active ? '#22c55e' : '#ef4444', flexShrink: 0, boxShadow: `0 0 6px ${active ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)'}` }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}{o.id === user.id ? ' (toi)' : ''}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 800, color: o.role === 'admin' ? '#FF9900' : '#60a5fa', flexShrink: 0 }}>
+                        {o.role === 'admin' ? 'ADMIN' : 'MOD'}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
