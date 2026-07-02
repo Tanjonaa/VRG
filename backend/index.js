@@ -12,6 +12,10 @@ const fs        = require('fs')
 const rateLimit = require('express-rate-limit')
 
 const app = express()
+/* Derrière Apache/Passenger (o2switch) ou nginx (Docker) : fait confiance au
+   premier proxy pour X-Forwarded-For, sinon express-rate-limit compte tous
+   les clients comme une seule IP (voire lève ERR_ERL_UNEXPECTED_X_FORWARDED_FOR) */
+app.set('trust proxy', 1)
 app.use(express.json())
 app.use(cors())
 
@@ -55,12 +59,18 @@ const upload = multer({
   },
 })
 
+/* Identifiants BDD : uniquement via variables d'environnement (.env, Docker ou cPanel) */
+if (!process.env.DB_NAME || !process.env.DB_USER || !process.env.DB_PASSWORD) {
+  console.error('❌ DB_NAME, DB_USER et DB_PASSWORD doivent être définis (variables d\'environnement)')
+  process.exit(1)
+}
+
 const pool = mysql.createPool({
-  host:             process.env.DB_HOST     || 'localhost',
-  port:             process.env.DB_PORT     || 3306,
-  database:         process.env.DB_NAME     || 'toka5412_vrg',
-  user:             process.env.DB_USER     || 'toka5412_varygasy',
-  password:         process.env.DB_PASSWORD || '***SECRET-PURGE***',
+  host:             process.env.DB_HOST || 'localhost',
+  port:             process.env.DB_PORT || 3306,
+  database:         process.env.DB_NAME,
+  user:             process.env.DB_USER,
+  password:         process.env.DB_PASSWORD,
   waitForConnections: true,
   connectionLimit:  10,
 })
