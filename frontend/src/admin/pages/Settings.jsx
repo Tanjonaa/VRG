@@ -140,10 +140,10 @@ export default function Settings() {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', maxWidth: 900 }}>
+    <div className="adm-stack" style={{ display: 'flex', gap: 24, alignItems: 'flex-start', maxWidth: 900 }}>
 
       {/* Sidebar */}
-      <div style={{ width: 180, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div className="adm-settings-nav" style={{ width: 180, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
         {SECTIONS.map(({ id, label, icon: Icon, desc }) => {
           const active = section === id
           return (
@@ -328,7 +328,7 @@ export default function Settings() {
               {field('Points (un par ligne)', null, ta((card_data.points || []).join('\n'), v => setFeat(s => ({ ...s, cards: s.cards.map((c, i) => i === ci ? { ...c, points: v.split('\n').filter(Boolean) } : c) })), '', 4))}
               <div>
                 {lbl('Métriques', '2 chiffres affichés en bas de la carte')}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {(card_data.metrics || []).map((m, mi) => (
                     <div key={mi} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <div style={{ fontSize: 10, color: 'rgba(240,240,245,0.3)', fontWeight: 600 }}>VALEUR {mi + 1}</div>
@@ -365,7 +365,7 @@ export default function Settings() {
             <div key={pi} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
               {sectionTitle(`Pack ${pi + 1}`)}
               {field('Nom', null, inp(plan.name, v => setPricing(s => ({ ...s, plans: s.plans.map((p, i) => i === pi ? { ...p, name: v } : p) }))))}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {field('Prix (Ar)', null, inp(String(plan.price), v => setPricing(s => ({ ...s, plans: s.plans.map((p, i) => i === pi ? { ...p, price: Number(v) || 0 } : p) })), 'number'))}
                 {field('Badge populaire (optionnel)', null, inp(plan.badge || '', v => setPricing(s => ({ ...s, plans: s.plans.map((p, i) => i === pi ? { ...p, badge: v || undefined } : p) })), 'text', 'Ex : Le plus populaire'))}
               </div>
@@ -392,7 +392,7 @@ export default function Settings() {
             {sectionTitle('4 garanties (icônes fixes)')}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {(cta.guarantees || []).map((g, gi) => (
-                <div key={gi} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div key={gi} className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {inp(g.label, v => setCta(s => ({ ...s, guarantees: s.guarantees.map((x, i) => i === gi ? { ...x, label: v } : x) })))}
                   {inp(g.sub, v => setCta(s => ({ ...s, guarantees: s.guarantees.map((x, i) => i === gi ? { ...x, sub: v } : x) })))}
                 </div>

@@ -106,7 +106,7 @@ export default function Stocks({ onAlertsChange }) {
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="adm-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
         <SCard label="Rupture (≤5)"       value={critical.length}  color="#ef4444" onClick={() => setFilter(f => f === 'critical' ? 'all' : 'critical')} active={filter === 'critical'} />
         <SCard label="Stock faible (6-15)" value={low.length}       color="#f59e0b" onClick={() => setFilter(f => f === 'low'      ? 'all' : 'low')}      active={filter === 'low'} />
         <SCard label="Stock OK (>15)"      value={ok.length}        color="#22c55e" onClick={() => setFilter(f => f === 'ok'       ? 'all' : 'ok')}       active={filter === 'ok'} />
@@ -114,7 +114,7 @@ export default function Stocks({ onAlertsChange }) {
       </div>
 
       {/* Table */}
-      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
+      <div className="adm-table-scroll" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '32%' }} />
@@ -250,7 +250,7 @@ export default function Stocks({ onAlertsChange }) {
               <FRow label="Nom *">
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="ex: Finger Sleeve Pro" style={inp} />
               </FRow>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <FRow label="Prix (Ar) *">
                   <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} type="number" min="0" placeholder="15000" style={inp} />
                 </FRow>

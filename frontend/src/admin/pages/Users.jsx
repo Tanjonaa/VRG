@@ -152,7 +152,7 @@ export default function UsersPage({ user: adminUser, section = 'clients' }) {
       )}
 
       {/* Tabs + Search */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div className="adm-toolbar" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         {(section === 'staff' ? [
           { id: 'staff',    label: `Admin & Modérateurs (${staff.length})`,    icon: <Shield size={13} /> },
           { id: 'livreurs', label: `Livreurs (${livreurs.length})`,            icon: <span style={{ fontSize: 13 }}>🛵</span> },
@@ -184,7 +184,7 @@ export default function UsersPage({ user: adminUser, section = 'clients' }) {
       </div>
 
       {/* Table */}
-      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
+      <div className="adm-table-scroll" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
