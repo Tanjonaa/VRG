@@ -115,6 +115,17 @@ export default function UsersPage({ user: adminUser }) {
   const inactiveClients = clients.filter(u => u.order_count === 0).length
   const isAdmin         = adminUser?.role === 'admin'
 
+  /* Colonnes par onglet — le staff n'a ni fidélité, ni parrainage, ni dépenses */
+  const isStaffView = tab === 'staff' || tab === 'livreurs'
+  const columns = isStaffView
+    ? ['Membre',
+       ...(tab === 'staff' ? ['Ventes effectuées'] : []),
+       'Inscrit le',
+       ...(tab === 'staff' && isAdmin ? ['Accès'] : []),
+       ...(isAdmin ? ['Actions'] : [])]
+    : ['Client', 'Fidélité', 'Commandes', 'Total dépensé', 'Parrainages', 'Code parrain', 'Inscrit le',
+       ...(isAdmin ? ['Actions'] : [])]
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -176,7 +187,7 @@ export default function UsersPage({ user: adminUser }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              {['Client', tab === 'staff' ? 'Ventes effectuées' : 'Fidélité', 'Commandes', 'Total dépensé', 'Parrainages', 'Code parrain', 'Inscrit le', ...(tab === 'staff' && isAdmin ? ['Accès'] : []), ...(isAdmin ? ['Actions'] : [])].map(c => (
+              {columns.map(c => (
                 <th key={c} style={{ padding: '12px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>{c}</th>
               ))}
             </tr>
@@ -203,50 +214,58 @@ export default function UsersPage({ user: adminUser }) {
                     </div>
                   </td>
 
-                  {/* Fidélité / Ventes */}
-                  <td style={{ padding: '13px 14px' }}>
-                    {tab === 'staff' ? (
+                  {/* Ventes effectuées (staff) */}
+                  {tab === 'staff' && (
+                    <td style={{ padding: '13px 14px' }}>
                       <span style={{ fontSize: 13, fontWeight: u.order_count > 0 ? 700 : 400, color: u.order_count > 0 ? '#22c55e' : 'rgba(240,240,245,0.3)' }}>
                         {u.order_count > 0 ? `${u.order_count} vente${u.order_count > 1 ? 's' : ''}` : '—'}
                       </span>
-                    ) : (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: loy.bg, color: loy.color, border: `1px solid ${loy.border}`, whiteSpace: 'nowrap' }}>
-                        {loy.label}
-                      </span>
-                    )}
-                  </td>
+                    </td>
+                  )}
 
-                  {/* Commandes */}
-                  <td style={{ padding: '13px 14px', textAlign: 'center' }}>
-                    <span style={{ fontWeight: u.order_count > 0 ? 700 : 400, color: u.order_count > 0 ? '#f0f0f5' : 'rgba(240,240,245,0.3)' }}>
-                      {u.order_count}
-                    </span>
-                  </td>
+                  {/* Colonnes clients uniquement */}
+                  {!isStaffView && (
+                    <>
+                      {/* Fidélité */}
+                      <td style={{ padding: '13px 14px' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: loy.bg, color: loy.color, border: `1px solid ${loy.border}`, whiteSpace: 'nowrap' }}>
+                          {loy.label}
+                        </span>
+                      </td>
 
-                  {/* Total dépensé */}
-                  <td style={{ padding: '13px 14px', color: u.total_spent > 0 ? '#fbbf24' : 'rgba(240,240,245,0.25)', fontWeight: 600 }}>
-                    Ar {Number(u.total_spent).toLocaleString('fr-FR')}
-                  </td>
+                      {/* Commandes */}
+                      <td style={{ padding: '13px 14px', textAlign: 'center' }}>
+                        <span style={{ fontWeight: u.order_count > 0 ? 700 : 400, color: u.order_count > 0 ? '#f0f0f5' : 'rgba(240,240,245,0.3)' }}>
+                          {u.order_count}
+                        </span>
+                      </td>
 
-                  {/* Parrainages */}
-                  <td style={{ padding: '13px 14px', textAlign: 'center' }}>
-                    {u.referral_count > 0 ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700, color: '#a78bfa' }}>
-                        <Gift size={11} /> {u.referral_count}
-                      </span>
-                    ) : (
-                      <span style={{ color: 'rgba(240,240,245,0.2)', fontSize: 12 }}>—</span>
-                    )}
-                  </td>
+                      {/* Total dépensé */}
+                      <td style={{ padding: '13px 14px', color: u.total_spent > 0 ? '#fbbf24' : 'rgba(240,240,245,0.25)', fontWeight: 600 }}>
+                        Ar {Number(u.total_spent).toLocaleString('fr-FR')}
+                      </td>
 
-                  {/* Code parrain */}
-                  <td style={{ padding: '13px 14px' }}>
-                    {u.referral_code ? (
-                      <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(240,240,245,0.5)', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)' }}>
-                        {u.referral_code}
-                      </span>
-                    ) : <span style={{ color: 'rgba(240,240,245,0.2)', fontSize: 12 }}>—</span>}
-                  </td>
+                      {/* Parrainages */}
+                      <td style={{ padding: '13px 14px', textAlign: 'center' }}>
+                        {u.referral_count > 0 ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700, color: '#a78bfa' }}>
+                            <Gift size={11} /> {u.referral_count}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'rgba(240,240,245,0.2)', fontSize: 12 }}>—</span>
+                        )}
+                      </td>
+
+                      {/* Code parrain */}
+                      <td style={{ padding: '13px 14px' }}>
+                        {u.referral_code ? (
+                          <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(240,240,245,0.5)', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)' }}>
+                            {u.referral_code}
+                          </span>
+                        ) : <span style={{ color: 'rgba(240,240,245,0.2)', fontSize: 12 }}>—</span>}
+                      </td>
+                    </>
+                  )}
 
                   {/* Inscrit le */}
                   <td style={{ padding: '13px 14px', color: 'rgba(240,240,245,0.4)', fontSize: 12, whiteSpace: 'nowrap' }}>{u.date}</td>
@@ -290,44 +309,49 @@ export default function UsersPage({ user: adminUser }) {
                 {/* Expanded detail */}
                 {isOpen && (
                   <tr style={{ borderBottom: i < list.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                    <td colSpan={7 + (tab === 'staff' && isAdmin ? 1 : 0) + (isAdmin ? 1 : 0)} style={{ padding: '0 14px 14px' }}>
+                    <td colSpan={columns.length} style={{ padding: '0 14px 14px' }}>
                       <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
 
                         <InfoBlock label="Nom complet" value={u.name} />
                         <InfoBlock label="Téléphone" value={u.phone} mono />
                         <InfoBlock label="Inscrit le" value={u.date} />
-                        {tab !== 'staff' && <LoyaltyScale current={loy.label} points={loy.points} />}
-                        <InfoBlock label={tab === 'staff' ? 'Ventes effectuées' : 'Commandes passées'} value={u.order_count} />
-                        <InfoBlock label="Total dépensé" value={`Ar ${Number(u.total_spent).toLocaleString('fr-FR')}`} highlight />
-                        <div>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Personnes invitées</div>
-                          {u.referral_count > 0 ? (
+                        {tab === 'staff' && <InfoBlock label="Ventes effectuées" value={u.order_count} />}
+                        {!isStaffView && (
+                          <>
+                            <LoyaltyScale current={loy.label} points={loy.points} />
+                            <InfoBlock label="Commandes passées" value={u.order_count} />
+                            <InfoBlock label="Total dépensé" value={`Ar ${Number(u.total_spent).toLocaleString('fr-FR')}`} highlight />
                             <div>
-                              <button onClick={e => { e.stopPropagation(); loadReferrals(u.id) }}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: '#a78bfa', background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 7, padding: '3px 10px', cursor: 'pointer', marginBottom: 6 }}>
-                                <Gift size={11} /> {u.referral_count} invitation{u.referral_count > 1 ? 's' : ''}
-                              </button>
-                              {loadingRef === u.id && <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.3)' }}>Chargement…</div>}
-                              {referrals[u.id] && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                  {referrals[u.id].map(r => (
-                                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12 }}>
-                                      <div style={{ width: 22, height: 22, borderRadius: 6, background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#a78bfa', flexShrink: 0 }}>
-                                        {r.name?.[0]?.toUpperCase()}
-                                      </div>
-                                      <span style={{ color: '#f0f0f5', fontWeight: 600 }}>{r.name}</span>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Personnes invitées</div>
+                              {u.referral_count > 0 ? (
+                                <div>
+                                  <button onClick={e => { e.stopPropagation(); loadReferrals(u.id) }}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: '#a78bfa', background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 7, padding: '3px 10px', cursor: 'pointer', marginBottom: 6 }}>
+                                    <Gift size={11} /> {u.referral_count} invitation{u.referral_count > 1 ? 's' : ''}
+                                  </button>
+                                  {loadingRef === u.id && <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.3)' }}>Chargement…</div>}
+                                  {referrals[u.id] && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                      {referrals[u.id].map(r => (
+                                        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12 }}>
+                                          <div style={{ width: 22, height: 22, borderRadius: 6, background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#a78bfa', flexShrink: 0 }}>
+                                            {r.name?.[0]?.toUpperCase()}
+                                          </div>
+                                          <span style={{ color: '#f0f0f5', fontWeight: 600 }}>{r.name}</span>
+                                        </div>
+                                      ))}
                                     </div>
-                                  ))}
+                                  )}
                                 </div>
-                              )}
+                              ) : <span style={{ fontSize: 13, color: 'rgba(240,240,245,0.3)' }}>—</span>}
                             </div>
-                          ) : <span style={{ fontSize: 13, color: 'rgba(240,240,245,0.3)' }}>—</span>}
-                        </div>
-                        <InfoBlock label="Code parrain" value={
-                          u.referral_code
-                            ? <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#FF9900', fontWeight: 700 }}>{u.referral_code}</span>
-                            : '—'
-                        } />
+                            <InfoBlock label="Code parrain" value={
+                              u.referral_code
+                                ? <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#FF9900', fontWeight: 700 }}>{u.referral_code}</span>
+                                : '—'
+                            } />
+                          </>
+                        )}
 
                       </div>
                     </td>
