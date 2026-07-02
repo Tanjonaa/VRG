@@ -717,6 +717,7 @@ app.get('/admin/users', adminAuth, async (req, res) => {
       `SELECT u.id, u.name, u.phone, u.role, u.referral_code, u.created_at,
         COUNT(DISTINCT o.id)      as order_count,
         COALESCE(SUM(o.total), 0) as total_spent,
+        COALESCE(SUM(CASE WHEN o.status='Livré' THEN o.total ELSE 0 END), 0) as delivered_total,
         COUNT(DISTINCT CASE WHEN (
           SELECT COALESCE(SUM(o2.total),0) FROM orders o2
           WHERE o2.user_id = r.referred_id AND o2.status != 'Annulé'

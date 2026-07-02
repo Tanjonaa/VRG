@@ -20,8 +20,9 @@ const TIERS = [
   { label: 'Platine', min: 1000, color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.25)' },
 ]
 
-function loyaltyBadge(totalSpent) {
-  const points = Math.floor(Number(totalSpent) / 10000)
+/* 1 pt / 2 000 Ar — sur les commandes livrées uniquement */
+function loyaltyBadge(deliveredTotal) {
+  const points = Math.floor(Number(deliveredTotal) / 2000)
   const tier = [...TIERS].reverse().find(t => points >= t.min) || TIERS[0]
   return { ...tier, points }
 }
@@ -195,7 +196,7 @@ export default function UsersPage({ user: adminUser, section = 'clients' }) {
           </thead>
           <tbody>
             {list.map((u, i) => {
-              const loy = loyaltyBadge(Number(u.total_spent))
+              const loy = loyaltyBadge(Number(u.delivered_total ?? u.total_spent))
               const isOpen = expanded === u.id
               return (
                 <React.Fragment key={u.id}>
