@@ -1013,7 +1013,7 @@ app.get('/admin/chat/rooms', adminAuth, async (req, res) => {
 /* GET /admin/chat/rooms/:id/messages */
 app.get('/admin/chat/rooms/:id/messages', adminAuth, async (req, res) => {
   try {
-    const { since, limit = 60 } = req.query
+    const { since, after, limit = 60 } = req.query
     const roomId = Number(req.params.id)
     const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [roomId])
     if (!room) return res.status(404).json({ error: 'Salon introuvable' })
@@ -1027,8 +1027,9 @@ app.get('/admin/chat/rooms/:id/messages', adminAuth, async (req, res) => {
     }
     let query = 'SELECT * FROM chat_messages WHERE room_id=?'
     const params = [roomId]
-    if (since) { query += ' AND created_at > ?'; params.push(since) }
-    query += ' ORDER BY created_at ASC LIMIT ?'
+    if (after)      { query += ' AND id > ?'; params.push(Number(after)) }
+    else if (since) { query += ' AND created_at > ?'; params.push(since) }
+    query += ' ORDER BY id ASC LIMIT ?'
     params.push(Number(limit))
     const [rows] = await pool.execute(query, params)
     res.json(rows)
@@ -1152,11 +1153,12 @@ app.get('/chat/support/poll', auth, async (req, res) => {
       "SELECT id FROM chat_rooms WHERE type='support' AND client_id=? LIMIT 1", [req.user.id]
     )
     if (!room) return res.json([])
-    const { since } = req.query
+    const { since, after } = req.query
     let query = 'SELECT * FROM chat_messages WHERE room_id=?'
     const params = [room.id]
-    if (since) { query += ' AND created_at > ?'; params.push(since) }
-    query += ' ORDER BY created_at ASC LIMIT 50'
+    if (after)      { query += ' AND id > ?'; params.push(Number(after)) }
+    else if (since) { query += ' AND created_at > ?'; params.push(since) }
+    query += ' ORDER BY id ASC LIMIT 50'
     const [rows] = await pool.execute(query, params)
     res.json(rows)
   } catch (e) { res.status(500).json({ error: e.message }) }
@@ -1246,7 +1248,7 @@ app.get('/livreur/chat/rooms', livreurAuth, async (req, res) => {
 app.get('/livreur/chat/rooms/:id/messages', livreurAuth, async (req, res) => {
   try {
     const roomId = Number(req.params.id)
-    const { since, limit = 60 } = req.query
+    const { since, after, limit = 60 } = req.query
     const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [roomId])
     if (!room) return res.status(404).json({ error: 'Salon introuvable' })
     if (room.type === 'livreur_group') {
@@ -1257,8 +1259,9 @@ app.get('/livreur/chat/rooms/:id/messages', livreurAuth, async (req, res) => {
     } else { return res.status(403).json({ error: 'Accès refusé' }) }
     let query = 'SELECT * FROM chat_messages WHERE room_id=?'
     const params = [roomId]
-    if (since) { query += ' AND created_at > ?'; params.push(since) }
-    query += ' ORDER BY created_at ASC LIMIT ?'
+    if (after)      { query += ' AND id > ?'; params.push(Number(after)) }
+    else if (since) { query += ' AND created_at > ?'; params.push(since) }
+    query += ' ORDER BY id ASC LIMIT ?'
     params.push(Number(limit))
     const [rows] = await pool.execute(query, params)
     res.json(rows)

@@ -39,68 +39,50 @@ function Avatar({ name, role, size = 32 }) {
   )
 }
 
-function ChatArea({ roomId, me, isSupport = false }) {
+function ChatArea({ roomId, me }) {
   const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
-  const [lastAt, setLastAt] = useState(null)
+  const [lastId, setLastId] = useState(null)
   const bottomRef = useRef(null)
 
-  const load = useCallback(async (initial = false) => {
-    try {
-      const url = isSupport
-        ? (initial
-            ? `${BASE}/admin/chat/rooms/${roomId}/messages?limit=60`
-            : `${BASE}/admin/chat/rooms/${roomId}/messages?limit=60${lastAt ? '&since=' + encodeURIComponent(lastAt) : ''}`)
-        : (initial
-            ? `${BASE}/admin/chat/rooms/${roomId}/messages?limit=60`
-            : `${BASE}/admin/chat/rooms/${roomId}/messages?limit=60${lastAt ? '&since=' + encodeURIComponent(lastAt) : ''}`)
-      const r = await fetch(url, { headers: h() })
-      const data = await r.json()
-      if (!Array.isArray(data)) return
-      if (initial) {
-        setMessages(data)
-      } else if (data.length > 0) {
-        setMessages(prev => [...prev, ...data])
-      }
-      if (data.length > 0) setLastAt(data[data.length - 1].created_at)
-    } catch {}
-  }, [roomId, lastAt])
+  const appendNew = useCallback((data) => {
+    setMessages(prev => {
+      const seen = new Set(prev.map(m => m.id))
+      const fresh = data.filter(m => !seen.has(m.id))
+      return fresh.length ? [...prev, ...fresh] : prev
+    })
+    setLastId(data[data.length - 1].id)
+  }, [])
 
   useEffect(() => {
     setMessages([])
-    setLastAt(null)
+    setLastId(null)
     setText('')
-  }, [roomId])
-
-  useEffect(() => {
     if (!roomId) return
     fetch(`${BASE}/admin/chat/rooms/${roomId}/messages?limit=60`, { headers: h() })
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
           setMessages(data)
-          if (data.length > 0) setLastAt(data[data.length - 1].created_at)
+          if (data.length > 0) setLastId(data[data.length - 1].id)
         }
       })
       .catch(() => {})
   }, [roomId])
 
   useEffect(() => {
-    if (!roomId || !lastAt) return
+    if (!roomId) return
     const poll = setInterval(async () => {
       try {
-        const url = `${BASE}/admin/chat/rooms/${roomId}/messages?limit=50&since=${encodeURIComponent(lastAt)}`
+        const url = `${BASE}/admin/chat/rooms/${roomId}/messages?limit=50${lastId ? '&after=' + lastId : ''}`
         const r = await fetch(url, { headers: h() })
         const data = await r.json()
-        if (Array.isArray(data) && data.length > 0) {
-          setMessages(prev => [...prev, ...data])
-          setLastAt(data[data.length - 1].created_at)
-        }
+        if (Array.isArray(data) && data.length > 0) appendNew(data)
       } catch {}
     }, 3000)
     return () => clearInterval(poll)
-  }, [roomId, lastAt])
+  }, [roomId, lastId, appendNew])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -116,8 +98,7 @@ function ChatArea({ roomId, me, isSupport = false }) {
       })
       const msg = await r.json()
       if (msg.id) {
-        setMessages(prev => [...prev, msg])
-        setLastAt(msg.created_at)
+        appendNew([msg])
         setText('')
       }
     } catch {} finally { setSending(false) }

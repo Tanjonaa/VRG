@@ -20,20 +20,20 @@ export default function SupportChat() {
   const [text, setText]         = useState('')
   const [roomId, setRoomId]     = useState(null)
   const [sending, setSending]   = useState(false)
-  const [lastAt, setLastAt]     = useState(null)
+  const [lastId, setLastId]     = useState(null)
   const [unread, setUnread]     = useState(0)
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
 
   useEffect(() => {
-    if (!user) { setMessages([]); setRoomId(null); setLastAt(null); setUnread(0); return }
+    if (!user) { setMessages([]); setRoomId(null); setLastId(null); setUnread(0); return }
     fetch(`${BASE}/chat/support`, { headers: ah() })
       .then(r => r.json())
       .then(d => {
         setRoomId(d.room_id)
         const msgs = d.messages || []
         setMessages(msgs)
-        if (msgs.length > 0) setLastAt(msgs[msgs.length - 1].created_at)
+        if (msgs.length > 0) setLastId(msgs[msgs.length - 1].id)
       })
       .catch(() => {})
   }, [user?.id])
@@ -42,18 +42,22 @@ export default function SupportChat() {
     if (!roomId || !user) return
     const id = setInterval(async () => {
       try {
-        const url = `${BASE}/chat/support/poll${lastAt ? '?since=' + encodeURIComponent(lastAt) : ''}`
+        const url = `${BASE}/chat/support/poll${lastId ? '?after=' + lastId : ''}`
         const r = await fetch(url, { headers: ah() })
         const data = await r.json()
         if (Array.isArray(data) && data.length > 0) {
-          setMessages(prev => [...prev, ...data])
-          setLastAt(data[data.length - 1].created_at)
+          setMessages(prev => {
+            const seen = new Set(prev.map(m => m.id))
+            const fresh = data.filter(m => !seen.has(m.id))
+            return fresh.length ? [...prev, ...fresh] : prev
+          })
+          setLastId(data[data.length - 1].id)
           if (!open) setUnread(n => n + data.filter(m => m.sender_id !== user.id).length)
         }
       } catch {}
     }, 4000)
     return () => clearInterval(id)
-  }, [roomId, lastAt, open, user?.id])
+  }, [roomId, lastId, open, user?.id])
 
   useEffect(() => {
     if (open) {
@@ -82,8 +86,11 @@ export default function SupportChat() {
       })
       const msg = await r.json()
       if (msg.id) {
-        setMessages(prev => prev.map(m => m.id === optimistic.id ? msg : m))
-        setLastAt(msg.created_at)
+        setMessages(prev => {
+          const withoutOpt = prev.filter(m => m.id !== optimistic.id)
+          return withoutOpt.some(m => m.id === msg.id) ? withoutOpt : [...withoutOpt, msg]
+        })
+        setLastId(msg.id)
       }
     } catch {
       setMessages(prev => prev.filter(m => m.id !== optimistic.id))

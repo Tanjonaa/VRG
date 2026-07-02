@@ -36,39 +36,45 @@ function ChatView({ roomId, me, onBack, title }) {
   const [messages, setMessages] = useState([])
   const [text, setText]         = useState('')
   const [sending, setSending]   = useState(false)
-  const [lastAt, setLastAt]     = useState(null)
+  const [lastId, setLastId]     = useState(null)
   const bottomRef               = useRef(null)
+
+  const appendNew = (data) => {
+    setMessages(prev => {
+      const seen = new Set(prev.map(m => m.id))
+      const fresh = data.filter(m => !seen.has(m.id))
+      return fresh.length ? [...prev, ...fresh] : prev
+    })
+    setLastId(data[data.length - 1].id)
+  }
 
   useEffect(() => {
     setMessages([])
-    setLastAt(null)
+    setLastId(null)
     if (!roomId) return
     fetch(`${BASE}/livreur/chat/rooms/${roomId}/messages?limit=60`, { headers: h() })
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
           setMessages(data)
-          if (data.length > 0) setLastAt(data[data.length - 1].created_at)
+          if (data.length > 0) setLastId(data[data.length - 1].id)
         }
       })
       .catch(() => {})
   }, [roomId])
 
   useEffect(() => {
-    if (!roomId || !lastAt) return
+    if (!roomId) return
     const poll = setInterval(async () => {
       try {
-        const url = `${BASE}/livreur/chat/rooms/${roomId}/messages?limit=50&since=${encodeURIComponent(lastAt)}`
+        const url = `${BASE}/livreur/chat/rooms/${roomId}/messages?limit=50${lastId ? '&after=' + lastId : ''}`
         const r = await fetch(url, { headers: h() })
         const data = await r.json()
-        if (Array.isArray(data) && data.length > 0) {
-          setMessages(prev => [...prev, ...data])
-          setLastAt(data[data.length - 1].created_at)
-        }
+        if (Array.isArray(data) && data.length > 0) appendNew(data)
       } catch {}
     }, 3000)
     return () => clearInterval(poll)
-  }, [roomId, lastAt])
+  }, [roomId, lastId])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
@@ -83,7 +89,7 @@ function ChatView({ roomId, me, onBack, title }) {
         body: JSON.stringify({ body: text.trim() }),
       })
       const msg = await r.json()
-      if (msg.id) { setMessages(prev => [...prev, msg]); setLastAt(msg.created_at); setText('') }
+      if (msg.id) { appendNew([msg]); setText('') }
     } catch {} finally { setSending(false) }
   }
 
