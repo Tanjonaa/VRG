@@ -657,7 +657,8 @@ Admin (panneau /admin)          Client (site /)
 ## Règles métier
 
 **Fidélité**
-- 1 point par tranche de 10 000 Ar dépensé (commandes non annulées)
+- 1 point par tranche de 2 000 Ar dépensé — **commandes livrées uniquement**
+  (les commandes en cours affichent leurs points « en attente », crédités à la livraison)
 - Niveaux : Bronze 0–199 · Argent 200–499 · Or 500–999 · Platine 1000+
 
 **Parrainage**

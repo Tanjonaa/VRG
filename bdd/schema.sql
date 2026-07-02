@@ -224,7 +224,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
 --   Livré : livreur marque livrée
 --   livreur_id : FK optionnelle vers users.id (rôle='livreur')
 -- ── Points de fidélité ──────────────────────────────────────
---   1 pt par tranche de 10 000 Ar dépensé (orders.total, status ≠ Annulé)
+--   1 pt par tranche de 2 000 Ar dépensé — commandes status='Livré' UNIQUEMENT
+--   (les commandes en cours affichent des points "en attente", crédités à la livraison)
 --   +10 pts par filleul validé (filleul doit avoir dépensé >= 5 000 Ar, status != Annulé)
 --   Total = orderPoints + referralPoints (validés uniquement)
 --   Niveaux : Bronze 0-199 | Argent 200-499 | Or 500-999 | Platine 1000+
