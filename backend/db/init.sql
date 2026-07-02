@@ -1,7 +1,8 @@
 -- ============================================================
 -- VaRyGasy — init.sql  (MariaDB 11)
 -- Exécuté automatiquement au premier démarrage du conteneur db
--- Dernière mise à jour : 2026-05-28
+-- (facultatif : l'API crée elle-même tables + seeds au démarrage)
+-- Dernière mise à jour : 2026-07-02
 -- ============================================================
 
 -- ── users ────────────────────────────────────────────────────
@@ -185,6 +186,7 @@ CREATE INDEX IF NOT EXISTS idx_products_act   ON products(active);
 CREATE INDEX IF NOT EXISTS idx_team_order     ON team_members(active, order_index);
 CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
 
--- Admin compte mdp: Admin123
-INSERT IGNORE INTO users (name, phone, password, role) 
-VALUES ('Admin VRG', '0340000000', '$2a$12$ZxjXhUtKONbhnn6MwP.z6unJsI9BQ57kO7/GKSpurb/IvoHhdCNma', 'admin');
+-- Pas de compte admin par défaut : le repo est public, un identifiant
+-- pré-inséré serait une porte d'entrée connue de tous.
+-- Créer le premier admin : s'inscrire sur le site (compte client), puis
+--   UPDATE users SET role='admin' WHERE phone='<numéro>';
