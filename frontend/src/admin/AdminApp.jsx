@@ -70,7 +70,7 @@ function useAdminAuth() {
 }
 
 /* ── Déconnexion auto après inactivité ── */
-const IDLE_TIMEOUT = 5 * 60 * 1000
+const IDLE_TIMEOUT = 60 * 60 * 1000   // 1 h d'inactivité avant déconnexion auto
 function useIdleLogout(user, logout) {
   const lastActivity = useRef(Date.now())
   useEffect(() => {
