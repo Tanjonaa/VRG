@@ -96,8 +96,14 @@ function useIdleLogout(user, logout) {
 function useNotifications(user) {
   const [notifs, setNotifs] = useState({ orders: 0, msgs: 0 })
   const [toasts, setToasts] = useState([])
-  const prev = useRef({ orders: 0, msgs: 0 })
+  /* null = pas encore de référence : le premier poll ne notifie jamais,
+     il établit la base de comparaison. Sinon chaque rechargement de la
+     page re-toaste les commandes en attente existantes. */
+  const prev = useRef(null)
   const timer = useRef(null)
+  /* Horloge serveur (renvoyée par l'API) — seule référence valable pour "since" :
+     l'horloge du navigateur est en UTC, created_at en heure locale serveur */
+  const serverNow = useRef(null)
 
   const addToast = (text, color) => {
     const id = Date.now()
@@ -122,31 +128,31 @@ function useNotifications(user) {
 
     const poll = async () => {
       try {
-        const since = localStorage.getItem('vrg_admin_msgs_seen')
-          || new Date(Date.now() - 86400000).toISOString()
+        const since = localStorage.getItem('vrg_admin_msgs_seen') || ''
         const res = await fetch(
-          `/api/admin/notifications?since=${encodeURIComponent(since)}`,
+          `/api/admin/notifications${since ? `?since=${encodeURIComponent(since)}` : ''}`,
           { headers: { Authorization: `Bearer ${localStorage.getItem('vrg_token')}` } }
         )
         if (!res.ok) return
         const data = await res.json()
+        if (data.server_now) serverNow.current = data.server_now
 
         const p = prev.current
 
-        /* Nouvelles commandes */
-        if (data.pending_orders > p.orders) {
-          const n = data.pending_orders - p.orders
-          addToast(`🛍 ${n} nouvelle${n > 1 ? 's' : ''} commande${n > 1 ? 's' : ''} en attente`, '#FF9900')
-          sendBrowserNotif('VaRyGasy Admin — Nouvelle commande',
-            `${n} commande${n > 1 ? 's' : ''} en attente`)
-        }
-
-        /* Nouveaux messages */
-        if (data.unread_msgs > p.msgs) {
-          const n = data.unread_msgs - p.msgs
-          addToast(`💬 ${n} nouveau${n > 1 ? 'x' : ''} message${n > 1 ? 's' : ''}`, '#a78bfa')
-          sendBrowserNotif('VaRyGasy Admin — Nouveau message',
-            `${n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}`)
+        /* Notifie uniquement les vrais accroissements (jamais au premier poll) */
+        if (p) {
+          if (data.pending_orders > p.orders) {
+            const n = data.pending_orders - p.orders
+            addToast(`🛍 ${n} nouvelle${n > 1 ? 's' : ''} commande${n > 1 ? 's' : ''} en attente`, '#FF9900')
+            sendBrowserNotif('VaRyGasy Admin — Nouvelle commande',
+              `${n} commande${n > 1 ? 's' : ''} en attente`)
+          }
+          if (data.unread_msgs > p.msgs) {
+            const n = data.unread_msgs - p.msgs
+            addToast(`💬 ${n} nouveau${n > 1 ? 'x' : ''} message${n > 1 ? 's' : ''}`, '#a78bfa')
+            sendBrowserNotif('VaRyGasy Admin — Nouveau message',
+              `${n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}`)
+          }
         }
 
         prev.current = { orders: data.pending_orders, msgs: data.unread_msgs }
@@ -159,14 +165,16 @@ function useNotifications(user) {
     return () => clearInterval(timer.current)
   }, [user])
 
+  /* Efface les badges SANS toucher à la référence de comparaison —
+     sinon le prochain poll re-notifie les éléments déjà vus (boucle) */
   const clearMsgs = () => {
-    localStorage.setItem('vrg_admin_msgs_seen', new Date().toISOString())
-    prev.current.msgs = 0
+    /* Toujours l'horloge SERVEUR — jamais new Date() (décalage UTC/local) */
+    if (serverNow.current) localStorage.setItem('vrg_admin_msgs_seen', serverNow.current)
+    if (prev.current) prev.current.msgs = 0   // le compteur serveur retombe à 0 avec le nouveau "since"
     setNotifs(n => ({ ...n, msgs: 0 }))
   }
 
   const clearOrders = () => {
-    prev.current.orders = 0
     setNotifs(n => ({ ...n, orders: 0 }))
   }
 

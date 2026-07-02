@@ -203,6 +203,12 @@ if (SECRET === 'change_this_in_production')
     created_at  DATETIME DEFAULT NOW(),
     INDEX idx_chat_room_date (room_id, created_at)
   )`)
+  await pool.execute(`CREATE TABLE IF NOT EXISTS chat_reads (
+    room_id      INT NOT NULL,
+    user_id      INT NOT NULL,
+    last_read_id INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (room_id, user_id)
+  )`)
 
   const seeds = [
     ['announcement_active','0'],['announcement_text',''],['announcement_color','#FF9900'],
@@ -507,7 +513,14 @@ app.get('/admin/notifications', adminAuth, async (req, res) => {
       )
       unread_msgs = count
     }
-    res.json({ pending_orders, unread_msgs })
+    /* server_now : horloge du serveur, à renvoyer telle quelle dans ?since=.
+       Le client ne doit JAMAIS fabriquer ce timestamp lui-même : son horloge
+       UTC comparée au created_at local de MySQL décale de 2h et fait revenir
+       les notifications déjà lues. */
+    const [[{ server_now }]] = await pool.execute(
+      "SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') AS server_now"
+    )
+    res.json({ pending_orders, unread_msgs, server_now })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -987,26 +1000,34 @@ app.get('/admin/logs', adminAuth, async (req, res) => {
 app.get('/admin/chat/rooms', adminAuth, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin'
-    const [fixed] = await pool.execute(
-      isAdmin
-        ? "SELECT id, type, name FROM chat_rooms WHERE type IN ('admin_only','admin_mod','livreur_group') ORDER BY id"
-        : "SELECT id, type, name FROM chat_rooms WHERE type IN ('admin_mod','livreur_group') ORDER BY id"
-    )
+    const uid = req.user.id
+    /* Messages plus récents que le marqueur de lecture, hors les siens */
+    const unreadSub = `(SELECT COUNT(*) FROM chat_messages ms
+        WHERE ms.room_id = cr.id AND ms.sender_id != ?
+          AND ms.id > COALESCE((SELECT last_read_id FROM chat_reads rd
+                                WHERE rd.room_id = cr.id AND rd.user_id = ?), 0)) AS unread`
+    const [fixed] = await pool.execute(`
+      SELECT cr.id, cr.type, cr.name, ${unreadSub}
+      FROM chat_rooms cr
+      WHERE cr.type IN (${isAdmin ? "'admin_only','admin_mod','livreur_group'" : "'admin_mod','livreur_group'"})
+      ORDER BY cr.id
+    `, [uid, uid])
     const [directs] = await pool.execute(`
       SELECT cr.id, cr.type, cr.name,
-             u.name AS other_name, u.role AS other_role
+             u.id AS other_id, u.name AS other_name, u.role AS other_role, ${unreadSub}
       FROM chat_rooms cr
       JOIN chat_room_members m1 ON m1.room_id = cr.id AND m1.user_id = ?
       JOIN chat_room_members m2 ON m2.room_id = cr.id AND m2.user_id != ?
       JOIN users u ON u.id = m2.user_id
       WHERE cr.type = 'direct'
-    `, [req.user.id, req.user.id])
+    `, [uid, uid, uid, uid])
     const [supports] = await pool.execute(`
       SELECT cr.id, cr.type, cr.name, cr.client_id,
              (SELECT body FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_msg,
-             (SELECT created_at FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_at
+             (SELECT created_at FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_at,
+             ${unreadSub}
       FROM chat_rooms cr WHERE cr.type='support' ORDER BY last_at DESC
-    `)
+    `, [uid, uid])
     res.json({ fixed, directs, supports })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -1028,11 +1049,22 @@ app.get('/admin/chat/rooms/:id/messages', adminAuth, async (req, res) => {
     }
     let query = 'SELECT * FROM chat_messages WHERE room_id=?'
     const params = [roomId]
+    let initial = false
     if (after)      { query += ' AND id > ?'; params.push(Number(after)) }
     else if (since) { query += ' AND created_at > ?'; params.push(since) }
-    query += ' ORDER BY id ASC LIMIT ?'
+    else            { initial = true } /* chargement initial : les N plus récents */
+    query += ` ORDER BY id ${initial ? 'DESC' : 'ASC'} LIMIT ?`
     params.push(Number(limit))
     const [rows] = await pool.execute(query, params)
+    if (initial) rows.reverse()
+    /* Consulter un salon = le lire : avance le marqueur de lecture */
+    if (rows.length > 0) {
+      pool.execute(
+        `INSERT INTO chat_reads (room_id, user_id, last_read_id) VALUES (?,?,?)
+         ON DUPLICATE KEY UPDATE last_read_id = GREATEST(last_read_id, VALUES(last_read_id))`,
+        [roomId, req.user.id, rows[rows.length - 1].id]
+      ).catch(() => {})
+    }
     res.json(rows)
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
