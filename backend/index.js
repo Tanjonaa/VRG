@@ -83,7 +83,7 @@ if (SECRET === 'change_this_in_production')
 ;(async () => {
   for (let i = 0; i < 15; i++) {
     try { await pool.execute('SELECT 1'); break }
-    catch { if (i === 14) { console.error('DB unreachable'); process.exit(1) }
+    catch (e) { if (i === 14) { console.error('DB unreachable:', e.code || '', e.message); process.exit(1) }
             await new Promise(r => setTimeout(r, 2000)) }
   }
 
