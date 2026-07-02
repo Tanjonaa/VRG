@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Shield, User, Search, Users, Gift, ShoppingBag, TrendingUp, ChevronDown, ChevronUp, Plus, X, Eye, EyeOff, Trash2, UserX } from 'lucide-react'
+import { Shield, User, Search, Users, Gift, ShoppingBag, TrendingUp, ChevronDown, ChevronUp, Plus, X, Eye, EyeOff, Trash2, UserX, Lock } from 'lucide-react'
 import AdminDropdown from '../components/AdminDropdown.jsx'
+import PasswordModal from '../components/PasswordModal.jsx'
 
 const BASE = '/api'
 const h = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
@@ -42,6 +43,7 @@ export default function UsersPage({ user: adminUser, section = 'clients' }) {
   const [newError, setNewError]     = useState('')
   const [newBusy, setNewBusy]       = useState(false)
   const [showPwd, setShowPwd]       = useState(false)
+  const [showPwdModal, setShowPwdModal] = useState(false)
 
   const loadReferrals = async (uid) => {
     if (referrals[uid]) return
@@ -332,6 +334,15 @@ export default function UsersPage({ user: adminUser, section = 'clients' }) {
                         <InfoBlock label="Téléphone" value={u.phone} mono />
                         <InfoBlock label="Inscrit le" value={u.date} />
                         {tab === 'staff' && <InfoBlock label="Ventes effectuées" value={u.order_count} />}
+                        {tab === 'staff' && u.id === adminUser?.id && (
+                          <div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Sécurité</div>
+                            <button onClick={e => { e.stopPropagation(); setShowPwdModal(true) }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, border: '1px solid rgba(255,153,0,0.3)', cursor: 'pointer', background: 'rgba(255,153,0,0.1)', color: '#FF9900', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+                              <Lock size={12} /> Changer mot de passe
+                            </button>
+                          </div>
+                        )}
                         {!isStaffView && (
                           <>
                             <LoyaltyScale current={loy.label} points={loy.points} />
@@ -384,6 +395,11 @@ export default function UsersPage({ user: adminUser, section = 'clients' }) {
           </div>
         )}
       </div>
+
+      {/* Password modal (own account) */}
+      {showPwdModal && (
+        <PasswordModal onClose={() => setShowPwdModal(false)} onDone={() => setShowPwdModal(false)} />
+      )}
 
       {/* New admin modal */}
       {showModal && (
