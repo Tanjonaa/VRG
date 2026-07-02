@@ -26,9 +26,11 @@ function loyaltyBadge(totalSpent) {
   return { ...tier, points }
 }
 
-export default function UsersPage({ user: adminUser }) {
+/* section='clients' → page Clients (liste clients uniquement)
+   section='staff'   → page Staff (onglets Admin & Modérateurs / Livreurs) */
+export default function UsersPage({ user: adminUser, section = 'clients' }) {
   const [users, setUsers]           = useState([])
-  const [tab, setTab]               = useState('clients')
+  const [tab, setTab]               = useState(section === 'staff' ? 'staff' : 'clients')
   const [search, setSearch]         = useState('')
   const [expanded, setExpanded]     = useState(null)
   const [referrals, setReferrals]   = useState({})
@@ -130,7 +132,7 @@ export default function UsersPage({ user: adminUser }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* Stats */}
-      {tab === 'clients' && (
+      {section === 'clients' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           {[
             { icon: <Users size={15} />,      label: 'Total clients',    value: clients.length,                                   color: '#60a5fa' },
@@ -151,11 +153,10 @@ export default function UsersPage({ user: adminUser }) {
 
       {/* Tabs + Search */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        {[
-          { id: 'clients',  label: `Clients (${clients.length})`,              icon: <User size={13} /> },
+        {(section === 'staff' ? [
           { id: 'staff',    label: `Admin & Modérateurs (${staff.length})`,    icon: <Shield size={13} /> },
           { id: 'livreurs', label: `Livreurs (${livreurs.length})`,            icon: <span style={{ fontSize: 13 }}>🛵</span> },
-        ].map(t => (
+        ] : []).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 9, border: '1px solid', cursor: 'pointer', fontSize: 13, fontWeight: 600,
               background: tab === t.id ? 'rgba(255,153,0,0.1)' : 'rgba(255,255,255,0.03)',
