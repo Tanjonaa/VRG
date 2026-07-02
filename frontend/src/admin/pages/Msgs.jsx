@@ -26,6 +26,17 @@ function fmtTime(ts) {
       d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 }
 
+function UnreadBadge({ count }) {
+  if (!count) return null
+  return (
+    <span style={{ minWidth: 17, height: 17, padding: '0 5px', borderRadius: 9,
+      background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 800,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
+
 function Avatar({ name, role, size = 32 }) {
   const color = role === 'admin' ? '#FF9900' : role === 'moderator' ? '#60a5fa' : '#94a3b8'
   const bg    = role === 'admin' ? 'rgba(255,153,0,0.15)' : role === 'moderator' ? 'rgba(96,165,250,0.15)' : 'rgba(148,163,184,0.15)'
@@ -183,7 +194,7 @@ function ChatArea({ roomId, me }) {
   )
 }
 
-function StaffList({ me, onSelect, activeId }) {
+function StaffList({ me, onSelect, activeId, unreadByUser }) {
   const [staff, setStaff] = useState([])
 
   useEffect(() => {
@@ -217,29 +228,17 @@ function StaffList({ me, onSelect, activeId }) {
             <div style={{ fontSize: 12, fontWeight: 600, color: '#f0f0f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
             <div style={{ fontSize: 10, color: u.role === 'admin' ? '#FF9900' : '#60a5fa', fontWeight: 700, textTransform: 'uppercase' }}>{u.role}</div>
           </div>
-          <ChevronRight size={12} color="rgba(240,240,245,0.2)" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <UnreadBadge count={unreadByUser?.[u.id] || 0} />
+            <ChevronRight size={12} color="rgba(240,240,245,0.2)" />
+          </span>
         </button>
       ))}
     </div>
   )
 }
 
-function ClientList({ onSelect, activeId }) {
-  const [supports, setSupports] = useState([])
-
-  const load = useCallback(() => {
-    fetch(`${BASE}/admin/chat/rooms`, { headers: h() })
-      .then(r => r.json())
-      .then(d => setSupports(d.supports || []))
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    load()
-    const t = setInterval(load, 5000)
-    return () => clearInterval(t)
-  }, [load])
-
+function ClientList({ supports, onSelect, activeId }) {
   return (
     <div style={{ width: 220, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.06)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '12px 14px', fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -267,6 +266,7 @@ function ClientList({ onSelect, activeId }) {
               </div>
             )}
           </div>
+          {activeId !== s.id && <UnreadBadge count={s.unread || 0} />}
         </button>
       ))}
     </div>
@@ -274,24 +274,30 @@ function ClientList({ onSelect, activeId }) {
 }
 
 export default function Msgs({ user: me }) {
-  const [tab, setTab]           = useState('admin_only')
+  const [tab, setTab]           = useState(me?.role === 'admin' ? 'admin_only' : 'admin_mod')
   const [rooms, setRooms]       = useState({ fixed: [], directs: [], supports: [] })
   const [activeRoom, setActiveRoom] = useState(null)
   const [activeContact, setActiveContact] = useState(null)
   const [directStaffId, setDirectStaffId] = useState(null)
+  const didInit = useRef(false)
 
+  /* Salons + compteurs non lus, rafraîchis toutes les 5s */
   useEffect(() => {
-    fetch(`${BASE}/admin/chat/rooms`, { headers: h() })
+    const load = () => fetch(`${BASE}/admin/chat/rooms`, { headers: h() })
       .then(r => r.json())
       .then(d => {
+        if (!d || !Array.isArray(d.fixed)) return
         setRooms(d)
-        if (tab === 'admin_only' || tab === 'admin_mod') {
-          const fixed = d.fixed || []
-          const target = fixed.find(f => f.type === tab)
+        if (!didInit.current) {
+          didInit.current = true
+          const target = d.fixed.find(f => f.type === tab)
           if (target) setActiveRoom(target.id)
         }
       })
       .catch(() => {})
+    load()
+    const t = setInterval(load, 5000)
+    return () => clearInterval(t)
   }, [])
 
   useEffect(() => {
@@ -307,6 +313,18 @@ export default function Msgs({ user: me }) {
   }, [tab])
 
   const isAdmin = me?.role === 'admin'
+
+  /* Non lus par onglet — le salon ouvert compte pour 0 (on est en train de le lire) */
+  const unreadFor = (id) => {
+    if (id === 'direct')  return rooms.directs.reduce((s, r) => s + (r.id === activeRoom ? 0 : (r.unread || 0)), 0)
+    if (id === 'clients') return rooms.supports.reduce((s, r) => s + (r.id === activeRoom ? 0 : (r.unread || 0)), 0)
+    const f = rooms.fixed.find(f => f.type === id)
+    return !f || f.id === activeRoom ? 0 : (f.unread || 0)
+  }
+
+  /* Non lus par interlocuteur direct (id du staff → compteur) */
+  const unreadByUser = {}
+  rooms.directs.forEach(d => { if (d.id !== activeRoom) unreadByUser[d.other_id] = d.unread || 0 })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0 }}>
@@ -325,6 +343,7 @@ export default function Msgs({ user: me }) {
               }}>
               <Icon size={13} />
               {label}
+              <UnreadBadge count={unreadFor(id)} />
             </button>
           )
         })}
@@ -343,6 +362,7 @@ export default function Msgs({ user: me }) {
           <>
             <StaffList
               me={me}
+              unreadByUser={unreadByUser}
               activeId={directStaffId}
               onSelect={(roomId, contact) => {
                 setActiveRoom(roomId)
@@ -369,6 +389,7 @@ export default function Msgs({ user: me }) {
         {tab === 'clients' && (
           <>
             <ClientList
+              supports={rooms.supports}
               activeId={activeRoom}
               onSelect={(roomId, support) => {
                 setActiveRoom(roomId)
