@@ -29,6 +29,11 @@ Navigateur (client/admin/livreur)
 └─────────────────────────────────────────────────────┘
 ```
 
+> **Production (o2switch)** : pas de Docker. Une seule app Node.js derrière
+> Apache/Passenger sert l'API, le frontend buildé (`FRONTEND_DIST`) et les
+> uploads (`UPLOAD_DIR`). Le middleware Express retire le préfixe `/api`
+> (rôle tenu par nginx en Docker). Voir **O2SWITCH.md** pour le déploiement.
+
 ---
 
 ## Principe fondamental : tout vient de l'API
@@ -123,6 +128,8 @@ VRG/
 │   │   ├── gallery/
 │   │   └── uploads/                 ← volume Docker partagé api↔app (images uploadées)
 │   │
+│   ├── dist/                        build Vite COMMITÉ dans git — déployé tel quel sur o2switch
+│   │                                (rebuild local + commit obligatoires à chaque modif frontend)
 │   ├── vite.config.js               proxy /api → :4000 (dev)
 │   └── nginx.conf                   reverse proxy + SPA fallback (référence — non utilisé en prod)
 │
@@ -130,16 +137,19 @@ VRG/
 │   ├── index.js                     serveur Express — toutes les routes API
 │   ├── db/
 │   │   └── init.sql                 schéma BDD — exécuté au 1er démarrage MariaDB
+│   ├── .env.example                 modèle des variables d'environnement
 │   ├── package.json
 │   └── Dockerfile                   image node:22-alpine (API seule — utilisé en dev séparé)
 │
 ├── bdd/
 │   └── schema.sql                   schéma complet annoté (référence équipe)
 │
-├── Dockerfile                       conteneur unique prod : nginx + Node.js (build frontend inclus)
+├── uploads/                         images uploadées en prod o2switch (contenu ignoré par git)
+├── Dockerfile                       conteneur unique prod Docker : nginx + Node.js (build frontend inclus)
 ├── ARCHITECTURE.md                  ce fichier
+├── O2SWITCH.md                      guide de déploiement o2switch (cPanel / Passenger)
 ├── docker-compose.yml               orchestration 3 services (app, db, adminer)
-├── .env                             secrets (ne pas committer)
+├── .env                             secrets locaux — JAMAIS commité (retiré de git le 2026-07-02)
 └── .gitignore
 ```
 
@@ -171,14 +181,33 @@ VRG/
 | **multer** | — | Upload de fichiers images (5 Mo max, jpg/png/webp/avif/gif) |
 | **express-rate-limit** | — | Protection brute-force : 20 tentatives/15 min sur login, 120 req/min global |
 | **cors** | — | Requêtes cross-origin |
+| **dotenv** | — | Chargement `.env` (cherché dans le cwd = `backend/` sous Passenger) |
 
 ### Infrastructure
 
 | Outil | Rôle |
 |-------|------|
-| **Docker Compose** | Orchestration 4 services |
+| **Docker Compose** | Orchestration 3 services (dev/local) |
+| **Apache + Passenger** | Serveur de prod o2switch (cPanel Node.js App) |
 | **MariaDB 11** | Base de données relationnelle |
-| **Adminer** | Interface web BDD (dev) — localhost:8080 |
+| **Adminer** | Interface web BDD (dev) — localhost:8080 · phpMyAdmin en prod |
+
+### Variables d'environnement (backend)
+
+| Variable | Obligatoire | Rôle |
+|----------|-------------|------|
+| `DB_HOST` / `DB_PORT` | non (`localhost` / `3306`) | Hôte MySQL |
+| `DB_NAME` / `DB_USER` / `DB_PASSWORD` | **oui — l'app refuse de démarrer sinon** (aucun fallback en dur) | Identifiants BDD |
+| `JWT_SECRET` | fortement recommandé (warning sinon) | Signature des tokens |
+| `UPLOAD_DIR` | non (`/app/uploads`) | Dossier des images uploadées |
+| `FRONTEND_DIST` | prod o2switch uniquement | Active le mode app-unique : sert le frontend + fallback SPA |
+| `PORT` / `API_PORT` | non — **ne pas définir sur o2switch** (Passenger gère) | Port d'écoute |
+
+Autres points de config notables dans `index.js` :
+- `app.set('trust proxy', 1)` — obligatoire derrière Passenger/nginx pour que
+  le rate-limit compte les vraies IP clientes (sinon `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR`).
+- En prod o2switch, les variables se définissent dans cPanel → Setup Node.js App
+  (le `.env` racine du repo n'est **pas** lu : dotenv cherche dans `backend/`).
 
 ---
 
@@ -292,6 +321,11 @@ client React stocke src dans products.images = [{ src }]
         ▼
 nginx sert /images/uploads/<nom> depuis le volume partagé
 ```
+
+> **En prod o2switch** : pas de volume Docker — multer écrit dans `UPLOAD_DIR`
+> (`~/VRG/uploads/`) et Express sert `/images/uploads` via `express.static`.
+> Le dossier est hors de git (seul `uploads/.gitkeep` est tracké) : un
+> `git pull` ne touche jamais aux images uploadées.
 
 ---
 
@@ -546,6 +580,8 @@ Polling REST simple (pas de WebSocket). Chaque client appelle `?since=<datetime>
 
 ## Comment lancer le projet
 
+### Développement local (Docker)
+
 ```bash
 # Première fois — construit et démarre tout
 docker compose up --build
@@ -566,6 +602,26 @@ Accès :
 - **CGU** → http://localhost:3000/cgu
 - **Adminer (BDD)** → http://localhost:8080  
   `serveur: db` · `user: vrg_user` · `mdp: vrg_pass` · `base: vrg`
+
+### Production (o2switch — sans Docker)
+
+Guide complet : **O2SWITCH.md**. En résumé :
+
+1. Modif frontend → `npm run build` en local → **commiter `frontend/dist/`** → push
+2. Côté serveur : `cd ~/VRG && git pull` (ou cPanel → Git Version Control → Pull)
+3. Si les dépendances backend ont changé : `npm install` dans le venv Node
+   (`source ~/nodevenv/VRG/backend/<version>/bin/activate`)
+4. Redémarrer : `touch ~/VRG/backend/tmp/restart.txt` (ou bouton Restart cPanel)
+
+Pièges connus (vécus) :
+- **Application startup file** = `index.js` — une faute de frappe (`index.json`)
+  fait crasher Passenger en boucle (`Web application could not be started`)
+- Les variables d'environnement cPanel ne tolèrent **aucune espace parasite**
+  (une espace en tête de `DB_NAME` = `ER_DBACCESS_DENIED_ERROR`)
+- Ne jamais lancer `npm start` via « Run JS Script » : le serveur ne se termine
+  jamais → verrou cPanel bloqué (« Can't acquire lock »)
+- En cas de 500 : lire cPanel → Métriques → **Errors** (log Apache/Passenger)
+  avant toute hypothèse
 
 ---
 

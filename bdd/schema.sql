@@ -1,6 +1,6 @@
 -- ============================================================
 -- VaRyGasy — Schéma complet base de données MariaDB 11
--- Dernière mise à jour : 2026-05-28
+-- Dernière mise à jour : 2026-07-02
 -- ============================================================
 
 -- ── users ────────────────────────────────────────────────────
@@ -244,7 +244,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
 --   active=0  : archivé (soft delete), invisible sur le site client
 --   stock=0   : badge "Rupture" côté client, bouton désactivé
 --   images    : tableau JSON [{"src":"/images/uploads/<fichier>"}]
---              fichier stocké dans volume Docker partagé api↔app
+--              fichier stocké dans UPLOAD_DIR (volume Docker en local,
+--              dossier ~/VRG/uploads/ sur o2switch — hors git)
 --              upload via POST /api/admin/upload (multer, 5 Mo max)
 -- ── Catégories ──────────────────────────────────────────────
 --   products.category : libre, pas de table dédiée
@@ -255,8 +256,13 @@ CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
 --   ne pas ajouter de colonne ici — utiliser une nouvelle clé
 -- ── Sécurité ────────────────────────────────────────────────
 --   Rate limiting : 20 tentatives/15 min sur /auth/login, 120 req/min global
+--     (fichiers statiques exclus en mode app-unique o2switch)
+--   trust proxy = 1 : IP réelle des clients derrière Passenger/nginx
+--     (sans ça, tous les clients partagent le même compteur de rate-limit)
 --   POST /orders bloqué pour admin | moderator | livreur
 --   POST /admin/users réservé au rôle admin uniquement
 --   PUT /admin/users/:id : admin ne peut pas modifier son propre rôle
+--   Démarrage : refus (exit 1) si DB_NAME/DB_USER/DB_PASSWORD absents
+--     — aucun identifiant en dur dans le code, tout vient de l'environnement
 --   JWT_SECRET : warning au démarrage si valeur par défaut détectée
 -- ============================================================
