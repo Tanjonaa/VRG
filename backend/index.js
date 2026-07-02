@@ -130,6 +130,7 @@ if (SECRET === 'change_this_in_production')
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`)
   await pool.execute(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS livreur_id INT NULL DEFAULT NULL`)
+  await pool.execute(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen DATETIME NULL`)
   await pool.execute(`ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_percent INT NOT NULL DEFAULT 0`)
   await pool.execute(`ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_active TINYINT(1) NOT NULL DEFAULT 0`)
   await pool.execute(`CREATE TABLE IF NOT EXISTS order_items (
@@ -492,6 +493,8 @@ app.post('/visits', async (req, res) => {
 /* ── GET /admin/notifications ────────────────────────── */
 app.get('/admin/notifications', adminAuth, async (req, res) => {
   try {
+    /* Présence : ce endpoint est pollé toutes les 5 s par chaque staff connecté */
+    pool.execute('UPDATE users SET last_seen=NOW() WHERE id=?', [req.user.id]).catch(() => {})
     const { since } = req.query
     const [[{ pending_orders }]] = await pool.execute(
       "SELECT COUNT(*) as pending_orders FROM orders WHERE status = 'En attente'"
@@ -505,6 +508,17 @@ app.get('/admin/notifications', adminAuth, async (req, res) => {
       unread_msgs = count
     }
     res.json({ pending_orders, unread_msgs })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ── GET /admin/online ───────────────────────────────── */
+/* Staff (admin/modérateur) vu actif dans les 2 dernières minutes */
+app.get('/admin/online', adminAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      "SELECT id, name, role FROM users WHERE role IN ('admin','moderator') AND last_seen > NOW() - INTERVAL 2 MINUTE ORDER BY name"
+    )
+    res.json(rows)
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 

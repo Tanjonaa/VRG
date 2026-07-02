@@ -54,6 +54,17 @@ export default function UsersPage({ user: adminUser, section = 'clients' }) {
   const load = () => fetch(`${BASE}/admin/users`, { headers: h() }).then(r => r.json()).then(setUsers)
   useEffect(() => { load() }, [])
 
+  /* Présence (page Staff) : staff en ligne, rafraîchi toutes les 15 s */
+  const [onlineIds, setOnlineIds] = useState([])
+  useEffect(() => {
+    if (section !== 'staff') return
+    const poll = () => fetch(`${BASE}/admin/online`, { headers: h() })
+      .then(r => r.json()).then(rows => setOnlineIds(rows.map(r => r.id))).catch(() => {})
+    poll()
+    const t = setInterval(poll, 15000)
+    return () => clearInterval(t)
+  }, [section])
+
   const changeRole = async (id, role) => {
     setUpdating(id)
     await fetch(`${BASE}/admin/users/${id}`, { method: 'PUT', headers: h(), body: JSON.stringify({ role }) })
@@ -206,8 +217,11 @@ export default function UsersPage({ user: adminUser, section = 'clients' }) {
                   {/* Client */}
                   <td style={{ padding: '13px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(255,153,0,0.12)', border: '1px solid rgba(255,153,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#FF9900', flexShrink: 0 }}>
+                      <div style={{ position: 'relative', width: 32, height: 32, borderRadius: 9, background: 'rgba(255,153,0,0.12)', border: '1px solid rgba(255,153,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#FF9900', flexShrink: 0 }}>
                         {u.name?.[0]?.toUpperCase()}
+                        {tab === 'staff' && onlineIds.includes(u.id) && (
+                          <span title="En ligne" style={{ position: 'absolute', bottom: -3, right: -3, width: 11, height: 11, borderRadius: '50%', background: '#22c55e', border: '2px solid #0c0c1a' }} />
+                        )}
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, color: '#f0f0f5', fontSize: 13 }}>{u.name}</div>

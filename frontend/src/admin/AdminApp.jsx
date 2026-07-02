@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell, MessageSquare, Shield } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell, MessageSquare, Shield, Lock, Eye, EyeOff } from 'lucide-react'
 import Dashboard    from './pages/Dashboard.jsx'
 import Products     from './pages/Products.jsx'
 import Orders       from './pages/Orders.jsx'
@@ -146,7 +146,110 @@ function useNotifications(user) {
     setNotifs(n => ({ ...n, orders: 0 }))
   }
 
-  return { notifs, toasts, clearMsgs, clearOrders }
+  return { notifs, toasts, addToast, clearMsgs, clearOrders }
+}
+
+/* ── Présence staff (polling 15s) ── */
+function useOnlineStaff(user, addToast) {
+  const [online, setOnline] = useState([])
+  const prevIds = useRef(null)
+
+  useEffect(() => {
+    if (!user) return
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/admin/online', { headers: { Authorization: `Bearer ${localStorage.getItem('vrg_token')}` } })
+        if (!res.ok) return
+        const rows = await res.json()
+        setOnline(rows)
+        /* Notifie les nouvelles connexions (pas au premier chargement, pas soi-même) */
+        if (prevIds.current) {
+          rows.forEach(r => {
+            if (!prevIds.current.has(r.id) && r.id !== user.id)
+              addToast(`🟢 ${r.name} (${r.role === 'admin' ? 'admin' : 'modérateur'}) est en ligne`, '#22c55e')
+          })
+        }
+        prevIds.current = new Set(rows.map(r => r.id))
+      } catch {}
+    }
+    poll()
+    const t = setInterval(poll, 15000)
+    return () => clearInterval(t)
+  }, [user])
+
+  return online
+}
+
+/* ── Modale changement de mot de passe (admin & modérateur) ── */
+function PasswordModal({ onClose, onSuccess }) {
+  const [cur, setCur]   = useState('')
+  const [nw, setNw]     = useState('')
+  const [cf, setCf]     = useState('')
+  const [err, setErr]   = useState('')
+  const [busy, setBusy] = useState(false)
+  const [show, setShow] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setErr('')
+    if (nw.length < 6)  { setErr('Le nouveau mot de passe doit faire au moins 6 caractères'); return }
+    if (nw !== cf)      { setErr('La confirmation ne correspond pas'); return }
+    setBusy(true)
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` },
+        body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setErr(data.error || 'Erreur'); setBusy(false); return }
+      if (data.token) localStorage.setItem('vrg_token', data.token)
+      onSuccess()
+    } catch { setErr('Erreur réseau'); setBusy(false) }
+  }
+
+  const field = { display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px' }
+  const input = { flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit' }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, width: 'calc(100% - 32px)', maxWidth: 400, background: 'rgba(12,12,22,0.98)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, padding: '26px 26px 22px', boxShadow: '0 40px 100px rgba(0,0,0,0.7)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: '#f0f0f5' }}>
+            <Lock size={15} color="#FF9900" /> Changer mon mot de passe
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 8, padding: 6, cursor: 'pointer', display: 'flex', color: 'rgba(240,240,245,0.5)' }}>
+            <X size={14} />
+          </button>
+        </div>
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+          <div style={field}>
+            <input type={show ? 'text' : 'password'} placeholder="Mot de passe actuel" value={cur} onChange={e => setCur(e.target.value)} required style={input} />
+            <button type="button" onClick={() => setShow(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,240,245,0.35)', display: 'flex', padding: 0 }}>
+              {show ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+          <div style={field}>
+            <input type={show ? 'text' : 'password'} placeholder="Nouveau mot de passe (min. 6 caractères)" value={nw} onChange={e => setNw(e.target.value)} required style={input} />
+          </div>
+          <div style={field}>
+            <input type={show ? 'text' : 'password'} placeholder="Confirme le nouveau mot de passe" value={cf} onChange={e => setCf(e.target.value)} required style={input} />
+          </div>
+          {err && (
+            <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 9, padding: '8px 12px' }}>
+              {err}
+            </div>
+          )}
+          <button type="submit" disabled={busy}
+            style={{ marginTop: 4, padding: '13px', borderRadius: 11, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700, fontFamily: 'inherit',
+              background: busy ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, #ca8a04, #d97706)', color: busy ? 'rgba(240,240,245,0.3)' : '#fff' }}>
+            {busy ? '…' : 'Mettre à jour'}
+          </button>
+        </form>
+      </div>
+    </>
+  )
 }
 
 /* ── Toast container ── */
@@ -192,7 +295,9 @@ export default function AdminApp() {
   const [page, setPage]         = useState('dashboard')
   const [sideOpen, setSideOpen] = useState(() => window.innerWidth > 768)
   const [alerts, setAlerts]     = useState(0)
-  const { notifs, toasts, clearMsgs, clearOrders } = useNotifications(user)
+  const [showPwd, setShowPwd]   = useState(false)
+  const { notifs, toasts, addToast, clearMsgs, clearOrders } = useNotifications(user)
+  const online = useOnlineStaff(user, addToast)
 
   useEffect(() => {
     fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${localStorage.getItem('vrg_token')}` } })
@@ -286,10 +391,30 @@ export default function AdminApp() {
 
         {/* User + logout */}
         <div style={{ padding: '12px 8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          {sideOpen && online.length > 0 && (
+            <div style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+                En ligne ({online.length})
+              </div>
+              {online.map(o => (
+                <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '2px 0', color: 'rgba(240,240,245,0.6)' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0, boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}{o.id === user.id ? ' (toi)' : ''}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 800, color: o.role === 'admin' ? '#FF9900' : '#60a5fa', flexShrink: 0 }}>
+                    {o.role === 'admin' ? 'ADMIN' : 'MOD'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           {sideOpen && (
             <div style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#f0f0f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
               <div style={{ fontSize: 10, color: user.role === 'admin' ? '#FF9900' : '#60a5fa', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>{user.role}</div>
+              <button onClick={() => setShowPwd(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', width: '100%', background: 'rgba(255,255,255,0.03)', color: 'rgba(240,240,245,0.55)', fontSize: 11, fontWeight: 600, fontFamily: 'inherit' }}>
+                <Lock size={12} /> Changer mot de passe
+              </button>
             </div>
           )}
           <button onClick={logout}
@@ -339,6 +464,13 @@ export default function AdminApp() {
           <PageComponent user={user} onAlertsChange={setAlerts} />
         </main>
       </div>
+
+      {showPwd && (
+        <PasswordModal
+          onClose={() => setShowPwd(false)}
+          onSuccess={() => { setShowPwd(false); addToast('🔒 Mot de passe mis à jour', '#22c55e') }}
+        />
+      )}
 
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
     </div>
