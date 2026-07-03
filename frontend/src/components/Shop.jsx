@@ -24,7 +24,8 @@ const fmt = n => Number(n).toLocaleString('fr-FR')
 const djb2 = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h*33)^s.charCodeAt(i))>>>0; return h }
 const PALETTE = ['#FF9900','#a78bfa','#34d399','#60a5fa','#f472b6','#fb923c','#38bdf8','#4ade80','#e879f9','#f87171']
 const catColor = c => PALETTE[djb2(c||'')%PALETTE.length]
-const parse = raw => { try { const a = JSON.parse(raw); return Array.isArray(a)?a:[] } catch { return [] } }
+/* images arrive soit en chaîne JSON (API admin), soit déjà parsé en tableau (API publique) */
+const parse = raw => { if (Array.isArray(raw)) return raw; try { const a = JSON.parse(raw); return Array.isArray(a)?a:[] } catch { return [] } }
 
 const AGO_MS = { '7d':7*86400000, '30d':30*86400000, '90d':90*86400000 }
 const isNew7 = p => p.created_at && (Date.now() - new Date(p.created_at)) < AGO_MS['7d']
