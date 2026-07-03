@@ -247,7 +247,8 @@ export default function Products() {
                         </span>
                       ) : null}
                     </div>
-                    {p.promo_active && (
+                    {/* !! obligatoire : promo_active est un TINYINT — 0 && <jsx> rend le 0 */}
+                    {!!p.promo_active && (
                       <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 99, background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' }}>
                         -{p.promo_percent}%
                       </span>
