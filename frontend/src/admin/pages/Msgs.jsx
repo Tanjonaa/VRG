@@ -91,7 +91,7 @@ function ChatArea({ roomId, me }) {
         const data = await r.json()
         if (Array.isArray(data) && data.length > 0) appendNew(data)
       } catch {}
-    }, 3000)
+    }, 8000)
     return () => clearInterval(poll)
   }, [roomId, lastId, appendNew])
 
@@ -296,7 +296,7 @@ export default function Msgs({ user: me }) {
       })
       .catch(() => {})
     load()
-    const t = setInterval(load, 5000)
+    const t = setInterval(load, 15000)
     return () => clearInterval(t)
   }, [])
 

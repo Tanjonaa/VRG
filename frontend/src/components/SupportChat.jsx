@@ -55,7 +55,7 @@ export default function SupportChat() {
           if (!open) setUnread(n => n + data.filter(m => m.sender_id !== user.id).length)
         }
       } catch {}
-    }, 4000)
+    }, 8000)
     return () => clearInterval(id)
   }, [roomId, lastId, open, user?.id])
 

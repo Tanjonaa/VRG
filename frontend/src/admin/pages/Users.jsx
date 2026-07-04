@@ -63,7 +63,7 @@ export default function UsersPage({ user: adminUser, section = 'clients' }) {
     const poll = () => fetch(`${BASE}/admin/online`, { headers: h() })
       .then(r => r.json()).then(rows => setOnlineIds(rows.map(r => r.id))).catch(() => {})
     poll()
-    const t = setInterval(poll, 15000)
+    const t = setInterval(poll, 30000)
     return () => clearInterval(t)
   }, [section])
 

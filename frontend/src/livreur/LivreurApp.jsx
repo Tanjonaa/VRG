@@ -72,7 +72,7 @@ function ChatView({ roomId, me, onBack, title }) {
         const data = await r.json()
         if (Array.isArray(data) && data.length > 0) appendNew(data)
       } catch {}
-    }, 3000)
+    }, 8000)
     return () => clearInterval(poll)
   }, [roomId, lastId])
 

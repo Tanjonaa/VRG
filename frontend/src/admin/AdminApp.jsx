@@ -161,7 +161,9 @@ function useNotifications(user) {
     }
 
     poll()
-    timer.current = setInterval(poll, 5000)
+    /* 15 s : assez réactif, et évite de déclencher le WAF o2switch (Tiger Protect)
+       qui prend les rafales de requêtes pour du trafic de bot */
+    timer.current = setInterval(poll, 15000)
     return () => clearInterval(timer.current)
   }, [user])
 
@@ -216,7 +218,7 @@ function useOnlineStaff(user, addToast) {
       } catch {}
     }
     poll()
-    const t = setInterval(poll, 15000)
+    const t = setInterval(poll, 30000)
     return () => clearInterval(t)
   }, [user])
 
