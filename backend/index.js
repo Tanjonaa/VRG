@@ -1197,6 +1197,64 @@ app.get('/chat/support/poll', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+/* ═══════════════════════════════════════════════════════════
+   ACCUSÉS DE LECTURE — communs à tous les rôles
+   chat_reads.last_read_id = plus grand id de message lu par user
+   ═══════════════════════════════════════════════════════════ */
+
+/* Un utilisateur peut-il accéder à ce salon ? (mêmes règles que les routes messages) */
+async function canAccessRoom(user, room) {
+  if (!room) return false
+  if (user.role === 'admin' || user.role === 'moderator') {
+    if (room.type === 'admin_only') return user.role === 'admin'
+    if (room.type === 'direct') {
+      const [[m]] = await pool.execute('SELECT 1 FROM chat_room_members WHERE room_id=? AND user_id=?', [room.id, user.id])
+      return !!m
+    }
+    return true
+  }
+  if (user.role === 'livreur') {
+    if (room.type === 'livreur_group') return true
+    if (room.type === 'support') {
+      const [[o]] = await pool.execute('SELECT id FROM orders WHERE user_id=? AND livreur_id=? LIMIT 1', [room.client_id, user.id])
+      return !!o
+    }
+    return false
+  }
+  return room.type === 'support' && room.client_id === user.id
+}
+
+/* GET /chat/rooms/:id/read-status — plus grand message lu par les AUTRES participants */
+app.get('/chat/rooms/:id/read-status', auth, async (req, res) => {
+  try {
+    const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [Number(req.params.id)])
+    if (!(await canAccessRoom(req.user, room))) return res.status(403).json({ error: 'Accès refusé' })
+    const [[r]] = await pool.execute(
+      'SELECT COALESCE(MAX(last_read_id), 0) AS others_read FROM chat_reads WHERE room_id=? AND user_id != ?',
+      [room.id, req.user.id]
+    )
+    res.json({ others_read: Number(r.others_read) })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* POST /chat/rooms/:id/read — marque lu jusqu'à last_id
+   (utilisé par le widget client, qui polle aussi panneau fermé :
+    on ne peut pas avancer le marqueur au poll, seulement à l'affichage) */
+app.post('/chat/rooms/:id/read', auth, async (req, res) => {
+  const lastId = Number(req.body?.last_id)
+  if (!lastId) return res.status(400).json({ error: 'last_id requis' })
+  try {
+    const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [Number(req.params.id)])
+    if (!(await canAccessRoom(req.user, room))) return res.status(403).json({ error: 'Accès refusé' })
+    await pool.execute(
+      `INSERT INTO chat_reads (room_id, user_id, last_read_id) VALUES (?,?,?)
+       ON DUPLICATE KEY UPDATE last_read_id = GREATEST(last_read_id, VALUES(last_read_id))`,
+      [room.id, req.user.id, lastId]
+    )
+    res.json({ ok: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 /* ── GET /livreur/orders ─────────────────────────────── */
 app.get('/livreur/orders', livreurAuth, async (req, res) => {
   try {
@@ -1297,6 +1355,14 @@ app.get('/livreur/chat/rooms/:id/messages', livreurAuth, async (req, res) => {
     query += ' ORDER BY id ASC LIMIT ?'
     params.push(Number(limit))
     const [rows] = await pool.execute(query, params)
+    /* Consulter un salon = le lire (même logique que côté admin) */
+    if (rows.length > 0) {
+      pool.execute(
+        `INSERT INTO chat_reads (room_id, user_id, last_read_id) VALUES (?,?,?)
+         ON DUPLICATE KEY UPDATE last_read_id = GREATEST(last_read_id, VALUES(last_read_id))`,
+        [roomId, req.user.id, rows[rows.length - 1].id]
+      ).catch(() => {})
+    }
     res.json(rows)
   } catch (e) { res.status(500).json({ error: e.message }) }
 })

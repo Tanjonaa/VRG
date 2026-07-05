@@ -55,7 +55,16 @@ function ChatArea({ roomId, me }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [lastId, setLastId] = useState(null)
+  const [othersRead, setOthersRead] = useState(0)   // plus grand msg lu par les autres
   const bottomRef = useRef(null)
+
+  const fetchReadStatus = useCallback(() => {
+    if (!roomId) return
+    fetch(`${BASE}/chat/rooms/${roomId}/read-status`, { headers: h() })
+      .then(r => r.json())
+      .then(d => setOthersRead(Number(d.others_read) || 0))
+      .catch(() => {})
+  }, [roomId])
 
   const appendNew = useCallback((data) => {
     setMessages(prev => {
@@ -70,6 +79,7 @@ function ChatArea({ roomId, me }) {
     setMessages([])
     setLastId(null)
     setText('')
+    setOthersRead(0)
     if (!roomId) return
     fetch(`${BASE}/admin/chat/rooms/${roomId}/messages?limit=60`, { headers: h() })
       .then(r => r.json())
@@ -78,6 +88,7 @@ function ChatArea({ roomId, me }) {
           setMessages(data)
           if (data.length > 0) setLastId(data[data.length - 1].id)
         }
+        fetchReadStatus()
       })
       .catch(() => {})
   }, [roomId])
@@ -90,10 +101,11 @@ function ChatArea({ roomId, me }) {
         const r = await fetch(url, { headers: h() })
         const data = await r.json()
         if (Array.isArray(data) && data.length > 0) appendNew(data)
+        fetchReadStatus()
       } catch {}
     }, 8000)
     return () => clearInterval(poll)
-  }, [roomId, lastId, appendNew])
+  }, [roomId, lastId, appendNew, fetchReadStatus])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -134,6 +146,7 @@ function ChatArea({ roomId, me }) {
         {messages.map((msg, i) => {
           const isMe = msg.sender_id === me?.id
           const prevSame = i > 0 && messages[i - 1].sender_id === msg.sender_id
+          const lastMine = isMe && !messages.slice(i + 1).some(m => m.sender_id === me?.id)
           return (
             <div key={msg.id} style={{ display: 'flex', flexDirection: isMe ? 'row-reverse' : 'row',
               alignItems: 'flex-end', gap: 8, marginTop: prevSame ? 2 : 10 }}>
@@ -157,6 +170,11 @@ function ChatArea({ roomId, me }) {
                 </div>
                 <span style={{ fontSize: 10, color: 'rgba(240,240,245,0.25)', marginTop: 1 }}>
                   {fmtTime(msg.created_at)}
+                  {lastMine && (
+                    msg.id <= othersRead
+                      ? <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 700 }}>✓✓ Vu</span>
+                      : <span style={{ marginLeft: 6, color: 'rgba(240,240,245,0.3)', fontWeight: 600 }}>✓ Envoyé</span>
+                  )}
                 </span>
               </div>
             </div>

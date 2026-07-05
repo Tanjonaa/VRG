@@ -22,8 +22,33 @@ export default function SupportChat() {
   const [sending, setSending]   = useState(false)
   const [lastId, setLastId]     = useState(null)
   const [unread, setUnread]     = useState(0)
+  const [othersRead, setOthersRead] = useState(0)   // plus grand msg lu par le staff
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
+  const msgsRef   = useRef([])
+  useEffect(() => { msgsRef.current = messages }, [messages])
+
+  /* Marque comme lus les messages affichés — UNIQUEMENT panneau ouvert
+     (le poll tourne aussi panneau fermé, il ne doit pas marquer lu) */
+  const markRead = useCallback((msgs) => {
+    if (!roomId) return
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (!String(msgs[i].id).startsWith('opt-')) {
+        fetch(`${BASE}/chat/rooms/${roomId}/read`, {
+          method: 'POST', headers: ah(), body: JSON.stringify({ last_id: msgs[i].id }),
+        }).catch(() => {})
+        return
+      }
+    }
+  }, [roomId])
+
+  const fetchReadStatus = useCallback(() => {
+    if (!roomId) return
+    fetch(`${BASE}/chat/rooms/${roomId}/read-status`, { headers: ah() })
+      .then(r => r.json())
+      .then(d => setOthersRead(Number(d.others_read) || 0))
+      .catch(() => {})
+  }, [roomId])
 
   useEffect(() => {
     if (!user) { setMessages([]); setRoomId(null); setLastId(null); setUnread(0); return }
@@ -53,21 +78,25 @@ export default function SupportChat() {
           })
           setLastId(data[data.length - 1].id)
           if (!open) setUnread(n => n + data.filter(m => m.sender_id !== user.id).length)
+          else markRead(data)
         }
+        if (open) fetchReadStatus()
       } catch {}
     }, 8000)
     return () => clearInterval(id)
-  }, [roomId, lastId, open, user?.id])
+  }, [roomId, lastId, open, user?.id, markRead, fetchReadStatus])
 
   useEffect(() => {
     if (open) {
       setUnread(0)
+      markRead(msgsRef.current)
+      fetchReadStatus()
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'instant' })
         inputRef.current?.focus()
       }, 120)
     }
-  }, [open])
+  }, [open, markRead, fetchReadStatus])
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -206,6 +235,7 @@ export default function SupportChat() {
                   const prevSame = i > 0 && messages[i - 1].sender_id === msg.sender_id
                   const nextSame = i < messages.length - 1 && messages[i + 1].sender_id === msg.sender_id
                   const isOpt = String(msg.id).startsWith('opt-')
+                  const lastMine = isMe && !isOpt && !messages.slice(i + 1).some(m => m.sender_id === user.id)
                   return (
                     <div key={msg.id} style={{
                       display: 'flex',
@@ -245,6 +275,11 @@ export default function SupportChat() {
                         {(!nextSame || !isMe) && (
                           <span style={{ fontSize: 10, color: 'rgba(240,240,245,0.2)', marginTop: 1 }}>
                             {fmtTime(msg.created_at)}
+                            {lastMine && (
+                              msg.id <= othersRead
+                                ? <span style={{ marginLeft: 5, color: '#22c55e', fontWeight: 700 }}>✓✓ Vu</span>
+                                : <span style={{ marginLeft: 5, color: 'rgba(240,240,245,0.3)', fontWeight: 600 }}>✓ Envoyé</span>
+                            )}
                           </span>
                         )}
                       </div>

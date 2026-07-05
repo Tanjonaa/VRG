@@ -37,7 +37,16 @@ function ChatView({ roomId, me, onBack, title }) {
   const [text, setText]         = useState('')
   const [sending, setSending]   = useState(false)
   const [lastId, setLastId]     = useState(null)
+  const [othersRead, setOthersRead] = useState(0)   // plus grand msg lu par les autres
   const bottomRef               = useRef(null)
+
+  const fetchReadStatus = () => {
+    if (!roomId) return
+    fetch(`${BASE}/chat/rooms/${roomId}/read-status`, { headers: h() })
+      .then(r => r.json())
+      .then(d => setOthersRead(Number(d.others_read) || 0))
+      .catch(() => {})
+  }
 
   const appendNew = (data) => {
     setMessages(prev => {
@@ -51,6 +60,7 @@ function ChatView({ roomId, me, onBack, title }) {
   useEffect(() => {
     setMessages([])
     setLastId(null)
+    setOthersRead(0)
     if (!roomId) return
     fetch(`${BASE}/livreur/chat/rooms/${roomId}/messages?limit=60`, { headers: h() })
       .then(r => r.json())
@@ -59,6 +69,7 @@ function ChatView({ roomId, me, onBack, title }) {
           setMessages(data)
           if (data.length > 0) setLastId(data[data.length - 1].id)
         }
+        fetchReadStatus()
       })
       .catch(() => {})
   }, [roomId])
@@ -71,6 +82,7 @@ function ChatView({ roomId, me, onBack, title }) {
         const r = await fetch(url, { headers: h() })
         const data = await r.json()
         if (Array.isArray(data) && data.length > 0) appendNew(data)
+        fetchReadStatus()
       } catch {}
     }, 8000)
     return () => clearInterval(poll)
@@ -111,6 +123,7 @@ function ChatView({ roomId, me, onBack, title }) {
         {messages.map((msg, i) => {
           const isMe    = msg.sender_id === me?.id
           const prevSame = i > 0 && messages[i - 1].sender_id === msg.sender_id
+          const lastMine = isMe && !messages.slice(i + 1).some(m => m.sender_id === me?.id)
           return (
             <div key={msg.id} style={{ display: 'flex', flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 6, marginTop: prevSame ? 2 : 8 }}>
               {!isMe && !prevSame && (
@@ -128,6 +141,11 @@ function ChatView({ roomId, me, onBack, title }) {
                 </div>
                 <span style={{ fontSize: 10, color: 'rgba(240,240,245,0.25)' }}>
                   {new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  {lastMine && (
+                    msg.id <= othersRead
+                      ? <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 700 }}>✓✓ Vu</span>
+                      : <span style={{ marginLeft: 6, color: 'rgba(240,240,245,0.3)', fontWeight: 600 }}>✓ Envoyé</span>
+                  )}
                 </span>
               </div>
             </div>
