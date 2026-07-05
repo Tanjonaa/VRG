@@ -482,10 +482,10 @@ app.post('/orders', auth, async (req, res) => {
 /* ── POST /visits ────────────────────────────────────── */
 app.post('/visits', async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0]
+    /* CURDATE() : même horloge que les stats du dashboard (heure serveur MySQL),
+       pas l'heure UTC de Node qui décale d'un jour entre minuit et 2h */
     await pool.execute(
-      'INSERT INTO visits (date, count) VALUES (?, 1) ON DUPLICATE KEY UPDATE count = count + 1',
-      [today]
+      'INSERT INTO visits (date, count) VALUES (CURDATE(), 1) ON DUPLICATE KEY UPDATE count = count + 1'
     )
     res.json({ ok: true })
   } catch { res.json({ ok: false }) }
