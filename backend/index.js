@@ -1025,6 +1025,9 @@ app.get('/admin/chat/rooms', adminAuth, async (req, res) => {
       SELECT cr.id, cr.type, cr.name, cr.client_id,
              (SELECT body FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_msg,
              (SELECT created_at FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_at,
+             (SELECT sender_name FROM chat_messages
+              WHERE room_id=cr.id AND sender_id != cr.client_id
+              ORDER BY id DESC LIMIT 1) AS last_staff,
              ${unreadSub}
       FROM chat_rooms cr WHERE cr.type='support' ORDER BY last_at DESC
     `, [uid, uid])

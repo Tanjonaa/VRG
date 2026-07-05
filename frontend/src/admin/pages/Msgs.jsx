@@ -283,6 +283,11 @@ function ClientList({ supports, onSelect, activeId }) {
                 {s.last_msg.length > 28 ? s.last_msg.slice(0, 26) + '…' : s.last_msg}
               </div>
             )}
+            {s.last_staff && (
+              <div style={{ fontSize: 10, color: 'rgba(255,153,0,0.7)', fontWeight: 600, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                ↳ répondu par {s.last_staff}
+              </div>
+            )}
           </div>
           {activeId !== s.id && <UnreadBadge count={s.unread || 0} />}
         </button>

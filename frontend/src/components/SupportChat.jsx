@@ -246,16 +246,22 @@ export default function SupportChat() {
                       {!isMe && (
                         <div style={{ width: 28, flexShrink: 0 }}>
                           {!nextSame && (
-                            <div style={{
+                            <div title={msg.sender_name} style={{
                               width: 28, height: 28, borderRadius: '50%',
                               background: 'linear-gradient(135deg,#FF9900,#e06000)',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontWeight: 800, fontSize: 12, color: '#fff',
-                            }}>V</div>
+                            }}>{msg.sender_name?.[0]?.toUpperCase() || 'V'}</div>
                           )}
                         </div>
                       )}
                       <div style={{ maxWidth: '75%', display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', gap: 1 }}>
+                        {/* Qui de l'équipe répond — le client sait à qui il parle */}
+                        {!isMe && !prevSame && (
+                          <span style={{ fontSize: 10, color: '#FF9900', fontWeight: 700, marginLeft: 3, marginBottom: 1, opacity: 0.85 }}>
+                            {msg.sender_name} · équipe VaRyGasy
+                          </span>
+                        )}
                         <div style={{
                           padding: '9px 13px',
                           borderRadius: isMe
