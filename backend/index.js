@@ -1476,7 +1476,7 @@ if (process.env.FRONTEND_DIST) {
     const fallback = () => res.sendFile(path.join(dist, 'index.html'))
     try {
       const [[p]] = await pool.execute(
-        'SELECT id, name, description, price, images, promo_percent, promo_active FROM products WHERE id=? AND active=1',
+        'SELECT id, name, description, price, images, category, stock, promo_percent, promo_active FROM products WHERE id=? AND active=1',
         [Number(req.params[0])]
       )
       if (!p) return fallback()
@@ -1501,6 +1501,27 @@ if (process.env.FRONTEND_DIST) {
         .replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${esc(title)}$2`)
         .replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${esc(desc)}$2`)
         .replace(/(<meta name="twitter:image" content=")[^"]*(")/, `$1${imgUrl}$2`)
+      /* Données structurées Product : extraits enrichis Google (prix + dispo) */
+      const jsonLd = {
+        '@context': 'https://schema.org/',
+        '@type': 'Product',
+        name: p.name,
+        image: [imgUrl],
+        description: desc,
+        category: p.category || undefined,
+        brand: { '@type': 'Brand', name: 'VaRyGasy' },
+        offers: {
+          '@type': 'Offer',
+          url,
+          priceCurrency: 'MGA',
+          price: String(price),
+          availability: p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        },
+      }
+      html = html.replace(
+        '</head>',
+        `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script></head>`
+      )
       res.send(html)
     } catch { fallback() }
   })
