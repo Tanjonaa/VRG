@@ -70,6 +70,10 @@ body {
 
   /* Contenu principal : padding réduit */
   .adm-main { padding: 14px !important; }
+
+  /* Messagerie : la liste des conversations prend toute la largeur
+     (le JS n'affiche que liste OU conversation sur mobile) */
+  .adm-chat-list { width: 100% !important; border-right: none !important; }
 }
 
 /* Date/select inputs — dark mode natif */

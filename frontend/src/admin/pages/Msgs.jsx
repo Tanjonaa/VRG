@@ -1,5 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageSquare, Users, User, Headphones, Send, ChevronRight, Package } from 'lucide-react'
+import { MessageSquare, Users, User, Headphones, Send, ChevronRight, ChevronLeft, Package } from 'lucide-react'
+
+/* Mobile : liste OU conversation (jamais les deux côte à côte) */
+function useIsMobile() {
+  const [m, setM] = React.useState(() => window.matchMedia('(max-width: 768px)').matches)
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const fn = e => setM(e.matches)
+    mq.addEventListener('change', fn)
+    return () => mq.removeEventListener('change', fn)
+  }, [])
+  return m
+}
 
 const BASE = '/api'
 const h = () => ({
@@ -229,7 +241,7 @@ function StaffList({ me, onSelect, activeId, unreadByUser }) {
   }
 
   return (
-    <div style={{ width: 220, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.06)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+    <div className="adm-chat-list" style={{ width: 220, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.06)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '12px 14px', fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         Staff ({staff.length})
       </div>
@@ -258,7 +270,7 @@ function StaffList({ me, onSelect, activeId, unreadByUser }) {
 
 function ClientList({ supports, onSelect, activeId }) {
   return (
-    <div style={{ width: 220, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.06)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+    <div className="adm-chat-list" style={{ width: 220, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.06)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '12px 14px', fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         Clients ({supports.length})
       </div>
@@ -303,6 +315,9 @@ export default function Msgs({ user: me }) {
   const [activeContact, setActiveContact] = useState(null)
   const [directStaffId, setDirectStaffId] = useState(null)
   const didInit = useRef(false)
+  const isMobile = useIsMobile()
+
+  const backToList = () => { setActiveRoom(null); setActiveContact(null); setDirectStaffId(null) }
 
   /* Salons + compteurs non lus, rafraîchis toutes les 5s */
   useEffect(() => {
@@ -380,57 +395,75 @@ export default function Msgs({ user: me }) {
           <ChatArea roomId={activeRoom} me={me} />
         )}
 
-        {/* Direct */}
+        {/* Direct — mobile : liste OU conversation, jamais les deux */}
         {tab === 'direct' && (
           <>
-            <StaffList
-              me={me}
-              unreadByUser={unreadByUser}
-              activeId={directStaffId}
-              onSelect={(roomId, contact) => {
-                setActiveRoom(roomId)
-                setDirectStaffId(contact.id)
-                setActiveContact(contact)
-              }}
-            />
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              {activeContact && (
-                <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.02)' }}>
-                  <Avatar name={activeContact.name} role={activeContact.role} size={30} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5' }}>{activeContact.name}</div>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: activeContact.role === 'admin' ? '#FF9900' : '#60a5fa' }}>{activeContact.role}</div>
+            {(!isMobile || !activeRoom) && (
+              <StaffList
+                me={me}
+                unreadByUser={unreadByUser}
+                activeId={directStaffId}
+                onSelect={(roomId, contact) => {
+                  setActiveRoom(roomId)
+                  setDirectStaffId(contact.id)
+                  setActiveContact(contact)
+                }}
+              />
+            )}
+            {(!isMobile || activeRoom) && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {activeContact && (
+                  <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.02)' }}>
+                    {isMobile && (
+                      <button onClick={backToList} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF9900', display: 'flex', padding: 2 }}>
+                        <ChevronLeft size={20} />
+                      </button>
+                    )}
+                    <Avatar name={activeContact.name} role={activeContact.role} size={30} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5' }}>{activeContact.name}</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: activeContact.role === 'admin' ? '#FF9900' : '#60a5fa' }}>{activeContact.role}</div>
+                    </div>
                   </div>
-                </div>
-              )}
-              <ChatArea roomId={activeRoom} me={me} />
-            </div>
+                )}
+                <ChatArea roomId={activeRoom} me={me} />
+              </div>
+            )}
           </>
         )}
 
-        {/* Clients support */}
+        {/* Clients support — mobile : liste OU conversation */}
         {tab === 'clients' && (
           <>
-            <ClientList
-              supports={rooms.supports}
-              activeId={activeRoom}
-              onSelect={(roomId, support) => {
-                setActiveRoom(roomId)
-                setActiveContact(support)
-              }}
-            />
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              {activeContact && (
-                <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.02)' }}>
-                  <Avatar name={activeContact.name} role="client" size={30} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5' }}>{activeContact.name}</div>
-                    <div style={{ fontSize: 10, color: 'rgba(240,240,245,0.4)', fontWeight: 600 }}>Client · support</div>
+            {(!isMobile || !activeRoom) && (
+              <ClientList
+                supports={rooms.supports}
+                activeId={activeRoom}
+                onSelect={(roomId, support) => {
+                  setActiveRoom(roomId)
+                  setActiveContact(support)
+                }}
+              />
+            )}
+            {(!isMobile || activeRoom) && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {activeContact && (
+                  <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.02)' }}>
+                    {isMobile && (
+                      <button onClick={backToList} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF9900', display: 'flex', padding: 2 }}>
+                        <ChevronLeft size={20} />
+                      </button>
+                    )}
+                    <Avatar name={activeContact.name} role="client" size={30} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5' }}>{activeContact.name}</div>
+                      <div style={{ fontSize: 10, color: 'rgba(240,240,245,0.4)', fontWeight: 600 }}>Client · support</div>
+                    </div>
                   </div>
-                </div>
-              )}
-              <ChatArea roomId={activeRoom} me={me} />
-            </div>
+                )}
+                <ChatArea roomId={activeRoom} me={me} />
+              </div>
+            )}
           </>
         )}
       </div>
