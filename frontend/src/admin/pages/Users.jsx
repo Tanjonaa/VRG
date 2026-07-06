@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Shield, User, Search, Users, Gift, ShoppingBag, TrendingUp, ChevronDown, ChevronUp, Plus, X, Eye, EyeOff, Trash2, UserX, Lock } from 'lucide-react'
 import AdminDropdown from '../components/AdminDropdown.jsx'
 import PasswordModal from '../components/PasswordModal.jsx'
+import { normalizeMgPhone, MG_PHONE_HINT } from '../../lib/phone.js'
 
 const BASE = '/api'
 const h = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
@@ -105,10 +106,12 @@ export default function UsersPage({ user: adminUser, section = 'clients' }) {
     e.preventDefault()
     setNewError('')
     if (!newForm.name.trim() || !newForm.phone.trim() || !newForm.password) { setNewError('Remplis tous les champs'); return }
+    const phone = normalizeMgPhone(newForm.phone)
+    if (!phone) { setNewError(MG_PHONE_HINT); return }
     if (newForm.password.length < 8) { setNewError('Le mot de passe doit faire au moins 8 caractères'); return }
     setNewBusy(true)
     try {
-      const res = await fetch(`${BASE}/admin/users`, { method: 'POST', headers: h(), body: JSON.stringify(newForm) })
+      const res = await fetch(`${BASE}/admin/users`, { method: 'POST', headers: h(), body: JSON.stringify({ ...newForm, phone }) })
       const data = await res.json()
       if (!res.ok) { setNewError(data.error || 'Erreur'); setNewBusy(false); return }
       await load()

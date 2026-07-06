@@ -248,6 +248,20 @@ async function writeLog(adminId, adminName, action, targetType, targetId, target
   } catch {}
 }
 
+/* ── Numéros malgaches : normalisation + validation ──────────
+   Accepte « 034 12 345 67 », « +261 34 12 345 67 », « 00261341234567 »…
+   Retourne toujours la forme locale 10 chiffres (0341234567), ou null.
+   Préfixes attribués : 032 Orange · 033 Airtel · 034/037/038 Telma-Yas */
+function normalizePhone(raw) {
+  if (!raw) return null
+  let p = String(raw).replace(/[\s.\-()]/g, '')
+  if (p.startsWith('+261'))                       p = '0' + p.slice(4)
+  else if (p.startsWith('00261'))                 p = '0' + p.slice(5)
+  else if (p.startsWith('261') && p.length === 12) p = '0' + p.slice(3)
+  return /^0(32|33|34|37|38)\d{7}$/.test(p) ? p : null
+}
+const PHONE_ERROR = 'Numéro malgache attendu : 03X XX XXX XX (032, 033, 034, 037 ou 038)'
+
 function makeReferralCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
@@ -287,8 +301,8 @@ const livreurAuth = (req, res, next) => {
 /* ── GET /auth/check-phone ───────────────────────────── */
 /* Vérifie en temps réel si un numéro est disponible (inscription) */
 app.get('/auth/check-phone', async (req, res) => {
-  const phone = (req.query.phone || '').trim()
-  if (!phone) return res.json({ available: false })
+  const phone = normalizePhone(req.query.phone)
+  if (!phone) return res.json({ available: false, invalid: true })
   try {
     const [rows] = await pool.execute('SELECT id FROM users WHERE phone = ?', [phone])
     res.json({ available: rows.length === 0 })
@@ -297,16 +311,19 @@ app.get('/auth/check-phone', async (req, res) => {
 
 /* ── POST /auth/register ─────────────────────────────── */
 app.post('/auth/register', async (req, res) => {
-  const { name, phone, password, referralCode } = req.body
-  if (!name || !phone || !password)
+  const { name, password, referralCode } = req.body
+  const phone = normalizePhone(req.body.phone)
+  if (!name || !req.body.phone || !password)
     return res.status(400).json({ error: 'Remplis tous les champs' })
+  if (!phone)
+    return res.status(400).json({ error: PHONE_ERROR })
 
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
 
     /* Vérifie d'abord que le numéro est disponible */
-    const [existing] = await conn.execute('SELECT id FROM users WHERE phone = ?', [phone.trim()])
+    const [existing] = await conn.execute('SELECT id FROM users WHERE phone = ?', [phone])
     if (existing.length) {
       await conn.rollback()
       return res.status(409).json({ error: 'Ce numéro est déjà enregistré' })
@@ -323,14 +340,14 @@ app.post('/auth/register', async (req, res) => {
 
     const [r] = await conn.execute(
       'INSERT INTO users (name, phone, password, referral_code, referred_by) VALUES (?, ?, ?, ?, ?)',
-      [name.trim(), phone.trim(), hash, code, referrerId]
+      [name.trim(), phone, hash, code, referrerId]
     )
     if (referrerId) {
       await conn.execute('INSERT INTO referrals (referrer_id, referred_id) VALUES (?, ?)', [referrerId, r.insertId])
     }
     await conn.commit()
 
-    const user = { id: r.insertId, name: name.trim(), phone: phone.trim(), role: 'client' }
+    const user = { id: r.insertId, name: name.trim(), phone, role: 'client' }
     const token = jwt.sign(user, SECRET, { expiresIn: '30d' })
     res.json({ token, user })
   } catch (err) {
@@ -346,7 +363,10 @@ app.post('/auth/login', async (req, res) => {
   const { phone, password } = req.body
   if (!phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
   try {
-    const [rows] = await pool.execute('SELECT * FROM users WHERE phone = ?', [phone.trim()])
+    /* Normalise si possible, sinon garde la saisie brute — ne jamais
+       verrouiller un compte historique au format non standard */
+    const lookup = normalizePhone(phone) || phone.trim()
+    const [rows] = await pool.execute('SELECT * FROM users WHERE phone = ?', [lookup])
     const u = rows[0]
     if (!u || !(await bcrypt.compare(password, u.password)))
       return res.status(401).json({ error: 'Numéro ou mot de passe incorrect' })
@@ -373,9 +393,14 @@ app.put('/auth/profile', auth, async (req, res) => {
       await pool.execute('UPDATE users SET password = ? WHERE id = ?', [hash, req.user.id])
     }
     if (name || phone) {
+      let newPhone = null
+      if (phone) {
+        newPhone = normalizePhone(phone)
+        if (!newPhone) return res.status(400).json({ error: PHONE_ERROR })
+      }
       await pool.execute(
         'UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone) WHERE id = ?',
-        [name?.trim() || null, phone?.trim() || null, req.user.id]
+        [name?.trim() || null, newPhone, req.user.id]
       )
     }
     const [rows] = await pool.execute('SELECT id, name, phone, role FROM users WHERE id = ?', [req.user.id])
@@ -456,7 +481,11 @@ app.post('/orders', auth, async (req, res) => {
       `INSERT INTO orders (user_id, payment, address, zone, delivery_fee, hours, note, total,
         transfer_phone, transfer_name, transfer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.user.id, payment, address, zone || null, delivery_fee || 0, hours || null,
-       note || '', total, transfer?.phone || null, transfer?.name || null, transfer?.id || null]
+       note || '', total,
+       /* numéro mobile money : normalisé si valide, brut sinon — on ne bloque
+          jamais une commande dont le paiement est déjà parti */
+       transfer?.phone ? (normalizePhone(transfer.phone) || transfer.phone) : null,
+       transfer?.name || null, transfer?.id || null]
     )
     const orderId = r.insertId
     if (items?.length) {
@@ -775,19 +804,21 @@ app.get('/admin/users/:id/referrals', adminAuth, async (req, res) => {
 /* ── POST /admin/users ───────────────────────────────── */
 app.post('/admin/users', adminAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Seul un admin peut créer des comptes staff' })
-  const { name, phone, password, role } = req.body
-  if (!name || !phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
+  const { name, password, role } = req.body
+  const phone = normalizePhone(req.body.phone)
+  if (!name || !req.body.phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
+  if (!phone) return res.status(400).json({ error: PHONE_ERROR })
   if (!['admin', 'moderator', 'livreur'].includes(role)) return res.status(400).json({ error: 'Rôle invalide' })
   try {
-    const [existing] = await pool.execute('SELECT id FROM users WHERE phone = ?', [phone.trim()])
+    const [existing] = await pool.execute('SELECT id FROM users WHERE phone = ?', [phone])
     if (existing.length) return res.status(409).json({ error: 'Ce numéro est déjà utilisé' })
     const hash = await bcrypt.hash(password, 10)
     const code = makeReferralCode()
     const [r] = await pool.execute(
       'INSERT INTO users (name, phone, password, role, referral_code) VALUES (?, ?, ?, ?, ?)',
-      [name.trim(), phone.trim(), hash, role, code]
+      [name.trim(), phone, hash, role, code]
     )
-    await writeLog(req.user.id, req.user.name, 'user_create', 'user', r.insertId, `${name.trim()} (${phone.trim()})`, null, role)
+    await writeLog(req.user.id, req.user.name, 'user_create', 'user', r.insertId, `${name.trim()} (${phone})`, null, role)
     res.status(201).json({ ok: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
