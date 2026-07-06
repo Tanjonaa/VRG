@@ -246,9 +246,18 @@ function ProductCard({ product, onAdd, onView, forceNew = false }) {
 function ProductModal({ product, onClose, onAdd }) {
   const [idx, setIdx]   = useState(0)
   const [added, setAdded] = useState(false)
+  const [copied, setCopied] = useState(false)
   const imgs = parse(product?.images)
   const oos  = product?.stock === 0
   const col  = catColor(product?.category)
+
+  const shareUrl  = `https://varygasy.net/produit/${product?.id}`
+  const shareText = `${product?.name} · ${fmt(product?.price)} Ar — ${shareUrl}`
+  const copyLink = async () => {
+    /* Partage natif sur mobile, copie du lien sinon */
+    if (navigator.share) { try { await navigator.share({ title: product.name, url: shareUrl }) } catch {} ; return }
+    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch {}
+  }
 
   useEffect(() => { setIdx(0) }, [product])
   useEffect(() => {
@@ -340,6 +349,18 @@ function ProductModal({ product, onClose, onAdd }) {
               <span style={{ fontSize:12, fontWeight:700, color: oos ? '#f87171' : '#4ade80' }}>
                 {oos ? 'Rupture de stock' : product.stock <= 5 ? `Seulement ${product.stock} en stock` : `En stock (${product.stock} disponibles)`}
               </span>
+            </div>
+
+            {/* Partage — chaque produit a son URL propre */}
+            <div style={{ display:'flex', gap:8 }}>
+              <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noreferrer"
+                style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'9px 12px', borderRadius:12, background:'rgba(37,211,102,0.1)', border:'1px solid rgba(37,211,102,0.3)', color:'#25d366', fontSize:12, fontWeight:700, textDecoration:'none' }}>
+                Partager sur WhatsApp
+              </a>
+              <button onClick={copyLink}
+                style={{ flex:1, padding:'9px 12px', borderRadius:12, background:T.glass, border:`1px solid ${T.border}`, color:T.textMuted, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                {copied ? 'Lien copié ✓' : '🔗 Copier le lien'}
+              </button>
             </div>
 
             <div style={{ marginTop:'auto', display:'flex', gap:10 }}>
@@ -1001,8 +1022,22 @@ function ShopInner() {
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
-    fetch('/api/products').then(r=>r.json()).then(d=>{setProducts(Array.isArray(d)?d:[]); setLoading(false)}).catch(()=>setLoading(false))
+    fetch('/api/products').then(r=>r.json()).then(d=>{
+      const list = Array.isArray(d) ? d : []
+      setProducts(list)
+      setLoading(false)
+      /* Arrivée directe via /produit/:id (lien partagé) → ouvre la fiche */
+      const m = window.location.pathname.match(/^\/produit\/(\d+)/)
+      if (m) {
+        const p = list.find(x => x.id === Number(m[1]))
+        if (p) setModal(p)
+      }
+    }).catch(()=>setLoading(false))
   }, [])
+
+  /* URL synchronisée avec la fiche ouverte : chaque produit est partageable */
+  const openProduct  = (p) => { setModal(p); window.history.replaceState(null, '', `/produit/${p.id}`) }
+  const closeProduct = () => { setModal(null); window.history.replaceState(null, '', '/catalogue') }
 
   const cats = Object.entries(
     products.reduce((a,p)=>{ if(p.category) a[p.category]=(a[p.category]||0)+1; return a },{})
@@ -1068,7 +1103,7 @@ function ShopInner() {
             {navTab === 'nouveautes' && (
               loading
                 ? <Loader />
-                : <NouveautesView products={products} onAdd={handleAdd} onView={setModal} view={view} setView={setView} />
+                : <NouveautesView products={products} onAdd={handleAdd} onView={openProduct} view={view} setView={setView} />
             )}
 
             {/* ── Onglet Catalogue ── */}
@@ -1082,7 +1117,7 @@ function ShopInner() {
                     <AnimatePresence>
                       {filtered.map((p,i) => (
                         <motion.div key={p.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}>
-                          <ProductCard product={p} onAdd={handleAdd} onView={setModal} />
+                          <ProductCard product={p} onAdd={handleAdd} onView={openProduct} />
                         </motion.div>
                       ))}
                     </AnimatePresence>
@@ -1093,7 +1128,7 @@ function ShopInner() {
                       const img = parse(p.images)[0]?.src
                       return (
                         <motion.div key={p.id} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.03 }}
-                          onClick={() => setModal(p)}
+                          onClick={() => openProduct(p)}
                           style={{ display:'flex', gap:18, background:T.surface, backdropFilter:'blur(16px)', border:`1px solid ${T.border}`, borderRadius:18, overflow:'hidden', padding:16, cursor:'pointer', transition:'border-color 0.2s, box-shadow 0.2s' }}
                           onMouseEnter={e=>{ e.currentTarget.style.borderColor=T.borderHi; e.currentTarget.style.boxShadow='0 8px 30px rgba(255,153,0,0.08)' }}
                           onMouseLeave={e=>{ e.currentTarget.style.borderColor=T.border; e.currentTarget.style.boxShadow='none' }}>
@@ -1120,7 +1155,7 @@ function ShopInner() {
 
             {/* ── Onglet Promotions ── */}
             {navTab === 'promos' && (
-              loading ? <Loader /> : <PromosView products={products} onAdd={handleAdd} onView={setModal} />
+              loading ? <Loader /> : <PromosView products={products} onAdd={handleAdd} onView={openProduct} />
             )}
           </div>
         </div>
@@ -1131,7 +1166,7 @@ function ShopInner() {
 
       {/* Modals */}
       <AnimatePresence>
-        {modal && <ProductModal product={modal} onClose={()=>setModal(null)} onAdd={handleAdd} />}
+        {modal && <ProductModal product={modal} onClose={closeProduct} onAdd={handleAdd} />}
       </AnimatePresence>
 
       <CartPanel isOpen={showCart} onClose={()=>setShowCart(false)} onOpenAuth={()=>{ setShowCart(false); setShowAuth(true) }} />

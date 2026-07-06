@@ -1466,6 +1466,63 @@ app.use('/images/uploads', express.static(UPLOAD_DIR))
 /* Frontend React — activé seulement si FRONTEND_DIST est défini */
 if (process.env.FRONTEND_DIST) {
   const dist = process.env.FRONTEND_DIST
+  const SITE = 'https://varygasy.net'
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+  /* /produit/:id — sert index.html avec les balises OG du produit injectées.
+     Les robots WhatsApp/Facebook n'exécutent pas le JS : sans cette injection,
+     tout lien produit partagé afficherait l'aperçu générique du site. */
+  app.get(/^\/produit\/(\d+)$/, async (req, res) => {
+    const fallback = () => res.sendFile(path.join(dist, 'index.html'))
+    try {
+      const [[p]] = await pool.execute(
+        'SELECT id, name, description, price, images, promo_percent, promo_active FROM products WHERE id=? AND active=1',
+        [Number(req.params[0])]
+      )
+      if (!p) return fallback()
+      let img = null
+      try { img = (JSON.parse(p.images) || [])[0]?.src } catch {}
+      const price  = p.promo_active ? Math.round(p.price * (1 - p.promo_percent / 100)) : p.price
+      const title  = `${p.name} — ${Number(price).toLocaleString('fr-FR')} Ar | VaRyGasy`
+      const desc   = (p.description || 'Accessoire gaming disponible chez VaRyGasy — livraison sur Antananarivo.').slice(0, 200)
+      const imgUrl = img ? SITE + img : `${SITE}/images/gallery/hero-gaming.jpg`
+      const url    = `${SITE}/produit/${p.id}`
+      let html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
+      html = html
+        .replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(title)}</title>`)
+        .replace(/(<meta name="description" content=")[^"]*(")/, `$1${esc(desc)}$2`)
+        .replace(/(<link rel="canonical" href=")[^"]*(")/, `$1${url}$2`)
+        .replace(/(<meta property="og:type" content=")[^"]*(")/, '$1product$2')
+        .replace(/(<meta property="og:url" content=")[^"]*(")/, `$1${url}$2`)
+        .replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${esc(title)}$2`)
+        .replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${esc(desc)}$2`)
+        .replace(/(<meta property="og:image" content=")[^"]*(")/, `$1${imgUrl}$2`)
+        .replace(/<meta property="og:image:(width|height)" content="[^"]*"\s*\/>\s*/g, '')
+        .replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${esc(title)}$2`)
+        .replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${esc(desc)}$2`)
+        .replace(/(<meta name="twitter:image" content=")[^"]*(")/, `$1${imgUrl}$2`)
+      res.send(html)
+    } catch { fallback() }
+  })
+
+  /* Sitemap dynamique : pages fixes + tous les produits en ligne
+     (prend le pas sur le fichier statique de dist/) */
+  app.get('/sitemap.xml', async (req, res) => {
+    try {
+      const [rows] = await pool.execute('SELECT id FROM products WHERE active=1 AND stock > 0 ORDER BY id')
+      const urls = [
+        `<url><loc>${SITE}/</loc><priority>1.0</priority></url>`,
+        `<url><loc>${SITE}/catalogue</loc><priority>0.9</priority></url>`,
+        ...rows.map(r => `<url><loc>${SITE}/produit/${r.id}</loc><priority>0.8</priority></url>`),
+        `<url><loc>${SITE}/confidentialite</loc><priority>0.2</priority></url>`,
+        `<url><loc>${SITE}/cgu</loc><priority>0.2</priority></url>`,
+      ].join('')
+      res.type('application/xml').send(
+        `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`
+      )
+    } catch { res.sendFile(path.join(dist, 'sitemap.xml')) }
+  })
+
   app.use(express.static(dist))
   /* Fallback SPA : toute route inconnue → index.html (sauf API) */
   app.get('*', (req, res) => {

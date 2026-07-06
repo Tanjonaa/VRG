@@ -13,7 +13,8 @@ const isAdmin      = path.startsWith('/admin')
 const isLivreur    = path.startsWith('/livreur')
 const isPrivacy    = path.startsWith('/confidentialite')
 const isCGU        = path.startsWith('/cgu')
-const isCatalogue  = path.startsWith('/catalogue')
+/* /produit/:id ouvre le catalogue avec la fiche produit affichée (lien partageable) */
+const isCatalogue  = path.startsWith('/catalogue') || path.startsWith('/produit/')
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
