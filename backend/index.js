@@ -16,8 +16,22 @@ const app = express()
    premier proxy pour X-Forwarded-For, sinon express-rate-limit compte tous
    les clients comme une seule IP (voire lève ERR_ERL_UNEXPECTED_X_FORWARDED_FOR) */
 app.set('trust proxy', 1)
-app.use(express.json())
-app.use(cors())
+app.use(express.json({ limit: '256kb' }))   // borne la taille des corps JSON (anti-DoS)
+/* CORS restreint : en prod le front est servi par la même app (same-origin),
+   CORS ne sert qu'au dev local. Origines connues uniquement + surcharge par env. */
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ||
+  'https://varygasy.net,https://www.varygasy.net,http://localhost:5173,http://localhost:3000,http://localhost:8001'
+).split(',').map(s => s.trim())
+app.use(cors({
+  origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.includes(origin)),
+}))
+/* En-têtes de sécurité (défense en profondeur, sans dépendance externe) */
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN')          // anti-clickjacking
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  next()
+})
 
 /* ── Préfixe /api ─────────────────────────────────────────
    Le front appelle toujours /api/...
@@ -42,10 +56,16 @@ app.use(apiLimiter)
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/app/uploads'
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 
+/* Extension dérivée du mimetype (jamais du nom fourni par le client) :
+   empêche un .html/.svg piégé d'être stocké puis servi en text/html (XSS stocké). */
+const MIME_EXT = {
+  'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png',
+  'image/webp': '.webp', 'image/avif': '.avif', 'image/gif': '.gif',
+}
 const storage = multer.diskStorage({
   destination: UPLOAD_DIR,
   filename: (req, file, cb) => {
-    const ext    = path.extname(file.originalname).toLowerCase()
+    const ext    = MIME_EXT[file.mimetype] || '.bin'
     const unique = crypto.randomBytes(8).toString('hex')
     cb(null, `${Date.now()}-${unique}${ext}`)
   },
@@ -53,10 +73,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const ok = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif', 'image/gif'].includes(file.mimetype)
-    cb(null, ok)
-  },
+  fileFilter: (req, file, cb) => cb(null, !!MIME_EXT[file.mimetype]),
 })
 
 /* Identifiants BDD : uniquement via variables d'environnement (.env, Docker ou cPanel) */
@@ -75,9 +92,13 @@ const pool = mysql.createPool({
   connectionLimit:  10,
 })
 
-const SECRET = process.env.JWT_SECRET || 'change_this_in_production'
-if (SECRET === 'change_this_in_production')
-  console.warn('⚠️  JWT_SECRET non configuré — utilise la valeur par défaut non sécurisée')
+/* JWT_SECRET obligatoire : sans lui, tout token serait forgeable (usurpation
+   admin). On refuse de démarrer plutôt que d'utiliser une valeur par défaut. */
+const SECRET = process.env.JWT_SECRET
+if (!SECRET || SECRET === 'change_this_in_production' || SECRET.length < 16) {
+  console.error('❌ JWT_SECRET manquant ou trop faible (min. 16 caractères aléatoires)')
+  process.exit(1)
+}
 
 /* ── Initialisation DB (retry — MariaDB peut démarrer après l'API) ── */
 ;(async () => {
@@ -322,6 +343,8 @@ app.post('/auth/register', async (req, res) => {
     return res.status(400).json({ error: 'Remplis tous les champs' })
   if (!phone)
     return res.status(400).json({ error: PHONE_ERROR })
+  if (String(password).length < 8)
+    return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères' })
 
   const conn = await pool.getConnection()
   try {
@@ -825,6 +848,7 @@ app.post('/admin/users', adminAuth, async (req, res) => {
   const phone = normalizePhone(req.body.phone)
   if (!name || !req.body.phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
   if (!phone) return res.status(400).json({ error: PHONE_ERROR })
+  if (String(password).length < 8) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères' })
   if (!['admin', 'moderator', 'livreur'].includes(role)) return res.status(400).json({ error: 'Rôle invalide' })
   try {
     const [existing] = await pool.execute('SELECT id FROM users WHERE phone = ?', [phone])
@@ -1461,7 +1485,14 @@ app.get('/livreur/chat/client/:orderId', livreurAuth, async (req, res) => {
    ═══════════════════════════════════════════════════════════ */
 
 /* Images uploadées (servies depuis UPLOAD_DIR) */
-app.use('/images/uploads', express.static(UPLOAD_DIR))
+app.use('/images/uploads', express.static(UPLOAD_DIR, {
+  /* nosniff : le navigateur ne peut pas réinterpréter un upload comme du HTML/JS.
+     Content-Disposition attachment : un fichier douteux est téléchargé, pas rendu. */
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Content-Security-Policy', "default-src 'none'")
+  },
+}))
 
 /* Frontend React — activé seulement si FRONTEND_DIST est défini */
 if (process.env.FRONTEND_DIST) {
