@@ -10,6 +10,7 @@ const path      = require('path')
 const crypto    = require('crypto')
 const fs        = require('fs')
 const rateLimit = require('express-rate-limit')
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib')
 
 const app = express()
 /* Derrière Apache/Passenger (o2switch) ou nginx (Docker) : fait confiance au
@@ -56,6 +57,11 @@ app.use(apiLimiter)
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/app/uploads'
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 
+/* Factures PDF — hors du dossier public (jamais servies en statique) :
+   accès uniquement via routes authentifiées (données personnelles) */
+const INVOICE_DIR = process.env.INVOICE_DIR || path.join(UPLOAD_DIR, '..', 'invoices')
+if (!fs.existsSync(INVOICE_DIR)) fs.mkdirSync(INVOICE_DIR, { recursive: true })
+
 /* Extension dérivée du mimetype (jamais du nom fourni par le client) :
    empêche un .html/.svg piégé d'être stocké puis servi en text/html (XSS stocké). */
 const MIME_EXT = {
@@ -90,6 +96,7 @@ const pool = mysql.createPool({
   password:         process.env.DB_PASSWORD,
   waitForConnections: true,
   connectionLimit:  10,
+  charset:          'utf8mb4',   /* emojis (4 octets) dans les messages, noms, etc. */
 })
 
 /* JWT_SECRET obligatoire : sans lui, tout token serait forgeable (usurpation
@@ -236,6 +243,29 @@ if (!SECRET || SECRET === 'change_this_in_production' || SECRET.length < 16) {
     PRIMARY KEY (room_id, user_id)
   )`)
 
+  /* Emojis : convertit les tables à texte libre en utf8mb4 (4 octets).
+     Idempotent — sans effet si déjà en utf8mb4. Isolé pour qu'un échec
+     (index trop long, table absente) ne bloque pas le démarrage. */
+  for (const t of ['chat_messages', 'users', 'products', 'settings']) {
+    await pool.execute(`ALTER TABLE ${t} CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`)
+      .catch(e => console.warn(`utf8mb4 ${t}:`, e.code || e.message))
+  }
+  await pool.execute(`CREATE TABLE IF NOT EXISTS invoices (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    number       VARCHAR(30)  NOT NULL UNIQUE,        -- ex: FA2026-00042
+    order_id     INT          NOT NULL UNIQUE,        -- 1 facture par commande
+    user_id      INT          NOT NULL,
+    user_name    VARCHAR(100) NOT NULL,               -- snapshot au moment de la facture
+    user_phone   VARCHAR(20),
+    subtotal     INT          NOT NULL DEFAULT 0,     -- somme des articles (Ar)
+    delivery_fee INT          NOT NULL DEFAULT 0,
+    tva_percent  INT          NOT NULL DEFAULT 0,
+    total        INT          NOT NULL,               -- TTC (Ar)
+    pdf_path     VARCHAR(255),                        -- fichier dans INVOICE_DIR
+    created_at   DATETIME     DEFAULT NOW(),
+    INDEX idx_invoices_date (created_at)
+  )`)
+
   const seeds = [
     ['announcement_active','0'],['announcement_text',''],['announcement_color','#FF9900'],
     ['delivery_fee_tana','3000'],['delivery_fee_peripherique','5000'],
@@ -247,6 +277,13 @@ if (!SECRET || SECRET === 'change_this_in_production' || SECRET.length < 16) {
     ['coming_soon','0'],
     ['coming_soon_date',''],
     ['coming_soon_message','Nous préparons quelque chose d\'exceptionnel. La boutique ouvre bientôt !'],
+    /* Mentions légales des factures — à remplir par l'admin dans Réglages */
+    ['company_legal_name','VaRyGasy'],
+    ['company_nif',''],['company_stat',''],
+    ['company_address','Antananarivo, Madagascar'],
+    ['company_phone',''],['company_email',''],
+    ['invoice_tva_percent','0'],
+    ['invoice_footer','Merci de votre confiance. VaRyGasy — accessoires mobile & gaming à Madagascar.'],
   ]
   for (const [k, v] of seeds)
     await pool.execute('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)', [k, v])
@@ -272,6 +309,159 @@ async function writeLog(adminId, adminName, action, targetType, targetId, target
        newValue != null ? String(newValue) : null]
     )
   } catch {}
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FACTURES — génération PDF (pdf-lib, pur JS) + stockage
+   ═══════════════════════════════════════════════════════════ */
+
+/* WinAnsi (StandardFonts) ne couvre pas tout l'Unicode : on nettoie les
+   caractères hors Latin-1 pour éviter une erreur d'encodage à la génération. */
+const winAnsi = s => String(s ?? '').replace(/[^\x20-\xFF]/g, '')
+const arFmt   = n => Number(n || 0).toLocaleString('fr-FR') + ' Ar'
+
+async function loadSettings() {
+  const [rows] = await pool.execute('SELECT `key`, `value` FROM settings')
+  const o = {}; rows.forEach(r => { o[r.key] = r.value }); return o
+}
+
+/* Construit le PDF d'une facture et retourne un Buffer. */
+async function buildInvoicePDF({ number, date, company, client, items, subtotal, deliveryFee, tvaPercent, total }) {
+  const doc  = await PDFDocument.create()
+  const page = doc.addPage([595, 842]) // A4 en points
+  const font = await doc.embedFont(StandardFonts.Helvetica)
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold)
+  const W = 595, M = 50
+  const gold = rgb(0.8, 0.55, 0.02), dark = rgb(0.1, 0.1, 0.13), grey = rgb(0.45, 0.45, 0.5)
+  let y = 792
+  const text = (t, x, yy, { size = 10, f = font, color = dark } = {}) =>
+    page.drawText(winAnsi(t), { x, y: yy, size, font: f, color })
+  const right = (t, xR, yy, opt = {}) => {
+    const s = winAnsi(t), w = (opt.f || font).widthOfTextAtSize(s, opt.size || 10)
+    text(s, xR - w, yy, opt)
+  }
+
+  /* En-tête entreprise */
+  text(company.legal_name || 'VaRyGasy', M, y, { size: 20, f: bold, color: gold }); y -= 18
+  const infoLines = [company.address, company.phone && 'Tél : ' + company.phone,
+    company.email, company.nif && 'NIF : ' + company.nif, company.stat && 'STAT : ' + company.stat].filter(Boolean)
+  for (const l of infoLines) { text(l, M, y, { size: 9, color: grey }); y -= 12 }
+
+  /* Bloc FACTURE (droite) */
+  right('FACTURE', W - M, 792, { size: 22, f: bold, color: dark })
+  right('N° ' + number, W - M, 768, { size: 11, f: bold })
+  right('Date : ' + date, W - M, 752, { size: 10, color: grey })
+
+  /* Bloc client */
+  y = Math.min(y, 720) - 10
+  page.drawRectangle({ x: M, y: y - 54, width: W - 2 * M, height: 58, color: rgb(0.96, 0.96, 0.97) })
+  text('FACTURÉ À', M + 14, y - 14, { size: 8, f: bold, color: grey })
+  text(client.name, M + 14, y - 30, { size: 12, f: bold })
+  if (client.phone)   text('Tél : ' + client.phone, M + 14, y - 44, { size: 9, color: grey })
+  if (client.address) right(client.address.slice(0, 60), W - M - 14, y - 44, { size: 9, color: grey })
+  y -= 84
+
+  /* En-tête tableau */
+  const cQty = 330, cPrice = 410, cTot = W - M
+  page.drawRectangle({ x: M, y: y - 6, width: W - 2 * M, height: 24, color: dark })
+  text('DÉSIGNATION', M + 10, y, { size: 9, f: bold, color: rgb(1, 1, 1) })
+  right('QTÉ', cQty, y, { size: 9, f: bold, color: rgb(1, 1, 1) })
+  right('P.U.', cPrice, y, { size: 9, f: bold, color: rgb(1, 1, 1) })
+  right('MONTANT', cTot, y, { size: 9, f: bold, color: rgb(1, 1, 1) })
+  y -= 26
+
+  /* Lignes articles */
+  for (const it of items) {
+    text((it.name || '').slice(0, 42), M + 10, y, { size: 10 })
+    right(String(it.qty), cQty, y)
+    right(arFmt(it.price), cPrice, y)
+    right(arFmt(it.qty * it.price), cTot, y)
+    y -= 8
+    page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.5, color: rgb(0.88, 0.88, 0.9) })
+    y -= 14
+  }
+
+  /* Totaux */
+  y -= 8
+  const totLabelX = cPrice
+  const line = (label, val, opt = {}) => {
+    right(label, totLabelX, y, { size: opt.big ? 12 : 10, f: opt.big ? bold : font, color: opt.big ? dark : grey })
+    right(val, cTot, y, { size: opt.big ? 13 : 10, f: opt.big ? bold : font, color: opt.big ? gold : dark })
+    y -= opt.big ? 22 : 16
+  }
+  line('Sous-total', arFmt(subtotal))
+  if (deliveryFee > 0) line('Livraison', arFmt(deliveryFee))
+  if (tvaPercent > 0)  line(`TVA ${tvaPercent}%`, arFmt(Math.round((subtotal + deliveryFee) * tvaPercent / 100)))
+  page.drawLine({ start: { x: totLabelX - 40, y: y + 6 }, end: { x: cTot, y: y + 6 }, thickness: 1, color: dark })
+  y -= 6
+  line('TOTAL', arFmt(total), { big: true })
+
+  /* Pied de page */
+  text(company.footer || '', M, 60, { size: 9, color: grey })
+  text('Document généré automatiquement — VaRyGasy', M, 46, { size: 8, color: rgb(0.7, 0.7, 0.75) })
+
+  const bytes = await doc.save()
+  return Buffer.from(bytes)
+}
+
+/* Crée la facture d'une commande LIVRÉE (idempotent : ne double jamais).
+   Retourne le numéro, ou null si échec silencieux (ne bloque pas la livraison). */
+async function createInvoiceForOrder(orderId) {
+  try {
+    const [[existing]] = await pool.execute('SELECT number FROM invoices WHERE order_id=?', [orderId])
+    if (existing) return existing.number
+
+    const [[order]] = await pool.execute(
+      `SELECT o.*, u.name AS user_name, u.phone AS user_phone
+       FROM orders o JOIN users u ON u.id = o.user_id WHERE o.id=?`, [orderId]
+    )
+    if (!order) return null
+    const [items] = await pool.execute('SELECT name, qty, price FROM order_items WHERE order_id=?', [orderId])
+    const s = await loadSettings()
+
+    const deliveryFee = Number(order.delivery_fee) || 0
+    const subtotal    = items.reduce((a, it) => a + it.qty * it.price, 0)
+    const tvaPercent  = Number(s.invoice_tva_percent) || 0
+    const total       = Number(order.total)
+
+    /* Insert d'abord (id atomique) → numéro dérivé → génère le PDF → update */
+    const [ins] = await pool.execute(
+      `INSERT INTO invoices (number, order_id, user_id, user_name, user_phone,
+        subtotal, delivery_fee, tva_percent, total)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      ['TMP-' + orderId, orderId, order.user_id, order.user_name, order.user_phone,
+       subtotal, deliveryFee, tvaPercent, total]
+    )
+    const number = `FA${new Date().getFullYear()}-${String(ins.insertId).padStart(5, '0')}`
+
+    const pdf = await buildInvoicePDF({
+      number,
+      date: new Date(order.created_at).toLocaleDateString('fr-FR'),
+      company: {
+        legal_name: s.company_legal_name, address: s.company_address, phone: s.company_phone,
+        email: s.company_email, nif: s.company_nif, stat: s.company_stat, footer: s.invoice_footer,
+      },
+      client: { name: order.user_name, phone: order.user_phone, address: order.address },
+      items, subtotal, deliveryFee, tvaPercent, total,
+    })
+    const fileName = number + '.pdf'
+    fs.writeFileSync(path.join(INVOICE_DIR, fileName), pdf)
+    await pool.execute('UPDATE invoices SET number=?, pdf_path=? WHERE id=?', [number, fileName, ins.insertId])
+
+    /* Notifie le client dans son salon support avec le lien de téléchargement */
+    try {
+      let [[room]] = await pool.execute("SELECT id FROM chat_rooms WHERE type='support' AND client_id=? LIMIT 1", [order.user_id])
+      if (!room) {
+        const [r] = await pool.execute("INSERT INTO chat_rooms (type, name, client_id) VALUES ('support',?,?)", [order.user_name, order.user_id])
+        room = { id: r.insertId }
+      }
+      const msg = `🧾 Votre facture ${number} est disponible !\nCommande livrée · Total : ${arFmt(total)}\nTéléchargez-la depuis "Mes commandes" dans votre compte.`
+      await pool.execute('INSERT INTO chat_messages (room_id, sender_id, sender_name, body) VALUES (?,?,?,?)',
+        [room.id, order.user_id, 'VaRyGasy', msg])
+    } catch {}
+
+    return number
+  } catch (e) { console.error('Facture:', e.message); return null }
 }
 
 /* ── Numéros malgaches : normalisation + validation ──────────
@@ -792,6 +982,9 @@ app.put('/admin/orders/:id', adminAuth, async (req, res) => {
     if (status) await pool.execute('UPDATE orders SET status=? WHERE id=?', [status, req.params.id])
     if (payment_confirmed !== undefined)
       await pool.execute('UPDATE orders SET payment_confirmed=? WHERE id=?', [payment_confirmed ? 1 : 0, req.params.id])
+    /* Passage à Livré (par l'admin) → génère la facture, une seule fois */
+    if (status === 'Livré' && prev && prev.status !== 'Livré')
+      createInvoiceForOrder(Number(req.params.id)).catch(() => {})
     if (prev) {
       if (status && status !== prev.status)
         await writeLog(req.user.id, req.user.name, 'order_status', 'order', req.params.id,
@@ -805,6 +998,71 @@ app.put('/admin/orders/:id', adminAuth, async (req, res) => {
     }
     res.json({ ok: true, status, payment_confirmed })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ═══════════════════════════════════════════════════════════
+   FACTURES — routes
+   ═══════════════════════════════════════════════════════════ */
+
+/* Sert un fichier facture depuis INVOICE_DIR (protégé — jamais en statique) */
+function sendInvoiceFile(res, inv) {
+  if (!inv.pdf_path) return res.status(404).json({ error: 'Facture non disponible' })
+  const file = path.join(INVOICE_DIR, path.basename(inv.pdf_path))
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Fichier introuvable' })
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader('Content-Disposition', `inline; filename="${inv.number}.pdf"`)
+  fs.createReadStream(file).pipe(res)
+}
+
+/* GET /invoices/order/:orderId — le client télécharge SA facture */
+app.get('/invoices/order/:orderId', auth, async (req, res) => {
+  try {
+    const [[inv]] = await pool.execute('SELECT * FROM invoices WHERE order_id=?', [Number(req.params.orderId)])
+    if (!inv) return res.status(404).json({ error: 'Aucune facture pour cette commande' })
+    if (inv.user_id !== req.user.id && !['admin', 'moderator'].includes(req.user.role))
+      return res.status(403).json({ error: 'Accès refusé' })
+    sendInvoiceFile(res, inv)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* GET /admin/accounting — comptabilité (ADMIN strict, pas modérateur) */
+app.get('/admin/accounting', adminAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs' })
+  try {
+    const [[tot]] = await pool.execute(
+      'SELECT COUNT(*) AS count, COALESCE(SUM(total),0) AS revenue FROM invoices'
+    )
+    const [[month]] = await pool.execute(
+      `SELECT COUNT(*) AS count, COALESCE(SUM(total),0) AS revenue FROM invoices
+       WHERE MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW())`
+    )
+    const [monthly] = await pool.execute(
+      `SELECT MONTH(created_at) AS month, COALESCE(SUM(total),0) AS total, COUNT(*) AS count
+       FROM invoices WHERE YEAR(created_at)=YEAR(NOW())
+       GROUP BY MONTH(created_at) ORDER BY month`
+    )
+    const [rows] = await pool.execute(
+      `SELECT id, number, order_id, user_name, user_phone, subtotal, delivery_fee, tva_percent, total, created_at
+       FROM invoices ORDER BY id DESC LIMIT 500`
+    )
+    const avg = tot.count > 0 ? Math.round(tot.revenue / tot.count) : 0
+    res.json({
+      totals: { count: tot.count, revenue: Number(tot.revenue), avg,
+                month_count: month.count, month_revenue: Number(month.revenue) },
+      monthly,
+      invoices: rows.map(r => ({ ...r, date: new Date(r.created_at).toLocaleDateString('fr-FR') })),
+    })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* GET /admin/accounting/:id/pdf — télécharge une facture (ADMIN strict) */
+app.get('/admin/accounting/:id/pdf', adminAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs' })
+  try {
+    const [[inv]] = await pool.execute('SELECT * FROM invoices WHERE id=?', [Number(req.params.id)])
+    if (!inv) return res.status(404).json({ error: 'Facture introuvable' })
+    sendInvoiceFile(res, inv)
+  } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 /* ── GET /admin/users ────────────────────────────────── */
@@ -1385,6 +1643,8 @@ app.put('/livreur/orders/:id/status', livreurAuth, async (req, res) => {
       )
       if (r.affectedRows === 0)
         return res.status(403).json({ error: 'Action non autorisée' })
+      /* Livraison confirmée → génère la facture (n'échoue jamais l'opération) */
+      createInvoiceForOrder(Number(req.params.id)).catch(() => {})
     }
     res.json({ ok: true, status })
   } catch (e) { res.status(500).json({ error: e.message }) }

@@ -130,6 +130,29 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('coming_soon_date',          ''),
   ('coming_soon_message',       'Nous préparons quelque chose d''exceptionnel. La boutique ouvre bientôt !');
 
+-- ── invoices ─────────────────────────────────────────────────
+-- Facture générée automatiquement au passage d'une commande à 'Livré'
+-- (idempotent : order_id UNIQUE). PDF stocké hors dossier public,
+-- servi uniquement via routes authentifiées. Comptabilité = admin strict.
+CREATE TABLE IF NOT EXISTS invoices (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  number       VARCHAR(30)  NOT NULL UNIQUE,        -- ex: FA2026-00042
+  order_id     INT          NOT NULL UNIQUE,        -- 1 facture par commande
+  user_id      INT          NOT NULL,
+  user_name    VARCHAR(100) NOT NULL,               -- snapshot au moment de la facture
+  user_phone   VARCHAR(20),
+  subtotal     INT          NOT NULL DEFAULT 0,     -- somme des articles (Ar)
+  delivery_fee INT          NOT NULL DEFAULT 0,
+  tva_percent  INT          NOT NULL DEFAULT 0,     -- setting invoice_tva_percent
+  total        INT          NOT NULL,               -- TTC (Ar)
+  pdf_path     VARCHAR(255),                        -- fichier dans INVOICE_DIR
+  created_at   DATETIME     DEFAULT NOW(),
+  INDEX idx_invoices_date (created_at)
+);
+-- Mentions légales configurables (table settings) : company_legal_name,
+-- company_nif, company_stat, company_address, company_phone, company_email,
+-- invoice_tva_percent, invoice_footer
+
 -- ── team_members ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS team_members (
   id          INT AUTO_INCREMENT PRIMARY KEY,

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Package, LogOut, User, Phone, Lock, Eye, EyeOff,
   Check, AlertCircle, ChevronDown, MapPin, Clock, CreditCard,
-  Pencil, ShieldCheck, Star, Trophy, Zap, Gift, Link, Copy, Users
+  Pencil, ShieldCheck, Star, Trophy, Zap, Gift, Link, Copy, Users, Download
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { api } from '../lib/api.js'
@@ -625,11 +625,40 @@ function OrderCard({ order: o, index }) {
                 <span>Total</span>
                 <span style={{ color: '#fbbf24' }}>Ar {o.total?.toLocaleString('fr-FR')}</span>
               </div>
+
+              {o.status === 'Livré' && <InvoiceButton orderId={o.id} />}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
+  )
+}
+
+/* Téléchargement de facture (commande livrée) — fetch authentifié → blob */
+function InvoiceButton({ orderId }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr]   = useState(false)
+  const download = async () => {
+    setBusy(true); setErr(false)
+    try {
+      const r = await fetch(`/api/invoices/order/${orderId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('vrg_token')}` },
+      })
+      if (!r.ok) throw new Error()
+      const blob = await r.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `facture-commande-${orderId}.pdf`; a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch { setErr(true) }
+    setBusy(false)
+  }
+  return (
+    <button onClick={download} disabled={busy}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 4, padding: '9px 12px', borderRadius: 9, border: '1px solid rgba(255,153,0,0.3)', background: 'rgba(255,153,0,0.1)', color: '#FF9900', fontSize: 12, fontWeight: 700, cursor: busy ? 'default' : 'pointer', fontFamily: 'inherit', opacity: busy ? 0.5 : 1 }}>
+      <Download size={13} /> {busy ? 'Téléchargement…' : err ? 'Facture indisponible' : 'Télécharger la facture'}
+    </button>
   )
 }
 

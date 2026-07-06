@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell, MessageSquare, Shield, Lock } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell, MessageSquare, Shield, Lock, Receipt } from 'lucide-react'
 import PasswordModal from './components/PasswordModal.jsx'
 import Dashboard    from './pages/Dashboard.jsx'
 import Products     from './pages/Products.jsx'
@@ -10,6 +10,7 @@ import SettingsPage from './pages/Settings.jsx'
 import TeamAdmin    from './pages/Team.jsx'
 import LogsPage     from './pages/Logs.jsx'
 import MsgsPage     from './pages/Msgs.jsx'
+import Accounting   from './pages/Accounting.jsx'
 import AdminLogin   from './AdminLogin.jsx'
 
 const NAV = [
@@ -19,10 +20,11 @@ const NAV = [
   { id: 'stocks',    label: 'Stocks',           icon: BarChart3 },
   { id: 'team',      label: 'Équipe',           icon: UserSquare2 },
   { id: 'msgs',      label: 'Messages',         icon: MessageSquare },
-  { id: 'settings',  label: 'Paramètres',       icon: Settings2,  adminOnly: true },
-  { id: 'users',     label: 'Clients',          icon: Users,      adminOnly: true },
-  { id: 'staff',     label: 'Staff',            icon: Shield,     adminOnly: true },
-  { id: 'logs',      label: 'Historique',       icon: Scroll,     adminOnly: true },
+  { id: 'settings',   label: 'Paramètres',      icon: Settings2,  adminOnly: true },
+  { id: 'users',      label: 'Clients',         icon: Users,      adminOnly: true },
+  { id: 'staff',      label: 'Staff',           icon: Shield,     adminOnly: true },
+  { id: 'accounting', label: 'Comptabilité',    icon: Receipt,    adminOnly: true },
+  { id: 'logs',       label: 'Historique',      icon: Scroll,     adminOnly: true },
 ]
 
 /* Deux vues de la même page Users — définies au niveau module pour
@@ -304,7 +306,7 @@ export default function AdminApp() {
   if (!user) return <AdminLogin onLogin={login} />
 
   const safePage = visibleNav.some(n => n.id === page) ? page : 'dashboard'
-  const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: ClientsSection, staff: StaffSection, stocks: Stocks, team: TeamAdmin, settings: SettingsPage, logs: LogsPage, msgs: MsgsPage }[safePage]
+  const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: ClientsSection, staff: StaffSection, stocks: Stocks, team: TeamAdmin, settings: SettingsPage, logs: LogsPage, msgs: MsgsPage, accounting: Accounting }[safePage]
 
   const totalNotifs = notifs.orders + notifs.msgs
 

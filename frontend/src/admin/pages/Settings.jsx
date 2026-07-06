@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Radio, Layout, Star, Image, Package, Megaphone, Truck, Phone, Save, Check, Plus, Trash2, GripVertical, Upload, Clock } from 'lucide-react'
+import { Radio, Layout, Star, Image, Package, Megaphone, Truck, Phone, Save, Check, Plus, Trash2, GripVertical, Upload, Clock, FileText } from 'lucide-react'
 
 const BASE = '/api'
 const h = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
@@ -15,6 +15,7 @@ const SECTIONS = [
   { id: 'cta',          label: 'CTA',         icon: Megaphone, desc: 'Appel à l\'action' },
   { id: 'delivery',     label: 'Livraison',   icon: Truck,     desc: 'Frais de livraison' },
   { id: 'contact',      label: 'Contact',     icon: Phone,     desc: 'WhatsApp & horaires' },
+  { id: 'billing',      label: 'Facturation', icon: FileText,  desc: 'Mentions légales factures' },
 ]
 
 /* ── Defaults ── */
@@ -23,6 +24,10 @@ const DEF = {
   whatsapp: '', business_hours: '', facebook: '', instagram: '',
   coming_soon: '0', coming_soon_date: '',
   coming_soon_message: 'Nous préparons quelque chose d\'exceptionnel. La boutique ouvre bientôt !',
+  company_legal_name: 'VaRyGasy', company_nif: '', company_stat: '',
+  company_address: 'Antananarivo, Madagascar', company_phone: '', company_email: '',
+  invoice_tva_percent: '0',
+  invoice_footer: 'Merci de votre confiance. VaRyGasy — accessoires mobile & gaming à Madagascar.',
 }
 const DEF_TICKER = [
   { text: 'Finger Sleeves Gaming dispo maintenant' },
@@ -432,6 +437,31 @@ export default function Settings() {
             {sectionTitle('Réseaux sociaux (footer)')}
             {field('Facebook', 'URL de la page Facebook', inp(flat.facebook, setF('facebook'), 'url', 'https://facebook.com/...'))}
             {field('Instagram', 'URL du profil Instagram', inp(flat.instagram, setF('instagram'), 'url', 'https://instagram.com/...'))}
+          </>)}
+        </div>}
+
+        {/* ── FACTURATION ── */}
+        {section === 'billing' && <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {card(<>
+            {sectionTitle('Identité sur les factures')}
+            <div style={{ fontSize: 12, color: 'rgba(240,240,245,0.4)', marginBottom: 6 }}>
+              Ces informations apparaissent en en-tête des factures PDF générées automatiquement à chaque livraison.
+            </div>
+            {field('Nom / raison sociale', null, inp(flat.company_legal_name, setF('company_legal_name'), 'text', 'VaRyGasy'))}
+            {field('Adresse', null, inp(flat.company_address, setF('company_address'), 'text', 'Antananarivo, Madagascar'))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {field('Téléphone', null, inp(flat.company_phone, setF('company_phone'), 'tel', '+261...'))}
+              {field('Email', null, inp(flat.company_email, setF('company_email'), 'email', 'contact@...'))}
+            </div>
+          </>)}
+          {card(<>
+            {sectionTitle('Mentions légales (optionnel)')}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {field('NIF', 'Numéro d\'Identification Fiscale', inp(flat.company_nif, setF('company_nif'), 'text', ''))}
+              {field('STAT', 'Numéro statistique', inp(flat.company_stat, setF('company_stat'), 'text', ''))}
+            </div>
+            {field('Taux de TVA (%)', '0 = pas de ligne TVA sur la facture', inp(flat.invoice_tva_percent, setF('invoice_tva_percent'), 'number', '0'))}
+            {field('Message de pied de page', null, ta(flat.invoice_footer, setF('invoice_footer'), 'Merci de votre confiance…', 2))}
           </>)}
         </div>}
       </div>
