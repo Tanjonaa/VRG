@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /livreur
+
+Sitemap: https://varygasy.net/sitemap.xml
