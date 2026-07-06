@@ -81,7 +81,16 @@ CREATE TABLE IF NOT EXISTS referrals (
 CREATE TABLE IF NOT EXISTS visits (
   id    INT  AUTO_INCREMENT PRIMARY KEY,
   date  DATE NOT NULL UNIQUE,                      -- 1 ligne par jour
-  count INT  DEFAULT 1                             -- incrémenté à chaque visite
+  count INT  DEFAULT 1                             -- sessions (1 hit / session navigateur)
+);
+
+-- ── visit_uniques ────────────────────────────────────────────
+-- Visiteurs uniques par jour : empreinte sha256(IP|User-Agent)
+-- tronquée, dédupliquée par clé primaire. Robots exclus côté API.
+CREATE TABLE IF NOT EXISTS visit_uniques (
+  date    DATE     NOT NULL,
+  ip_hash CHAR(16) NOT NULL,
+  PRIMARY KEY (date, ip_hash)
 );
 
 -- ── settings ─────────────────────────────────────────────────

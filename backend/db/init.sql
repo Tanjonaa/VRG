@@ -84,6 +84,13 @@ CREATE TABLE IF NOT EXISTS visits (
   count INT  DEFAULT 1
 );
 
+-- ── visit_uniques ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS visit_uniques (
+  date    DATE     NOT NULL,
+  ip_hash CHAR(16) NOT NULL,                       -- sha256(IP|UA) tronqué
+  PRIMARY KEY (date, ip_hash)
+);
+
 -- ── settings ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS settings (
   `key`      VARCHAR(100) PRIMARY KEY,

@@ -154,6 +154,11 @@ if (SECRET === 'change_this_in_production')
     date  DATE NOT NULL UNIQUE,
     count INT  DEFAULT 1
   )`)
+  await pool.execute(`CREATE TABLE IF NOT EXISTS visit_uniques (
+    date    DATE     NOT NULL,
+    ip_hash CHAR(16) NOT NULL,
+    PRIMARY KEY (date, ip_hash)
+  )`)
   await pool.execute(`CREATE TABLE IF NOT EXISTS settings (
     \`key\`      VARCHAR(100) PRIMARY KEY,
     \`value\`    TEXT,
@@ -511,11 +516,21 @@ app.post('/orders', auth, async (req, res) => {
 /* ── POST /visits ────────────────────────────────────── */
 app.post('/visits', async (req, res) => {
   try {
-    /* CURDATE() : même horloge que les stats du dashboard (heure serveur MySQL),
-       pas l'heure UTC de Node qui décale d'un jour entre minuit et 2h */
+    /* Les robots connus ne comptent pas (Googlebot exécute le JS du site) */
+    const ua = req.headers['user-agent'] || ''
+    if (/bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|curl|wget/i.test(ua))
+      return res.json({ ok: true })
+
+    /* Sessions : compteur brut (CURDATE() = même horloge que les stats) */
     await pool.execute(
       'INSERT INTO visits (date, count) VALUES (CURDATE(), 1) ON DUPLICATE KEY UPDATE count = count + 1'
     )
+    /* Visiteurs uniques : empreinte IP+navigateur hachée, dédupliquée par jour
+       côté serveur — insensible aux onglets multiples et aux rafales.
+       IP+UA (et pas IP seule) : les IP mobiles malgaches sont partagées (CGNAT),
+       l'User-Agent distingue partiellement les appareils derrière. */
+    const hash = crypto.createHash('sha256').update(req.ip + '|' + ua).digest('hex').slice(0, 16)
+    await pool.execute('INSERT IGNORE INTO visit_uniques (date, ip_hash) VALUES (CURDATE(), ?)', [hash])
     res.json({ ok: true })
   } catch { res.json({ ok: false }) }
 })
@@ -578,6 +593,8 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
     const [[{ month_users }]]  = await pool.execute("SELECT COUNT(*) as month_users FROM users WHERE MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW()) AND role='client'")
     const [[{ today_visits }]] = await pool.execute("SELECT COALESCE(SUM(count),0) as today_visits FROM visits WHERE date=CURDATE()")
     const [[{ month_visits }]] = await pool.execute("SELECT COALESCE(SUM(count),0) as month_visits FROM visits WHERE MONTH(date)=MONTH(NOW()) AND YEAR(date)=YEAR(NOW())")
+    const [[{ today_uniques }]] = await pool.execute("SELECT COUNT(*) as today_uniques FROM visit_uniques WHERE date=CURDATE()")
+    const [[{ month_uniques }]] = await pool.execute("SELECT COUNT(*) as month_uniques FROM visit_uniques WHERE MONTH(date)=MONTH(NOW()) AND YEAR(date)=YEAR(NOW())")
     const [[{ low_stock }]]    = await pool.execute('SELECT COUNT(*) as low_stock FROM products WHERE stock <= 5 AND active=1')
 
     const [monthly_sales] = await pool.execute(
@@ -593,7 +610,7 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
       sales:   { total: total_sales, month: month_sales, today: today_sales },
       orders:  { total: total_orders, pending, confirmed, delivered },
       users:   { total: total_users, month: month_users },
-      visits:  { today: today_visits, month: month_visits },
+      visits:  { today: today_visits, month: month_visits, today_uniques, month_uniques },
       alerts:  { low_stock },
       charts:  { monthly_sales, monthly_users },
     })

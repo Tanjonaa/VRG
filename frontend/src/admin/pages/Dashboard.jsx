@@ -34,7 +34,10 @@ export default function Dashboard() {
         <KPICard icon={<TrendingUp size={18} />} label="Ventes aujourd'hui" value={`Ar ${stats.sales.today.toLocaleString('fr-FR')}`} color="#fbbf24" />
         <KPICard icon={<ShoppingBag size={18} />} label="Commandes total" value={stats.orders.total} sub={`${stats.orders.pending} en attente`} color="#60a5fa" />
         <KPICard icon={<Users size={18} />} label="Clients ce mois" value={stats.users.month} sub={`Total : ${stats.users.total}`} color="#a78bfa" />
-        <KPICard icon={<Eye size={18} />} label="Visites ce mois" value={stats.visits.month.toLocaleString('fr-FR')} sub={`Aujourd'hui : ${stats.visits.today}`} color="#34d399" />
+        <KPICard icon={<Eye size={18} />} label="Visiteurs ce mois"
+          value={Number(stats.visits.month_uniques ?? stats.visits.month).toLocaleString('fr-FR')}
+          sub={`Aujourd'hui : ${stats.visits.today_uniques ?? stats.visits.today} · ${Number(stats.visits.month).toLocaleString('fr-FR')} sessions`}
+          color="#34d399" />
       </div>
 
       {/* Order status */}
