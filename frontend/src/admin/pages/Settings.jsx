@@ -21,6 +21,7 @@ const SECTIONS = [
 /* ── Defaults ── */
 const DEF = {
   delivery_fee_tana: '3000', delivery_fee_peripherique: '5000',
+  reassurance_text: 'La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours',
   whatsapp: '', business_hours: '', facebook: '', instagram: '',
   coming_soon: '0', coming_soon_date: '',
   coming_soon_message: 'Nous préparons quelque chose d\'exceptionnel. La boutique ouvre bientôt !',
@@ -424,6 +425,9 @@ export default function Settings() {
           <div style={{ padding: '10px 14px', borderRadius: 9, background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.15)', fontSize: 12, color: 'rgba(96,165,250,0.7)' }}>
             Les commandes existantes conservent les frais enregistrés à la création.
           </div>
+          {sectionTitle('Bandeau de réassurance')}
+          {field('Texte affiché sous les tarifs et le CTA', 'Séparez les arguments par « · ». Affiché sur la page d\'accueil.',
+            ta(flat.reassurance_text, setF('reassurance_text'), 'La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours', 3))}
         </>)}
 
         {/* ── CONTACT ── */}
