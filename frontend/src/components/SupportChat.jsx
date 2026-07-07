@@ -59,6 +59,8 @@ export default function SupportChat() {
         const msgs = d.messages || []
         setMessages(msgs)
         if (msgs.length > 0) setLastId(msgs[msgs.length - 1].id)
+        /* Alerte les messages reçus hors-ligne (badge dès le chargement) */
+        if (!open) setUnread(d.unread || 0)
       })
       .catch(() => {})
   }, [user?.id])
@@ -143,14 +145,23 @@ export default function SupportChat() {
         .vrg-msg-scroll::-webkit-scrollbar { width: 4px; }
         .vrg-msg-scroll::-webkit-scrollbar-track { background: transparent; }
         .vrg-msg-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        /* Panneau : flottant sur desktop, quasi plein écran sur mobile
+           (sinon 336px de large débordent et masquent le contenu du site) */
+        .vrg-chat-panel {
+          position: fixed; bottom: 90px; right: 20px; z-index: 99999;
+          width: 336px; height: 480px; border-radius: 20px;
+        }
+        @media (max-width: 480px) {
+          .vrg-chat-panel {
+            top: 12px; left: 12px; right: 12px; bottom: 86px;
+            width: auto; height: auto; border-radius: 16px;
+          }
+        }
       `}</style>
 
       {/* Panel */}
       {open && (
-        <div style={{
-          position: 'fixed', bottom: 90, right: 20, zIndex: 99999,
-          width: 336, height: 480,
-          borderRadius: 20,
+        <div className="vrg-chat-panel" style={{
           background: 'linear-gradient(180deg, #13132a 0%, #0d0d1e 100%)',
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,153,0,0.08)',

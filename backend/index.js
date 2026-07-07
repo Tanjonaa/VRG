@@ -1481,7 +1481,16 @@ app.get('/chat/support', auth, async (req, res) => {
     const [messages] = await pool.execute(
       'SELECT * FROM chat_messages WHERE room_id=? ORDER BY created_at ASC LIMIT 100', [room.id]
     )
-    res.json({ room_id: room.id, messages })
+    /* Non lus reçus (staff → client) au-delà du marqueur de lecture du client :
+       permet d'alerter dès le chargement les messages arrivés hors-ligne */
+    const [[{ unread }]] = await pool.execute(
+      `SELECT COUNT(*) AS unread FROM chat_messages
+       WHERE room_id=? AND sender_id != ?
+         AND id > COALESCE((SELECT last_read_id FROM chat_reads
+                            WHERE room_id=? AND user_id=?), 0)`,
+      [room.id, req.user.id, room.id, req.user.id]
+    )
+    res.json({ room_id: room.id, messages, unread })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
