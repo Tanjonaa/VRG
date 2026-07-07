@@ -108,7 +108,7 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('facebook',       ''),
   ('instagram',      ''),
   ('business_hours', ''),
-  ('reassurance_text', 'Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours'),
+  ('reassurance_text', 'La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours'),
   ('marquee_items',  '[{"text":"Finger Sleeves Gaming dispo maintenant"},{"text":"Livraison 24h sur Antananarivo"},{"text":"+1 200 gamers équipés à Madagascar"},{"text":"Ventilateurs Turbo — stock limité"},{"text":"Garantie 6 mois sur tous les produits"},{"text":"Support WhatsApp 7j/7 — réponse en 5 min"}]'),
   ('team_badge',    'Notre équipe'),
   ('team_title',    'Les personnes derrière'),

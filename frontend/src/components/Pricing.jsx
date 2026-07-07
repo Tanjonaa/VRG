@@ -23,7 +23,7 @@ const DEFAULT_CONTENT = {
   ],
 }
 
-const DEFAULT_REASSURANCE = 'Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours'
+const DEFAULT_REASSURANCE = 'La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours'
 
 const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.12 } } }
 const cardVariants = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] } } }
