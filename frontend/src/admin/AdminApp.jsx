@@ -14,16 +14,21 @@ import Accounting   from './pages/Accounting.jsx'
 import AdminLogin   from './AdminLogin.jsx'
 
 const NAV = [
+  /* Pilotage quotidien */
   { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-  { id: 'products',  label: 'Articles',         icon: Package },
   { id: 'orders',    label: 'Commandes',        icon: ShoppingBag },
-  { id: 'stocks',    label: 'Stocks',           icon: BarChart3 },
-  { id: 'team',      label: 'Équipe',           icon: UserSquare2 },
   { id: 'msgs',      label: 'Messages',         icon: MessageSquare },
-  { id: 'settings',   label: 'Paramètres',      icon: Settings2,  adminOnly: true },
+  /* Catalogue */
+  { id: 'products',  label: 'Articles',         icon: Package },
+  { id: 'stocks',    label: 'Stocks',           icon: BarChart3 },
+  /* Finance */
+  { id: 'accounting', label: 'Comptabilité',    icon: Receipt,    adminOnly: true },
+  /* Comptes */
   { id: 'users',      label: 'Clients',         icon: Users,      adminOnly: true },
   { id: 'staff',      label: 'Staff',           icon: Shield,     adminOnly: true },
-  { id: 'accounting', label: 'Comptabilité',    icon: Receipt,    adminOnly: true },
+  /* Contenu & configuration */
+  { id: 'team',       label: 'Équipe',          icon: UserSquare2 },
+  { id: 'settings',   label: 'Paramètres',      icon: Settings2,  adminOnly: true },
   { id: 'logs',       label: 'Historique',      icon: Scroll,     adminOnly: true },
 ]
 
