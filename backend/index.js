@@ -878,9 +878,23 @@ app.get('/admin/categories', adminAuth, async (req, res) => {
 app.get('/admin/products', adminAuth, async (req, res) => {
   try {
     const [rows] = await pool.execute('SELECT * FROM products ORDER BY created_at DESC')
-    res.json(rows)
+    res.json(rows.map(p => ({
+      ...p,
+      images: (() => { try { return JSON.parse(p.images) } catch { return [] } })(),
+    })))
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
+
+/* images arrive soit en tableau (formulaire admin), soit déjà en chaîne JSON
+   (relecture d'un produit existant) — ne jamais re-stringifier une chaîne déjà
+   encodée, sous peine de double-encodage (cf. bug og:image du 2026-07-14). */
+const normalizeImages = images => {
+  if (Array.isArray(images)) return JSON.stringify(images)
+  if (typeof images === 'string') {
+    try { return JSON.stringify(JSON.parse(images)) } catch { return '[]' }
+  }
+  return null
+}
 
 /* ── POST /admin/products ────────────────────────────── */
 app.post('/admin/products', adminAuth, async (req, res) => {
@@ -889,7 +903,7 @@ app.post('/admin/products', adminAuth, async (req, res) => {
   try {
     const [r] = await pool.execute(
       'INSERT INTO products (name, description, price, category, stock, images) VALUES (?, ?, ?, ?, ?, ?)',
-      [name.trim(), description || '', price, category || '', stock || 0, JSON.stringify(images || [])]
+      [name.trim(), description || '', price, category || '', stock || 0, normalizeImages(images) ?? '[]']
     )
     const [rows] = await pool.execute('SELECT * FROM products WHERE id = ?', [r.insertId])
     await writeLog(req.user.id, req.user.name, 'product_add', 'product', r.insertId, name.trim(), null, category || null)
@@ -907,7 +921,7 @@ app.put('/admin/products/:id', adminAuth, async (req, res) => {
        price=COALESCE(?,price), category=COALESCE(?,category), stock=COALESCE(?,stock),
        images=COALESCE(?,images), active=COALESCE(?,active) WHERE id=?`,
       [name||null, description||null, price??null, category||null, stock??null,
-       images ? JSON.stringify(images) : null, active??null, req.params.id]
+       normalizeImages(images), active??null, req.params.id]
     )
     const [rows] = await pool.execute('SELECT * FROM products WHERE id = ?', [req.params.id])
     if (prev) {
