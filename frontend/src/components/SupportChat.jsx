@@ -20,20 +20,47 @@ export default function SupportChat() {
   const [text, setText]         = useState('')
   const [roomId, setRoomId]     = useState(null)
   const [sending, setSending]   = useState(false)
-  const [lastAt, setLastAt]     = useState(null)
+  const [lastId, setLastId]     = useState(null)
   const [unread, setUnread]     = useState(0)
+  const [othersRead, setOthersRead] = useState(0)   // plus grand msg lu par le staff
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
+  const msgsRef   = useRef([])
+  useEffect(() => { msgsRef.current = messages }, [messages])
+
+  /* Marque comme lus les messages affichés — UNIQUEMENT panneau ouvert
+     (le poll tourne aussi panneau fermé, il ne doit pas marquer lu) */
+  const markRead = useCallback((msgs) => {
+    if (!roomId) return
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (!String(msgs[i].id).startsWith('opt-')) {
+        fetch(`${BASE}/chat/rooms/${roomId}/read`, {
+          method: 'POST', headers: ah(), body: JSON.stringify({ last_id: msgs[i].id }),
+        }).catch(() => {})
+        return
+      }
+    }
+  }, [roomId])
+
+  const fetchReadStatus = useCallback(() => {
+    if (!roomId) return
+    fetch(`${BASE}/chat/rooms/${roomId}/read-status`, { headers: ah() })
+      .then(r => r.json())
+      .then(d => setOthersRead(Number(d.others_read) || 0))
+      .catch(() => {})
+  }, [roomId])
 
   useEffect(() => {
-    if (!user) { setMessages([]); setRoomId(null); setLastAt(null); setUnread(0); return }
+    if (!user) { setMessages([]); setRoomId(null); setLastId(null); setUnread(0); return }
     fetch(`${BASE}/chat/support`, { headers: ah() })
       .then(r => r.json())
       .then(d => {
         setRoomId(d.room_id)
         const msgs = d.messages || []
         setMessages(msgs)
-        if (msgs.length > 0) setLastAt(msgs[msgs.length - 1].created_at)
+        if (msgs.length > 0) setLastId(msgs[msgs.length - 1].id)
+        /* Alerte les messages reçus hors-ligne (badge dès le chargement) */
+        if (!open) setUnread(d.unread || 0)
       })
       .catch(() => {})
   }, [user?.id])
@@ -42,28 +69,36 @@ export default function SupportChat() {
     if (!roomId || !user) return
     const id = setInterval(async () => {
       try {
-        const url = `${BASE}/chat/support/poll${lastAt ? '?since=' + encodeURIComponent(lastAt) : ''}`
+        const url = `${BASE}/chat/support/poll${lastId ? '?after=' + lastId : ''}`
         const r = await fetch(url, { headers: ah() })
         const data = await r.json()
         if (Array.isArray(data) && data.length > 0) {
-          setMessages(prev => [...prev, ...data])
-          setLastAt(data[data.length - 1].created_at)
+          setMessages(prev => {
+            const seen = new Set(prev.map(m => m.id))
+            const fresh = data.filter(m => !seen.has(m.id))
+            return fresh.length ? [...prev, ...fresh] : prev
+          })
+          setLastId(data[data.length - 1].id)
           if (!open) setUnread(n => n + data.filter(m => m.sender_id !== user.id).length)
+          else markRead(data)
         }
+        if (open) fetchReadStatus()
       } catch {}
-    }, 4000)
+    }, 8000)
     return () => clearInterval(id)
-  }, [roomId, lastAt, open, user?.id])
+  }, [roomId, lastId, open, user?.id, markRead, fetchReadStatus])
 
   useEffect(() => {
     if (open) {
       setUnread(0)
+      markRead(msgsRef.current)
+      fetchReadStatus()
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'instant' })
         inputRef.current?.focus()
       }, 120)
     }
-  }, [open])
+  }, [open, markRead, fetchReadStatus])
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -82,8 +117,11 @@ export default function SupportChat() {
       })
       const msg = await r.json()
       if (msg.id) {
-        setMessages(prev => prev.map(m => m.id === optimistic.id ? msg : m))
-        setLastAt(msg.created_at)
+        setMessages(prev => {
+          const withoutOpt = prev.filter(m => m.id !== optimistic.id)
+          return withoutOpt.some(m => m.id === msg.id) ? withoutOpt : [...withoutOpt, msg]
+        })
+        setLastId(msg.id)
       }
     } catch {
       setMessages(prev => prev.filter(m => m.id !== optimistic.id))
@@ -107,14 +145,23 @@ export default function SupportChat() {
         .vrg-msg-scroll::-webkit-scrollbar { width: 4px; }
         .vrg-msg-scroll::-webkit-scrollbar-track { background: transparent; }
         .vrg-msg-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        /* Panneau : flottant sur desktop, quasi plein écran sur mobile
+           (sinon 336px de large débordent et masquent le contenu du site) */
+        .vrg-chat-panel {
+          position: fixed; bottom: 90px; right: 20px; z-index: 99999;
+          width: 336px; height: 480px; border-radius: 20px;
+        }
+        @media (max-width: 480px) {
+          .vrg-chat-panel {
+            top: 12px; left: 12px; right: 12px; bottom: 86px;
+            width: auto; height: auto; border-radius: 16px;
+          }
+        }
       `}</style>
 
       {/* Panel */}
       {open && (
-        <div style={{
-          position: 'fixed', bottom: 90, right: 20, zIndex: 99999,
-          width: 336, height: 480,
-          borderRadius: 20,
+        <div className="vrg-chat-panel" style={{
           background: 'linear-gradient(180deg, #13132a 0%, #0d0d1e 100%)',
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,153,0,0.08)',
@@ -199,6 +246,7 @@ export default function SupportChat() {
                   const prevSame = i > 0 && messages[i - 1].sender_id === msg.sender_id
                   const nextSame = i < messages.length - 1 && messages[i + 1].sender_id === msg.sender_id
                   const isOpt = String(msg.id).startsWith('opt-')
+                  const lastMine = isMe && !isOpt && !messages.slice(i + 1).some(m => m.sender_id === user.id)
                   return (
                     <div key={msg.id} style={{
                       display: 'flex',
@@ -209,16 +257,22 @@ export default function SupportChat() {
                       {!isMe && (
                         <div style={{ width: 28, flexShrink: 0 }}>
                           {!nextSame && (
-                            <div style={{
+                            <div title={msg.sender_name} style={{
                               width: 28, height: 28, borderRadius: '50%',
                               background: 'linear-gradient(135deg,#FF9900,#e06000)',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontWeight: 800, fontSize: 12, color: '#fff',
-                            }}>V</div>
+                            }}>{msg.sender_name?.[0]?.toUpperCase() || 'V'}</div>
                           )}
                         </div>
                       )}
                       <div style={{ maxWidth: '75%', display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', gap: 1 }}>
+                        {/* Qui de l'équipe répond — le client sait à qui il parle */}
+                        {!isMe && !prevSame && (
+                          <span style={{ fontSize: 10, color: '#FF9900', fontWeight: 700, marginLeft: 3, marginBottom: 1, opacity: 0.85 }}>
+                            {msg.sender_name} · équipe VaRyGasy
+                          </span>
+                        )}
                         <div style={{
                           padding: '9px 13px',
                           borderRadius: isMe
@@ -238,6 +292,11 @@ export default function SupportChat() {
                         {(!nextSame || !isMe) && (
                           <span style={{ fontSize: 10, color: 'rgba(240,240,245,0.2)', marginTop: 1 }}>
                             {fmtTime(msg.created_at)}
+                            {lastMine && (
+                              msg.id <= othersRead
+                                ? <span style={{ marginLeft: 5, color: '#22c55e', fontWeight: 700 }}>✓✓ Vu</span>
+                                : <span style={{ marginLeft: 5, color: 'rgba(240,240,245,0.3)', fontWeight: 600 }}>✓ Envoyé</span>
+                            )}
                           </span>
                         )}
                       </div>

@@ -1,0 +1,107 @@
+<svg width="100%" viewBox="0 0 690 730" role="img" xmlns="http://www.w3.org/2000/svg" style="">
+<title style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">VRG Gaming Team Ventes</title>
+<desc style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">Logo VRG Gaming Team Ventes, design professionnel doré sur fond noir</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#111111"/>
+    <stop offset="100%" stop-color="#000000"/>
+  </linearGradient>
+  <linearGradient id="fG" x1="0.2" y1="0" x2="0.8" y2="1">
+    <stop offset="0%" stop-color="#FFDD55"/>
+    <stop offset="35%" stop-color="#FF9900"/>
+    <stop offset="100%" stop-color="#CC5500"/>
+  </linearGradient>
+  <linearGradient id="fG2" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#FFB300"/>
+    <stop offset="100%" stop-color="#993300"/>
+  </linearGradient>
+  <linearGradient id="wG" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#FFAA33"/>
+    <stop offset="100%" stop-color="#AA4400"/>
+  </linearGradient>
+  <linearGradient id="lG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#FFE066"/>
+    <stop offset="45%" stop-color="#FFAA00"/>
+    <stop offset="100%" stop-color="#BB6600"/>
+  </linearGradient>
+  <linearGradient id="divG" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#000000"/>
+    <stop offset="30%" stop-color="#FFAA00"/>
+    <stop offset="70%" stop-color="#FFAA00"/>
+    <stop offset="100%" stop-color="#000000"/>
+  </linearGradient>
+  <filter id="softGlow">
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+  </filter>
+</defs>
+
+<rect width="680" height="720" fill="url(#bg)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- Subtle outer ring decoration -->
+<circle cx="340" cy="280" r="195" fill="none" stroke="#FF9900" stroke-width="0.6" opacity="0.18" style="fill:none;stroke:rgb(255, 153, 0);color:rgb(255, 255, 255);stroke-width:0.6px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.18;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="340" cy="280" r="185" fill="none" stroke="#FFAA00" stroke-width="0.4" opacity="0.12" style="fill:none;stroke:rgb(255, 170, 0);color:rgb(255, 255, 255);stroke-width:0.4px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.12;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- === EMBLEM GROUP centered at 340, top at 80 === -->
+<g transform="translate(340,95)" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+
+  <!-- Shadow/glow behind flame -->
+  <ellipse cx="0" cy="200" rx="85" ry="30" fill="#FF8800" opacity="0.10" style="fill:rgb(255, 136, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- FLAME — main body -->
+  <path d="&#10;    M 0 -10&#10;    C 0 -10, 55 30, 65 90&#10;    C 75 140, 60 170, 45 195&#10;    C 65 165, 72 135, 62 105&#10;    C 55 140, 45 175, 30 205&#10;    C 38 170, 42 140, 34 115&#10;    C 20 150, 12 185, 10 215&#10;    C 4 180, 8 145, 2 120&#10;    C -8 155, -14 190, -12 220&#10;    C -20 185, -18 150, -24 125&#10;    C -38 160, -40 195, -35 220&#10;    C -48 190, -52 155, -44 120&#10;    C -60 145, -68 175, -62 205&#10;    C -72 175, -70 140, -58 105&#10;    C -72 130, -75 165, -66 195&#10;    C -80 165, -78 125, -60 90&#10;    C -45 55, -20 20, 0 -10 Z&#10;  " fill="url(#fG)" opacity="0.97" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.97;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Flame inner highlight -->
+  <path d="&#10;    M 0 20&#10;    C 10 45, 28 70, 30 105&#10;    C 32 130, 22 155, 14 178&#10;    C 20 152, 22 128, 16 108&#10;    C 10 130, 6 158, 4 182&#10;    C -2 155, 0 128, -4 108&#10;    C -12 135, -16 162, -14 185&#10;    C -22 158, -20 130, -14 108&#10;    C -24 128, -26 152, -22 172&#10;    C -30 148, -28 120, -16 98&#10;    C -8 70, -4 45, 0 20 Z&#10;  " fill="url(#fG2)" opacity="0.55" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.55;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- WHEAT STEM -->
+  <path d="M 0 210 Q 6 150 8 80" fill="none" stroke="#CC6600" stroke-width="3.5" stroke-linecap="round" style="fill:none;stroke:rgb(204, 102, 0);color:rgb(255, 255, 255);stroke-width:3.5px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Wheat tip -->
+  <ellipse cx="9" cy="68" rx="6" ry="11" fill="url(#wG)" transform="rotate(8,9,68)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Wheat grains RIGHT -->
+  <g opacity="0.92" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.92;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <ellipse cx="24" cy="90" rx="13" ry="8" fill="url(#wG)" transform="rotate(40,24,90)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <ellipse cx="26" cy="112" rx="13" ry="8" fill="url(#wG)" transform="rotate(42,26,112)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <ellipse cx="25" cy="134" rx="12" ry="7" fill="url(#wG)" transform="rotate(42,25,134)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <ellipse cx="22" cy="155" rx="11" ry="7" fill="url(#wG)" transform="rotate(40,22,155)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <ellipse cx="19" cy="175" rx="10" ry="6" fill="url(#wG)" transform="rotate(38,19,175)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  </g>
+
+  <!-- Wheat grains LEFT -->
+  <g opacity="0.88" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.88;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <ellipse cx="-8" cy="96" rx="12" ry="7" fill="url(#wG)" transform="rotate(-38,-8,96)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <ellipse cx="-10" cy="118" rx="12" ry="7" fill="url(#wG)" transform="rotate(-40,-10,118)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <ellipse cx="-9" cy="140" rx="11" ry="7" fill="url(#wG)" transform="rotate(-42,-9,140)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <ellipse cx="-7" cy="161" rx="10" ry="6" fill="url(#wG)" transform="rotate(-40,-7,161)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <ellipse cx="-4" cy="180" rx="9" ry="6" fill="url(#wG)" transform="rotate(-36,-4,180)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  </g>
+
+  <!-- Flame base mask (darkens bottom overlap with letters) -->
+  <rect x="-90" y="208" width="180" height="20" fill="url(#bg)" opacity="0.7" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+</g>
+
+<!-- ══ VRG ══ -->
+<text x="340" y="497" text-anchor="middle" font-family="'Times New Roman', Georgia, serif" font-size="118" font-weight="900" fill="url(#lG)" letter-spacing="6" stroke="#0a0500" stroke-width="2.5" paint-order="stroke fill" style="stroke:rgb(10, 5, 0);color:rgb(255, 255, 255);stroke-width:2.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Times New Roman&quot;, Georgia, serif;font-size:118px;font-weight:900;text-anchor:middle;dominant-baseline:auto">VRG</text>
+
+<!-- Thin gold rule -->
+<rect x="140" y="510" width="400" height="1.2" fill="url(#divG)" rx="1" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- GAMING TEAM -->
+<text x="340" y="547" text-anchor="middle" font-family="'Trebuchet MS', Arial Narrow, sans-serif" font-size="24" font-weight="700" fill="#FFAA00" letter-spacing="12" style="fill:rgb(255, 170, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Trebuchet MS&quot;, &quot;Arial Narrow&quot;, sans-serif;font-size:24px;font-weight:700;text-anchor:middle;dominant-baseline:auto">GAMING TEAM</text>
+
+<!-- Diamond separators -->
+<polygon points="200,570 205,575 200,580 195,575" fill="#FFAA00" opacity="0.7" style="fill:rgb(255, 170, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<polygon points="480,570 485,575 480,580 475,575" fill="#FFAA00" opacity="0.7" style="fill:rgb(255, 170, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.7;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- Thin rule 2 -->
+<rect x="210" y="574" width="260" height="0.8" fill="url(#divG)" rx="1" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- VENTES -->
+<text x="340" y="608" text-anchor="middle" font-family="'Trebuchet MS', Arial Narrow, sans-serif" font-size="17" font-weight="400" fill="#CC8800" letter-spacing="16" style="fill:rgb(204, 136, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Trebuchet MS&quot;, &quot;Arial Narrow&quot;, sans-serif;font-size:17px;font-weight:400;text-anchor:middle;dominant-baseline:auto">VENTES</text>
+
+<!-- Bottom ornament line -->
+<rect x="170" y="622" width="340" height="0.8" fill="url(#divG)" rx="1" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+</svg>

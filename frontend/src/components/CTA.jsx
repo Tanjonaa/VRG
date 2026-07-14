@@ -19,7 +19,7 @@ const DEFAULT_CONTENT = {
   ],
 }
 
-const DEFAULT_REASSURANCE = 'Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours'
+const DEFAULT_REASSURANCE = 'La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours'
 
 export default function CTA() {
   const ref = useRef(null)

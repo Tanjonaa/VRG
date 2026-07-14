@@ -1,4 +1,6 @@
-﻿const express   = require('express')
+﻿require('dotenv').config()
+
+const express   = require('express')
 const mysql     = require('mysql2/promise')
 const bcrypt    = require('bcryptjs')
 const jwt       = require('jsonwebtoken')
@@ -8,10 +10,29 @@ const path      = require('path')
 const crypto    = require('crypto')
 const fs        = require('fs')
 const rateLimit = require('express-rate-limit')
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib')
 
 const app = express()
-app.use(express.json())
-app.use(cors())
+/* Derrière Apache/Passenger (o2switch) ou nginx (Docker) : fait confiance au
+   premier proxy pour X-Forwarded-For, sinon express-rate-limit compte tous
+   les clients comme une seule IP (voire lève ERR_ERL_UNEXPECTED_X_FORWARDED_FOR) */
+app.set('trust proxy', 1)
+app.use(express.json({ limit: '256kb' }))   // borne la taille des corps JSON (anti-DoS)
+/* CORS restreint : en prod le front est servi par la même app (same-origin),
+   CORS ne sert qu'au dev local. Origines connues uniquement + surcharge par env. */
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ||
+  'https://varygasy.net,https://www.varygasy.net,http://localhost:5173,http://localhost:3000,http://localhost:8001'
+).split(',').map(s => s.trim())
+app.use(cors({
+  origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.includes(origin)),
+}))
+/* En-têtes de sécurité (défense en profondeur, sans dépendance externe) */
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN')          // anti-clickjacking
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  next()
+})
 
 /* ── Préfixe /api ─────────────────────────────────────────
    Le front appelle toujours /api/...
@@ -36,10 +57,21 @@ app.use(apiLimiter)
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/app/uploads'
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 
+/* Factures PDF — hors du dossier public (jamais servies en statique) :
+   accès uniquement via routes authentifiées (données personnelles) */
+const INVOICE_DIR = process.env.INVOICE_DIR || path.join(UPLOAD_DIR, '..', 'invoices')
+if (!fs.existsSync(INVOICE_DIR)) fs.mkdirSync(INVOICE_DIR, { recursive: true })
+
+/* Extension dérivée du mimetype (jamais du nom fourni par le client) :
+   empêche un .html/.svg piégé d'être stocké puis servi en text/html (XSS stocké). */
+const MIME_EXT = {
+  'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png',
+  'image/webp': '.webp', 'image/avif': '.avif', 'image/gif': '.gif',
+}
 const storage = multer.diskStorage({
   destination: UPLOAD_DIR,
   filename: (req, file, cb) => {
-    const ext    = path.extname(file.originalname).toLowerCase()
+    const ext    = MIME_EXT[file.mimetype] || '.bin'
     const unique = crypto.randomBytes(8).toString('hex')
     cb(null, `${Date.now()}-${unique}${ext}`)
   },
@@ -47,31 +79,39 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const ok = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif', 'image/gif'].includes(file.mimetype)
-    cb(null, ok)
-  },
+  fileFilter: (req, file, cb) => cb(null, !!MIME_EXT[file.mimetype]),
 })
+
+/* Identifiants BDD : uniquement via variables d'environnement (.env, Docker ou cPanel) */
+if (!process.env.DB_NAME || !process.env.DB_USER || !process.env.DB_PASSWORD) {
+  console.error('❌ DB_NAME, DB_USER et DB_PASSWORD doivent être définis (variables d\'environnement)')
+  process.exit(1)
+}
 
 const pool = mysql.createPool({
-  host:             process.env.DB_HOST     || 'localhost',
-  port:             process.env.DB_PORT     || 3306,
-  database:         process.env.DB_NAME     || 'vrg',
-  user:             process.env.DB_USER     || 'vrg_user',
-  password:         process.env.DB_PASSWORD || 'vrg_pass',
+  host:             process.env.DB_HOST || 'localhost',
+  port:             process.env.DB_PORT || 3306,
+  database:         process.env.DB_NAME,
+  user:             process.env.DB_USER,
+  password:         process.env.DB_PASSWORD,
   waitForConnections: true,
   connectionLimit:  10,
+  charset:          'utf8mb4',   /* emojis (4 octets) dans les messages, noms, etc. */
 })
 
-const SECRET = process.env.JWT_SECRET || 'change_this_in_production'
-if (SECRET === 'change_this_in_production')
-  console.warn('⚠️  JWT_SECRET non configuré — utilise la valeur par défaut non sécurisée')
+/* JWT_SECRET obligatoire : sans lui, tout token serait forgeable (usurpation
+   admin). On refuse de démarrer plutôt que d'utiliser une valeur par défaut. */
+const SECRET = process.env.JWT_SECRET
+if (!SECRET || SECRET === 'change_this_in_production' || SECRET.length < 16) {
+  console.error('❌ JWT_SECRET manquant ou trop faible (min. 16 caractères aléatoires)')
+  process.exit(1)
+}
 
 /* ── Initialisation DB (retry — MariaDB peut démarrer après l'API) ── */
 ;(async () => {
   for (let i = 0; i < 15; i++) {
     try { await pool.execute('SELECT 1'); break }
-    catch { if (i === 14) { console.error('DB unreachable'); process.exit(1) }
+    catch (e) { if (i === 14) { console.error('DB unreachable:', e.code || '', e.message); process.exit(1) }
             await new Promise(r => setTimeout(r, 2000)) }
   }
 
@@ -118,6 +158,7 @@ if (SECRET === 'change_this_in_production')
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`)
   await pool.execute(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS livreur_id INT NULL DEFAULT NULL`)
+  await pool.execute(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen DATETIME NULL`)
   await pool.execute(`ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_percent INT NOT NULL DEFAULT 0`)
   await pool.execute(`ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_active TINYINT(1) NOT NULL DEFAULT 0`)
   await pool.execute(`CREATE TABLE IF NOT EXISTS order_items (
@@ -140,6 +181,11 @@ if (SECRET === 'change_this_in_production')
     id    INT  AUTO_INCREMENT PRIMARY KEY,
     date  DATE NOT NULL UNIQUE,
     count INT  DEFAULT 1
+  )`)
+  await pool.execute(`CREATE TABLE IF NOT EXISTS visit_uniques (
+    date    DATE     NOT NULL,
+    ip_hash CHAR(16) NOT NULL,
+    PRIMARY KEY (date, ip_hash)
   )`)
   await pool.execute(`CREATE TABLE IF NOT EXISTS settings (
     \`key\`      VARCHAR(100) PRIMARY KEY,
@@ -190,18 +236,54 @@ if (SECRET === 'change_this_in_production')
     created_at  DATETIME DEFAULT NOW(),
     INDEX idx_chat_room_date (room_id, created_at)
   )`)
+  await pool.execute(`CREATE TABLE IF NOT EXISTS chat_reads (
+    room_id      INT NOT NULL,
+    user_id      INT NOT NULL,
+    last_read_id INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (room_id, user_id)
+  )`)
+
+  /* Emojis : convertit les tables à texte libre en utf8mb4 (4 octets).
+     Idempotent — sans effet si déjà en utf8mb4. Isolé pour qu'un échec
+     (index trop long, table absente) ne bloque pas le démarrage. */
+  for (const t of ['chat_messages', 'users', 'products', 'settings']) {
+    await pool.execute(`ALTER TABLE ${t} CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`)
+      .catch(e => console.warn(`utf8mb4 ${t}:`, e.code || e.message))
+  }
+  await pool.execute(`CREATE TABLE IF NOT EXISTS invoices (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    number       VARCHAR(30)  NOT NULL UNIQUE,        -- ex: FA2026-00042
+    order_id     INT          NOT NULL UNIQUE,        -- 1 facture par commande
+    user_id      INT          NOT NULL,
+    user_name    VARCHAR(100) NOT NULL,               -- snapshot au moment de la facture
+    user_phone   VARCHAR(20),
+    subtotal     INT          NOT NULL DEFAULT 0,     -- somme des articles (Ar)
+    delivery_fee INT          NOT NULL DEFAULT 0,
+    tva_percent  INT          NOT NULL DEFAULT 0,
+    total        INT          NOT NULL,               -- TTC (Ar)
+    pdf_path     VARCHAR(255),                        -- fichier dans INVOICE_DIR
+    created_at   DATETIME     DEFAULT NOW(),
+    INDEX idx_invoices_date (created_at)
+  )`)
 
   const seeds = [
     ['announcement_active','0'],['announcement_text',''],['announcement_color','#FF9900'],
     ['delivery_fee_tana','3000'],['delivery_fee_peripherique','5000'],
     ['whatsapp',''],['facebook',''],['instagram',''],['business_hours',''],
-    ['reassurance_text','Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours'],
+    ['reassurance_text','La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours'],
     ['marquee_items','[{"text":"Finger Sleeves Gaming dispo maintenant"},{"text":"Livraison 24h sur Antananarivo"},{"text":"+1 200 gamers équipés à Madagascar"},{"text":"Ventilateurs Turbo — stock limité"},{"text":"Garantie 6 mois sur tous les produits"},{"text":"Support WhatsApp 7j/7 — réponse en 5 min"}]'],
     ['team_badge','Notre équipe'],['team_title','Les personnes derrière'],
     ['team_subtitle','Une équipe passionnée au service de vos commandes à Madagascar.'],
     ['coming_soon','0'],
     ['coming_soon_date',''],
     ['coming_soon_message','Nous préparons quelque chose d\'exceptionnel. La boutique ouvre bientôt !'],
+    /* Mentions légales des factures — à remplir par l'admin dans Réglages */
+    ['company_legal_name','VaRyGasy'],
+    ['company_nif',''],['company_stat',''],
+    ['company_address','Antananarivo, Madagascar'],
+    ['company_phone',''],['company_email',''],
+    ['invoice_tva_percent','0'],
+    ['invoice_footer','Merci de votre confiance. VaRyGasy — accessoires mobile & gaming à Madagascar.'],
   ]
   for (const [k, v] of seeds)
     await pool.execute('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)', [k, v])
@@ -228,6 +310,173 @@ async function writeLog(adminId, adminName, action, targetType, targetId, target
     )
   } catch {}
 }
+
+/* ═══════════════════════════════════════════════════════════
+   FACTURES — génération PDF (pdf-lib, pur JS) + stockage
+   ═══════════════════════════════════════════════════════════ */
+
+/* WinAnsi (StandardFonts) ne couvre pas tout l'Unicode : on nettoie les
+   caractères hors Latin-1 pour éviter une erreur d'encodage à la génération. */
+const winAnsi = s => String(s ?? '').replace(/[^\x20-\xFF]/g, '')
+const arFmt   = n => Number(n || 0).toLocaleString('fr-FR') + ' Ar'
+
+async function loadSettings() {
+  const [rows] = await pool.execute('SELECT `key`, `value` FROM settings')
+  const o = {}; rows.forEach(r => { o[r.key] = r.value }); return o
+}
+
+/* Construit le PDF d'une facture et retourne un Buffer. */
+async function buildInvoicePDF({ number, date, company, client, items, subtotal, deliveryFee, tvaPercent, total }) {
+  const doc  = await PDFDocument.create()
+  const page = doc.addPage([595, 842]) // A4 en points
+  const font = await doc.embedFont(StandardFonts.Helvetica)
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold)
+  const W = 595, M = 50
+  const gold = rgb(0.8, 0.55, 0.02), dark = rgb(0.1, 0.1, 0.13), grey = rgb(0.45, 0.45, 0.5)
+  let y = 792
+  const text = (t, x, yy, { size = 10, f = font, color = dark } = {}) =>
+    page.drawText(winAnsi(t), { x, y: yy, size, font: f, color })
+  const right = (t, xR, yy, opt = {}) => {
+    const s = winAnsi(t), w = (opt.f || font).widthOfTextAtSize(s, opt.size || 10)
+    text(s, xR - w, yy, opt)
+  }
+
+  /* En-tête entreprise */
+  text(company.legal_name || 'VaRyGasy', M, y, { size: 20, f: bold, color: gold }); y -= 18
+  const infoLines = [company.address, company.phone && 'Tél : ' + company.phone,
+    company.email, company.nif && 'NIF : ' + company.nif, company.stat && 'STAT : ' + company.stat].filter(Boolean)
+  for (const l of infoLines) { text(l, M, y, { size: 9, color: grey }); y -= 12 }
+
+  /* Bloc FACTURE (droite) */
+  right('FACTURE', W - M, 792, { size: 22, f: bold, color: dark })
+  right('N° ' + number, W - M, 768, { size: 11, f: bold })
+  right('Date : ' + date, W - M, 752, { size: 10, color: grey })
+
+  /* Bloc client */
+  y = Math.min(y, 720) - 10
+  page.drawRectangle({ x: M, y: y - 54, width: W - 2 * M, height: 58, color: rgb(0.96, 0.96, 0.97) })
+  text('FACTURÉ À', M + 14, y - 14, { size: 8, f: bold, color: grey })
+  text(client.name, M + 14, y - 30, { size: 12, f: bold })
+  if (client.phone)   text('Tél : ' + client.phone, M + 14, y - 44, { size: 9, color: grey })
+  if (client.address) right(client.address.slice(0, 60), W - M - 14, y - 44, { size: 9, color: grey })
+  y -= 84
+
+  /* En-tête tableau */
+  const cQty = 330, cPrice = 410, cTot = W - M
+  page.drawRectangle({ x: M, y: y - 6, width: W - 2 * M, height: 24, color: dark })
+  text('DÉSIGNATION', M + 10, y, { size: 9, f: bold, color: rgb(1, 1, 1) })
+  right('QTÉ', cQty, y, { size: 9, f: bold, color: rgb(1, 1, 1) })
+  right('P.U.', cPrice, y, { size: 9, f: bold, color: rgb(1, 1, 1) })
+  right('MONTANT', cTot, y, { size: 9, f: bold, color: rgb(1, 1, 1) })
+  y -= 26
+
+  /* Lignes articles */
+  for (const it of items) {
+    text((it.name || '').slice(0, 42), M + 10, y, { size: 10 })
+    right(String(it.qty), cQty, y)
+    right(arFmt(it.price), cPrice, y)
+    right(arFmt(it.qty * it.price), cTot, y)
+    y -= 8
+    page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.5, color: rgb(0.88, 0.88, 0.9) })
+    y -= 14
+  }
+
+  /* Totaux */
+  y -= 8
+  const totLabelX = cPrice
+  const line = (label, val, opt = {}) => {
+    right(label, totLabelX, y, { size: opt.big ? 12 : 10, f: opt.big ? bold : font, color: opt.big ? dark : grey })
+    right(val, cTot, y, { size: opt.big ? 13 : 10, f: opt.big ? bold : font, color: opt.big ? gold : dark })
+    y -= opt.big ? 22 : 16
+  }
+  line('Sous-total', arFmt(subtotal))
+  if (deliveryFee > 0) line('Livraison', arFmt(deliveryFee))
+  if (tvaPercent > 0)  line(`TVA ${tvaPercent}%`, arFmt(Math.round((subtotal + deliveryFee) * tvaPercent / 100)))
+  page.drawLine({ start: { x: totLabelX - 40, y: y + 6 }, end: { x: cTot, y: y + 6 }, thickness: 1, color: dark })
+  y -= 6
+  line('TOTAL', arFmt(total), { big: true })
+
+  /* Pied de page */
+  text(company.footer || '', M, 60, { size: 9, color: grey })
+  text('Document généré automatiquement — VaRyGasy', M, 46, { size: 8, color: rgb(0.7, 0.7, 0.75) })
+
+  const bytes = await doc.save()
+  return Buffer.from(bytes)
+}
+
+/* Crée la facture d'une commande LIVRÉE (idempotent : ne double jamais).
+   Retourne le numéro, ou null si échec silencieux (ne bloque pas la livraison). */
+async function createInvoiceForOrder(orderId) {
+  try {
+    const [[existing]] = await pool.execute('SELECT number FROM invoices WHERE order_id=?', [orderId])
+    if (existing) return existing.number
+
+    const [[order]] = await pool.execute(
+      `SELECT o.*, u.name AS user_name, u.phone AS user_phone
+       FROM orders o JOIN users u ON u.id = o.user_id WHERE o.id=?`, [orderId]
+    )
+    if (!order) return null
+    const [items] = await pool.execute('SELECT name, qty, price FROM order_items WHERE order_id=?', [orderId])
+    const s = await loadSettings()
+
+    const deliveryFee = Number(order.delivery_fee) || 0
+    const subtotal    = items.reduce((a, it) => a + it.qty * it.price, 0)
+    const tvaPercent  = Number(s.invoice_tva_percent) || 0
+    const total       = Number(order.total)
+
+    /* Insert d'abord (id atomique) → numéro dérivé → génère le PDF → update */
+    const [ins] = await pool.execute(
+      `INSERT INTO invoices (number, order_id, user_id, user_name, user_phone,
+        subtotal, delivery_fee, tva_percent, total)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      ['TMP-' + orderId, orderId, order.user_id, order.user_name, order.user_phone,
+       subtotal, deliveryFee, tvaPercent, total]
+    )
+    const number = `FA${new Date().getFullYear()}-${String(ins.insertId).padStart(5, '0')}`
+
+    const pdf = await buildInvoicePDF({
+      number,
+      date: new Date(order.created_at).toLocaleDateString('fr-FR'),
+      company: {
+        legal_name: s.company_legal_name, address: s.company_address, phone: s.company_phone,
+        email: s.company_email, nif: s.company_nif, stat: s.company_stat, footer: s.invoice_footer,
+      },
+      client: { name: order.user_name, phone: order.user_phone, address: order.address },
+      items, subtotal, deliveryFee, tvaPercent, total,
+    })
+    const fileName = number + '.pdf'
+    fs.writeFileSync(path.join(INVOICE_DIR, fileName), pdf)
+    await pool.execute('UPDATE invoices SET number=?, pdf_path=? WHERE id=?', [number, fileName, ins.insertId])
+
+    /* Notifie le client dans son salon support avec le lien de téléchargement */
+    try {
+      let [[room]] = await pool.execute("SELECT id FROM chat_rooms WHERE type='support' AND client_id=? LIMIT 1", [order.user_id])
+      if (!room) {
+        const [r] = await pool.execute("INSERT INTO chat_rooms (type, name, client_id) VALUES ('support',?,?)", [order.user_name, order.user_id])
+        room = { id: r.insertId }
+      }
+      const msg = `🧾 Votre facture ${number} est disponible !\nCommande livrée · Total : ${arFmt(total)}\nTéléchargez-la depuis "Mes commandes" dans votre compte.`
+      await pool.execute('INSERT INTO chat_messages (room_id, sender_id, sender_name, body) VALUES (?,?,?,?)',
+        [room.id, order.user_id, 'VaRyGasy', msg])
+    } catch {}
+
+    return number
+  } catch (e) { console.error('Facture:', e.message); return null }
+}
+
+/* ── Numéros malgaches : normalisation + validation ──────────
+   Accepte « 034 12 345 67 », « +261 34 12 345 67 », « 00261341234567 »…
+   Retourne toujours la forme locale 10 chiffres (0341234567), ou null.
+   Préfixes attribués : 032 Orange · 033 Airtel · 034/037/038 Telma-Yas */
+function normalizePhone(raw) {
+  if (!raw) return null
+  let p = String(raw).replace(/[\s.\-()]/g, '')
+  if (p.startsWith('+261'))                       p = '0' + p.slice(4)
+  else if (p.startsWith('00261'))                 p = '0' + p.slice(5)
+  else if (p.startsWith('261') && p.length === 12) p = '0' + p.slice(3)
+  return /^0(32|33|34|37|38)\d{7}$/.test(p) ? p : null
+}
+const PHONE_ERROR = 'Numéro malgache attendu : 03X XX XXX XX (032, 033, 034, 037 ou 038)'
 
 function makeReferralCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -268,8 +517,8 @@ const livreurAuth = (req, res, next) => {
 /* ── GET /auth/check-phone ───────────────────────────── */
 /* Vérifie en temps réel si un numéro est disponible (inscription) */
 app.get('/auth/check-phone', async (req, res) => {
-  const phone = (req.query.phone || '').trim()
-  if (!phone) return res.json({ available: false })
+  const phone = normalizePhone(req.query.phone)
+  if (!phone) return res.json({ available: false, invalid: true })
   try {
     const [rows] = await pool.execute('SELECT id FROM users WHERE phone = ?', [phone])
     res.json({ available: rows.length === 0 })
@@ -278,16 +527,21 @@ app.get('/auth/check-phone', async (req, res) => {
 
 /* ── POST /auth/register ─────────────────────────────── */
 app.post('/auth/register', async (req, res) => {
-  const { name, phone, password, referralCode } = req.body
-  if (!name || !phone || !password)
+  const { name, password, referralCode } = req.body
+  const phone = normalizePhone(req.body.phone)
+  if (!name || !req.body.phone || !password)
     return res.status(400).json({ error: 'Remplis tous les champs' })
+  if (!phone)
+    return res.status(400).json({ error: PHONE_ERROR })
+  if (String(password).length < 8)
+    return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères' })
 
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
 
     /* Vérifie d'abord que le numéro est disponible */
-    const [existing] = await conn.execute('SELECT id FROM users WHERE phone = ?', [phone.trim()])
+    const [existing] = await conn.execute('SELECT id FROM users WHERE phone = ?', [phone])
     if (existing.length) {
       await conn.rollback()
       return res.status(409).json({ error: 'Ce numéro est déjà enregistré' })
@@ -304,14 +558,14 @@ app.post('/auth/register', async (req, res) => {
 
     const [r] = await conn.execute(
       'INSERT INTO users (name, phone, password, referral_code, referred_by) VALUES (?, ?, ?, ?, ?)',
-      [name.trim(), phone.trim(), hash, code, referrerId]
+      [name.trim(), phone, hash, code, referrerId]
     )
     if (referrerId) {
       await conn.execute('INSERT INTO referrals (referrer_id, referred_id) VALUES (?, ?)', [referrerId, r.insertId])
     }
     await conn.commit()
 
-    const user = { id: r.insertId, name: name.trim(), phone: phone.trim(), role: 'client' }
+    const user = { id: r.insertId, name: name.trim(), phone, role: 'client' }
     const token = jwt.sign(user, SECRET, { expiresIn: '30d' })
     res.json({ token, user })
   } catch (err) {
@@ -327,7 +581,10 @@ app.post('/auth/login', async (req, res) => {
   const { phone, password } = req.body
   if (!phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
   try {
-    const [rows] = await pool.execute('SELECT * FROM users WHERE phone = ?', [phone.trim()])
+    /* Normalise si possible, sinon garde la saisie brute — ne jamais
+       verrouiller un compte historique au format non standard */
+    const lookup = normalizePhone(phone) || phone.trim()
+    const [rows] = await pool.execute('SELECT * FROM users WHERE phone = ?', [lookup])
     const u = rows[0]
     if (!u || !(await bcrypt.compare(password, u.password)))
       return res.status(401).json({ error: 'Numéro ou mot de passe incorrect' })
@@ -354,9 +611,14 @@ app.put('/auth/profile', auth, async (req, res) => {
       await pool.execute('UPDATE users SET password = ? WHERE id = ?', [hash, req.user.id])
     }
     if (name || phone) {
+      let newPhone = null
+      if (phone) {
+        newPhone = normalizePhone(phone)
+        if (!newPhone) return res.status(400).json({ error: PHONE_ERROR })
+      }
       await pool.execute(
         'UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone) WHERE id = ?',
-        [name?.trim() || null, phone?.trim() || null, req.user.id]
+        [name?.trim() || null, newPhone, req.user.id]
       )
     }
     const [rows] = await pool.execute('SELECT id, name, phone, role FROM users WHERE id = ?', [req.user.id])
@@ -437,7 +699,11 @@ app.post('/orders', auth, async (req, res) => {
       `INSERT INTO orders (user_id, payment, address, zone, delivery_fee, hours, note, total,
         transfer_phone, transfer_name, transfer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.user.id, payment, address, zone || null, delivery_fee || 0, hours || null,
-       note || '', total, transfer?.phone || null, transfer?.name || null, transfer?.id || null]
+       note || '', total,
+       /* numéro mobile money : normalisé si valide, brut sinon — on ne bloque
+          jamais une commande dont le paiement est déjà parti */
+       transfer?.phone ? (normalizePhone(transfer.phone) || transfer.phone) : null,
+       transfer?.name || null, transfer?.id || null]
     )
     const orderId = r.insertId
     if (items?.length) {
@@ -463,11 +729,21 @@ app.post('/orders', auth, async (req, res) => {
 /* ── POST /visits ────────────────────────────────────── */
 app.post('/visits', async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0]
+    /* Les robots connus ne comptent pas (Googlebot exécute le JS du site) */
+    const ua = req.headers['user-agent'] || ''
+    if (/bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|curl|wget/i.test(ua))
+      return res.json({ ok: true })
+
+    /* Sessions : compteur brut (CURDATE() = même horloge que les stats) */
     await pool.execute(
-      'INSERT INTO visits (date, count) VALUES (?, 1) ON DUPLICATE KEY UPDATE count = count + 1',
-      [today]
+      'INSERT INTO visits (date, count) VALUES (CURDATE(), 1) ON DUPLICATE KEY UPDATE count = count + 1'
     )
+    /* Visiteurs uniques : empreinte IP+navigateur hachée, dédupliquée par jour
+       côté serveur — insensible aux onglets multiples et aux rafales.
+       IP+UA (et pas IP seule) : les IP mobiles malgaches sont partagées (CGNAT),
+       l'User-Agent distingue partiellement les appareils derrière. */
+    const hash = crypto.createHash('sha256').update(req.ip + '|' + ua).digest('hex').slice(0, 16)
+    await pool.execute('INSERT IGNORE INTO visit_uniques (date, ip_hash) VALUES (CURDATE(), ?)', [hash])
     res.json({ ok: true })
   } catch { res.json({ ok: false }) }
 })
@@ -480,6 +756,8 @@ app.post('/visits', async (req, res) => {
 /* ── GET /admin/notifications ────────────────────────── */
 app.get('/admin/notifications', adminAuth, async (req, res) => {
   try {
+    /* Présence : ce endpoint est pollé toutes les 5 s par chaque staff connecté */
+    pool.execute('UPDATE users SET last_seen=NOW() WHERE id=?', [req.user.id]).catch(() => {})
     const { since } = req.query
     const [[{ pending_orders }]] = await pool.execute(
       "SELECT COUNT(*) as pending_orders FROM orders WHERE status = 'En attente'"
@@ -492,7 +770,26 @@ app.get('/admin/notifications', adminAuth, async (req, res) => {
       )
       unread_msgs = count
     }
-    res.json({ pending_orders, unread_msgs })
+    /* server_now : horloge du serveur, à renvoyer telle quelle dans ?since=.
+       Le client ne doit JAMAIS fabriquer ce timestamp lui-même : son horloge
+       UTC comparée au created_at local de MySQL décale de 2h et fait revenir
+       les notifications déjà lues. */
+    const [[{ server_now }]] = await pool.execute(
+      "SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') AS server_now"
+    )
+    res.json({ pending_orders, unread_msgs, server_now })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ── GET /admin/online ───────────────────────────────── */
+/* Staff vu dans les 2 dernières minutes ; ago (s) permet au front
+   d'afficher vert < 60s puis rouge 60-120s avant disparition */
+app.get('/admin/online', adminAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      "SELECT id, name, role, TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS ago FROM users WHERE role IN ('admin','moderator') AND last_seen > NOW() - INTERVAL 2 MINUTE ORDER BY name"
+    )
+    res.json(rows)
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -509,6 +806,8 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
     const [[{ month_users }]]  = await pool.execute("SELECT COUNT(*) as month_users FROM users WHERE MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW()) AND role='client'")
     const [[{ today_visits }]] = await pool.execute("SELECT COALESCE(SUM(count),0) as today_visits FROM visits WHERE date=CURDATE()")
     const [[{ month_visits }]] = await pool.execute("SELECT COALESCE(SUM(count),0) as month_visits FROM visits WHERE MONTH(date)=MONTH(NOW()) AND YEAR(date)=YEAR(NOW())")
+    const [[{ today_uniques }]] = await pool.execute("SELECT COUNT(*) as today_uniques FROM visit_uniques WHERE date=CURDATE()")
+    const [[{ month_uniques }]] = await pool.execute("SELECT COUNT(*) as month_uniques FROM visit_uniques WHERE MONTH(date)=MONTH(NOW()) AND YEAR(date)=YEAR(NOW())")
     const [[{ low_stock }]]    = await pool.execute('SELECT COUNT(*) as low_stock FROM products WHERE stock <= 5 AND active=1')
 
     const [monthly_sales] = await pool.execute(
@@ -524,7 +823,7 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
       sales:   { total: total_sales, month: month_sales, today: today_sales },
       orders:  { total: total_orders, pending, confirmed, delivered },
       users:   { total: total_users, month: month_users },
-      visits:  { today: today_visits, month: month_visits },
+      visits:  { today: today_visits, month: month_visits, today_uniques, month_uniques },
       alerts:  { low_stock },
       charts:  { monthly_sales, monthly_users },
     })
@@ -696,6 +995,9 @@ app.put('/admin/orders/:id', adminAuth, async (req, res) => {
     if (status) await pool.execute('UPDATE orders SET status=? WHERE id=?', [status, req.params.id])
     if (payment_confirmed !== undefined)
       await pool.execute('UPDATE orders SET payment_confirmed=? WHERE id=?', [payment_confirmed ? 1 : 0, req.params.id])
+    /* Passage à Livré (par l'admin) → génère la facture, une seule fois */
+    if (status === 'Livré' && prev && prev.status !== 'Livré')
+      createInvoiceForOrder(Number(req.params.id)).catch(() => {})
     if (prev) {
       if (status && status !== prev.status)
         await writeLog(req.user.id, req.user.name, 'order_status', 'order', req.params.id,
@@ -711,6 +1013,71 @@ app.put('/admin/orders/:id', adminAuth, async (req, res) => {
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
+/* ═══════════════════════════════════════════════════════════
+   FACTURES — routes
+   ═══════════════════════════════════════════════════════════ */
+
+/* Sert un fichier facture depuis INVOICE_DIR (protégé — jamais en statique) */
+function sendInvoiceFile(res, inv) {
+  if (!inv.pdf_path) return res.status(404).json({ error: 'Facture non disponible' })
+  const file = path.join(INVOICE_DIR, path.basename(inv.pdf_path))
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Fichier introuvable' })
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader('Content-Disposition', `inline; filename="${inv.number}.pdf"`)
+  fs.createReadStream(file).pipe(res)
+}
+
+/* GET /invoices/order/:orderId — le client télécharge SA facture */
+app.get('/invoices/order/:orderId', auth, async (req, res) => {
+  try {
+    const [[inv]] = await pool.execute('SELECT * FROM invoices WHERE order_id=?', [Number(req.params.orderId)])
+    if (!inv) return res.status(404).json({ error: 'Aucune facture pour cette commande' })
+    if (inv.user_id !== req.user.id && !['admin', 'moderator'].includes(req.user.role))
+      return res.status(403).json({ error: 'Accès refusé' })
+    sendInvoiceFile(res, inv)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* GET /admin/accounting — comptabilité (ADMIN strict, pas modérateur) */
+app.get('/admin/accounting', adminAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs' })
+  try {
+    const [[tot]] = await pool.execute(
+      'SELECT COUNT(*) AS count, COALESCE(SUM(total),0) AS revenue FROM invoices'
+    )
+    const [[month]] = await pool.execute(
+      `SELECT COUNT(*) AS count, COALESCE(SUM(total),0) AS revenue FROM invoices
+       WHERE MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW())`
+    )
+    const [monthly] = await pool.execute(
+      `SELECT MONTH(created_at) AS month, COALESCE(SUM(total),0) AS total, COUNT(*) AS count
+       FROM invoices WHERE YEAR(created_at)=YEAR(NOW())
+       GROUP BY MONTH(created_at) ORDER BY month`
+    )
+    const [rows] = await pool.execute(
+      `SELECT id, number, order_id, user_name, user_phone, subtotal, delivery_fee, tva_percent, total, created_at
+       FROM invoices ORDER BY id DESC LIMIT 500`
+    )
+    const avg = tot.count > 0 ? Math.round(tot.revenue / tot.count) : 0
+    res.json({
+      totals: { count: tot.count, revenue: Number(tot.revenue), avg,
+                month_count: month.count, month_revenue: Number(month.revenue) },
+      monthly,
+      invoices: rows.map(r => ({ ...r, date: new Date(r.created_at).toLocaleDateString('fr-FR') })),
+    })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* GET /admin/accounting/:id/pdf — télécharge une facture (ADMIN strict) */
+app.get('/admin/accounting/:id/pdf', adminAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Réservé aux administrateurs' })
+  try {
+    const [[inv]] = await pool.execute('SELECT * FROM invoices WHERE id=?', [Number(req.params.id)])
+    if (!inv) return res.status(404).json({ error: 'Facture introuvable' })
+    sendInvoiceFile(res, inv)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 /* ── GET /admin/users ────────────────────────────────── */
 app.get('/admin/users', adminAuth, async (req, res) => {
   try {
@@ -718,6 +1085,7 @@ app.get('/admin/users', adminAuth, async (req, res) => {
       `SELECT u.id, u.name, u.phone, u.role, u.referral_code, u.created_at,
         COUNT(DISTINCT o.id)      as order_count,
         COALESCE(SUM(o.total), 0) as total_spent,
+        COALESCE(SUM(CASE WHEN o.status='Livré' THEN o.total ELSE 0 END), 0) as delivered_total,
         COUNT(DISTINCT CASE WHEN (
           SELECT COALESCE(SUM(o2.total),0) FROM orders o2
           WHERE o2.user_id = r.referred_id AND o2.status != 'Annulé'
@@ -747,19 +1115,22 @@ app.get('/admin/users/:id/referrals', adminAuth, async (req, res) => {
 /* ── POST /admin/users ───────────────────────────────── */
 app.post('/admin/users', adminAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Seul un admin peut créer des comptes staff' })
-  const { name, phone, password, role } = req.body
-  if (!name || !phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
+  const { name, password, role } = req.body
+  const phone = normalizePhone(req.body.phone)
+  if (!name || !req.body.phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
+  if (!phone) return res.status(400).json({ error: PHONE_ERROR })
+  if (String(password).length < 8) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères' })
   if (!['admin', 'moderator', 'livreur'].includes(role)) return res.status(400).json({ error: 'Rôle invalide' })
   try {
-    const [existing] = await pool.execute('SELECT id FROM users WHERE phone = ?', [phone.trim()])
+    const [existing] = await pool.execute('SELECT id FROM users WHERE phone = ?', [phone])
     if (existing.length) return res.status(409).json({ error: 'Ce numéro est déjà utilisé' })
     const hash = await bcrypt.hash(password, 10)
     const code = makeReferralCode()
     const [r] = await pool.execute(
       'INSERT INTO users (name, phone, password, role, referral_code) VALUES (?, ?, ?, ?, ?)',
-      [name.trim(), phone.trim(), hash, role, code]
+      [name.trim(), phone, hash, role, code]
     )
-    await writeLog(req.user.id, req.user.name, 'user_create', 'user', r.insertId, `${name.trim()} (${phone.trim()})`, null, role)
+    await writeLog(req.user.id, req.user.name, 'user_create', 'user', r.insertId, `${name.trim()} (${phone})`, null, role)
     res.status(201).json({ ok: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -972,26 +1343,37 @@ app.get('/admin/logs', adminAuth, async (req, res) => {
 app.get('/admin/chat/rooms', adminAuth, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin'
-    const [fixed] = await pool.execute(
-      isAdmin
-        ? "SELECT id, type, name FROM chat_rooms WHERE type IN ('admin_only','admin_mod','livreur_group') ORDER BY id"
-        : "SELECT id, type, name FROM chat_rooms WHERE type IN ('admin_mod','livreur_group') ORDER BY id"
-    )
+    const uid = req.user.id
+    /* Messages plus récents que le marqueur de lecture, hors les siens */
+    const unreadSub = `(SELECT COUNT(*) FROM chat_messages ms
+        WHERE ms.room_id = cr.id AND ms.sender_id != ?
+          AND ms.id > COALESCE((SELECT last_read_id FROM chat_reads rd
+                                WHERE rd.room_id = cr.id AND rd.user_id = ?), 0)) AS unread`
+    const [fixed] = await pool.execute(`
+      SELECT cr.id, cr.type, cr.name, ${unreadSub}
+      FROM chat_rooms cr
+      WHERE cr.type IN (${isAdmin ? "'admin_only','admin_mod','livreur_group'" : "'admin_mod','livreur_group'"})
+      ORDER BY cr.id
+    `, [uid, uid])
     const [directs] = await pool.execute(`
       SELECT cr.id, cr.type, cr.name,
-             u.name AS other_name, u.role AS other_role
+             u.id AS other_id, u.name AS other_name, u.role AS other_role, ${unreadSub}
       FROM chat_rooms cr
       JOIN chat_room_members m1 ON m1.room_id = cr.id AND m1.user_id = ?
       JOIN chat_room_members m2 ON m2.room_id = cr.id AND m2.user_id != ?
       JOIN users u ON u.id = m2.user_id
       WHERE cr.type = 'direct'
-    `, [req.user.id, req.user.id])
+    `, [uid, uid, uid, uid])
     const [supports] = await pool.execute(`
       SELECT cr.id, cr.type, cr.name, cr.client_id,
              (SELECT body FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_msg,
-             (SELECT created_at FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_at
+             (SELECT created_at FROM chat_messages WHERE room_id=cr.id ORDER BY created_at DESC LIMIT 1) AS last_at,
+             (SELECT sender_name FROM chat_messages
+              WHERE room_id=cr.id AND sender_id != cr.client_id
+              ORDER BY id DESC LIMIT 1) AS last_staff,
+             ${unreadSub}
       FROM chat_rooms cr WHERE cr.type='support' ORDER BY last_at DESC
-    `)
+    `, [uid, uid])
     res.json({ fixed, directs, supports })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -999,7 +1381,7 @@ app.get('/admin/chat/rooms', adminAuth, async (req, res) => {
 /* GET /admin/chat/rooms/:id/messages */
 app.get('/admin/chat/rooms/:id/messages', adminAuth, async (req, res) => {
   try {
-    const { since, limit = 60 } = req.query
+    const { since, after, limit = 60 } = req.query
     const roomId = Number(req.params.id)
     const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [roomId])
     if (!room) return res.status(404).json({ error: 'Salon introuvable' })
@@ -1013,10 +1395,22 @@ app.get('/admin/chat/rooms/:id/messages', adminAuth, async (req, res) => {
     }
     let query = 'SELECT * FROM chat_messages WHERE room_id=?'
     const params = [roomId]
-    if (since) { query += ' AND created_at > ?'; params.push(since) }
-    query += ' ORDER BY created_at ASC LIMIT ?'
+    let initial = false
+    if (after)      { query += ' AND id > ?'; params.push(Number(after)) }
+    else if (since) { query += ' AND created_at > ?'; params.push(since) }
+    else            { initial = true } /* chargement initial : les N plus récents */
+    query += ` ORDER BY id ${initial ? 'DESC' : 'ASC'} LIMIT ?`
     params.push(Number(limit))
     const [rows] = await pool.execute(query, params)
+    if (initial) rows.reverse()
+    /* Consulter un salon = le lire : avance le marqueur de lecture */
+    if (rows.length > 0) {
+      pool.execute(
+        `INSERT INTO chat_reads (room_id, user_id, last_read_id) VALUES (?,?,?)
+         ON DUPLICATE KEY UPDATE last_read_id = GREATEST(last_read_id, VALUES(last_read_id))`,
+        [roomId, req.user.id, rows[rows.length - 1].id]
+      ).catch(() => {})
+    }
     res.json(rows)
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -1100,7 +1494,16 @@ app.get('/chat/support', auth, async (req, res) => {
     const [messages] = await pool.execute(
       'SELECT * FROM chat_messages WHERE room_id=? ORDER BY created_at ASC LIMIT 100', [room.id]
     )
-    res.json({ room_id: room.id, messages })
+    /* Non lus reçus (staff → client) au-delà du marqueur de lecture du client :
+       permet d'alerter dès le chargement les messages arrivés hors-ligne */
+    const [[{ unread }]] = await pool.execute(
+      `SELECT COUNT(*) AS unread FROM chat_messages
+       WHERE room_id=? AND sender_id != ?
+         AND id > COALESCE((SELECT last_read_id FROM chat_reads
+                            WHERE room_id=? AND user_id=?), 0)`,
+      [room.id, req.user.id, room.id, req.user.id]
+    )
+    res.json({ room_id: room.id, messages, unread })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -1138,13 +1541,72 @@ app.get('/chat/support/poll', auth, async (req, res) => {
       "SELECT id FROM chat_rooms WHERE type='support' AND client_id=? LIMIT 1", [req.user.id]
     )
     if (!room) return res.json([])
-    const { since } = req.query
+    const { since, after } = req.query
     let query = 'SELECT * FROM chat_messages WHERE room_id=?'
     const params = [room.id]
-    if (since) { query += ' AND created_at > ?'; params.push(since) }
-    query += ' ORDER BY created_at ASC LIMIT 50'
+    if (after)      { query += ' AND id > ?'; params.push(Number(after)) }
+    else if (since) { query += ' AND created_at > ?'; params.push(since) }
+    query += ' ORDER BY id ASC LIMIT 50'
     const [rows] = await pool.execute(query, params)
     res.json(rows)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* ═══════════════════════════════════════════════════════════
+   ACCUSÉS DE LECTURE — communs à tous les rôles
+   chat_reads.last_read_id = plus grand id de message lu par user
+   ═══════════════════════════════════════════════════════════ */
+
+/* Un utilisateur peut-il accéder à ce salon ? (mêmes règles que les routes messages) */
+async function canAccessRoom(user, room) {
+  if (!room) return false
+  if (user.role === 'admin' || user.role === 'moderator') {
+    if (room.type === 'admin_only') return user.role === 'admin'
+    if (room.type === 'direct') {
+      const [[m]] = await pool.execute('SELECT 1 FROM chat_room_members WHERE room_id=? AND user_id=?', [room.id, user.id])
+      return !!m
+    }
+    return true
+  }
+  if (user.role === 'livreur') {
+    if (room.type === 'livreur_group') return true
+    if (room.type === 'support') {
+      const [[o]] = await pool.execute('SELECT id FROM orders WHERE user_id=? AND livreur_id=? LIMIT 1', [room.client_id, user.id])
+      return !!o
+    }
+    return false
+  }
+  return room.type === 'support' && room.client_id === user.id
+}
+
+/* GET /chat/rooms/:id/read-status — plus grand message lu par les AUTRES participants */
+app.get('/chat/rooms/:id/read-status', auth, async (req, res) => {
+  try {
+    const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [Number(req.params.id)])
+    if (!(await canAccessRoom(req.user, room))) return res.status(403).json({ error: 'Accès refusé' })
+    const [[r]] = await pool.execute(
+      'SELECT COALESCE(MAX(last_read_id), 0) AS others_read FROM chat_reads WHERE room_id=? AND user_id != ?',
+      [room.id, req.user.id]
+    )
+    res.json({ others_read: Number(r.others_read) })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+/* POST /chat/rooms/:id/read — marque lu jusqu'à last_id
+   (utilisé par le widget client, qui polle aussi panneau fermé :
+    on ne peut pas avancer le marqueur au poll, seulement à l'affichage) */
+app.post('/chat/rooms/:id/read', auth, async (req, res) => {
+  const lastId = Number(req.body?.last_id)
+  if (!lastId) return res.status(400).json({ error: 'last_id requis' })
+  try {
+    const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [Number(req.params.id)])
+    if (!(await canAccessRoom(req.user, room))) return res.status(403).json({ error: 'Accès refusé' })
+    await pool.execute(
+      `INSERT INTO chat_reads (room_id, user_id, last_read_id) VALUES (?,?,?)
+       ON DUPLICATE KEY UPDATE last_read_id = GREATEST(last_read_id, VALUES(last_read_id))`,
+      [room.id, req.user.id, lastId]
+    )
+    res.json({ ok: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -1203,6 +1665,8 @@ app.put('/livreur/orders/:id/status', livreurAuth, async (req, res) => {
       )
       if (r.affectedRows === 0)
         return res.status(403).json({ error: 'Action non autorisée' })
+      /* Livraison confirmée → génère la facture (n'échoue jamais l'opération) */
+      createInvoiceForOrder(Number(req.params.id)).catch(() => {})
     }
     res.json({ ok: true, status })
   } catch (e) { res.status(500).json({ error: e.message }) }
@@ -1232,7 +1696,7 @@ app.get('/livreur/chat/rooms', livreurAuth, async (req, res) => {
 app.get('/livreur/chat/rooms/:id/messages', livreurAuth, async (req, res) => {
   try {
     const roomId = Number(req.params.id)
-    const { since, limit = 60 } = req.query
+    const { since, after, limit = 60 } = req.query
     const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [roomId])
     if (!room) return res.status(404).json({ error: 'Salon introuvable' })
     if (room.type === 'livreur_group') {
@@ -1243,10 +1707,19 @@ app.get('/livreur/chat/rooms/:id/messages', livreurAuth, async (req, res) => {
     } else { return res.status(403).json({ error: 'Accès refusé' }) }
     let query = 'SELECT * FROM chat_messages WHERE room_id=?'
     const params = [roomId]
-    if (since) { query += ' AND created_at > ?'; params.push(since) }
-    query += ' ORDER BY created_at ASC LIMIT ?'
+    if (after)      { query += ' AND id > ?'; params.push(Number(after)) }
+    else if (since) { query += ' AND created_at > ?'; params.push(since) }
+    query += ' ORDER BY id ASC LIMIT ?'
     params.push(Number(limit))
     const [rows] = await pool.execute(query, params)
+    /* Consulter un salon = le lire (même logique que côté admin) */
+    if (rows.length > 0) {
+      pool.execute(
+        `INSERT INTO chat_reads (room_id, user_id, last_read_id) VALUES (?,?,?)
+         ON DUPLICATE KEY UPDATE last_read_id = GREATEST(last_read_id, VALUES(last_read_id))`,
+        [roomId, req.user.id, rows[rows.length - 1].id]
+      ).catch(() => {})
+    }
     res.json(rows)
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -1294,48 +1767,97 @@ app.get('/livreur/chat/client/:orderId', livreurAuth, async (req, res) => {
    ═══════════════════════════════════════════════════════════ */
 
 /* Images uploadées (servies depuis UPLOAD_DIR) */
-app.use('/images/uploads', express.static(UPLOAD_DIR))
+app.use('/images/uploads', express.static(UPLOAD_DIR, {
+  /* nosniff : le navigateur ne peut pas réinterpréter un upload comme du HTML/JS.
+     Content-Disposition attachment : un fichier douteux est téléchargé, pas rendu. */
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Content-Security-Policy', "default-src 'none'")
+  },
+}))
 
 /* Frontend React — activé seulement si FRONTEND_DIST est défini */
 if (process.env.FRONTEND_DIST) {
   const dist = process.env.FRONTEND_DIST
-  app.use(express.static(dist))
+  const SITE = 'https://varygasy.net'
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-  const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
-
-  /* Page produit : injecte des balises Open Graph dynamiques (photo/titre)
-     pour que les partages Facebook/WhatsApp affichent la bonne image.       */
-  app.get('/produit/:id', async (req, res) => {
+  /* /produit/:id — sert index.html avec les balises OG du produit injectées.
+     Les robots WhatsApp/Facebook n'exécutent pas le JS : sans cette injection,
+     tout lien produit partagé afficherait l'aperçu générique du site. */
+  app.get(/^\/produit\/(\d+)$/, async (req, res) => {
+    const fallback = () => res.sendFile(path.join(dist, 'index.html'))
     try {
       const [[p]] = await pool.execute(
-        'SELECT id, name, description, price, images FROM products WHERE id=? AND active=1',
-        [req.params.id]
+        'SELECT id, name, description, price, images, category, stock, promo_percent, promo_active FROM products WHERE id=? AND active=1',
+        [Number(req.params[0])]
       )
+      if (!p) return fallback()
+      let img = null
+      try { img = (JSON.parse(p.images) || [])[0]?.src } catch {}
+      const price  = p.promo_active ? Math.round(p.price * (1 - p.promo_percent / 100)) : p.price
+      const title  = `${p.name} — ${Number(price).toLocaleString('fr-FR')} Ar | VaRyGasy`
+      const desc   = (p.description || 'Accessoire gaming disponible chez VaRyGasy — livraison sur Antananarivo.').slice(0, 200)
+      const imgUrl = img ? SITE + img : `${SITE}/images/gallery/hero-gaming.jpg`
+      const url    = `${SITE}/produit/${p.id}`
       let html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
-      if (p) {
-        const images  = (() => { try { return JSON.parse(p.images) } catch { return [] } })()
-        const imgPath = images[0]?.src || images[0] || '/images/gallery/hero-gaming.jpg'
-        const imgUrl  = /^https?:\/\//.test(imgPath) ? imgPath : `${req.protocol}://${req.get('host')}${imgPath}`
-        const title   = `${p.name} — ${Number(p.price).toLocaleString('fr-FR')} Ar | VaRyGasy`
-        const desc    = (p.description || 'Accessoires mobile & gaming à Madagascar').slice(0, 200)
-        const url     = `${req.protocol}://${req.get('host')}${req.originalUrl}`
-
-        html = html.replace(/<title>.*?<\/title>/, `<title>${escapeHtml(title)}</title>`)
-        html = html.replace('</head>', `
-    <meta property="og:type" content="product" />
-    <meta property="og:title" content="${escapeHtml(title)}" />
-    <meta property="og:description" content="${escapeHtml(desc)}" />
-    <meta property="og:image" content="${escapeHtml(imgUrl)}" />
-    <meta property="og:url" content="${escapeHtml(url)}" />
-    <meta name="twitter:card" content="summary_large_image" />
-  </head>`)
+      html = html
+        .replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(title)}</title>`)
+        .replace(/(<meta name="description" content=")[^"]*(")/, `$1${esc(desc)}$2`)
+        .replace(/(<link rel="canonical" href=")[^"]*(")/, `$1${url}$2`)
+        .replace(/(<meta property="og:type" content=")[^"]*(")/, '$1product$2')
+        .replace(/(<meta property="og:url" content=")[^"]*(")/, `$1${url}$2`)
+        .replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${esc(title)}$2`)
+        .replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${esc(desc)}$2`)
+        .replace(/(<meta property="og:image" content=")[^"]*(")/, `$1${imgUrl}$2`)
+        .replace(/<meta property="og:image:(width|height)" content="[^"]*"\s*\/>\s*/g, '')
+        .replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${esc(title)}$2`)
+        .replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${esc(desc)}$2`)
+        .replace(/(<meta name="twitter:image" content=")[^"]*(")/, `$1${imgUrl}$2`)
+      /* Données structurées Product : extraits enrichis Google (prix + dispo) */
+      const jsonLd = {
+        '@context': 'https://schema.org/',
+        '@type': 'Product',
+        name: p.name,
+        image: [imgUrl],
+        description: desc,
+        category: p.category || undefined,
+        brand: { '@type': 'Brand', name: 'VaRyGasy' },
+        offers: {
+          '@type': 'Offer',
+          url,
+          priceCurrency: 'MGA',
+          price: String(price),
+          availability: p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        },
       }
+      html = html.replace(
+        '</head>',
+        `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script></head>`
+      )
       res.send(html)
-    } catch (e) {
-      console.error(e)
-      res.sendFile(path.join(dist, 'index.html'))
-    }
+    } catch { fallback() }
   })
+
+  /* Sitemap dynamique : pages fixes + tous les produits en ligne
+     (prend le pas sur le fichier statique de dist/) */
+  app.get('/sitemap.xml', async (req, res) => {
+    try {
+      const [rows] = await pool.execute('SELECT id FROM products WHERE active=1 AND stock > 0 ORDER BY id')
+      const urls = [
+        `<url><loc>${SITE}/</loc><priority>1.0</priority></url>`,
+        `<url><loc>${SITE}/catalogue</loc><priority>0.9</priority></url>`,
+        ...rows.map(r => `<url><loc>${SITE}/produit/${r.id}</loc><priority>0.8</priority></url>`),
+        `<url><loc>${SITE}/confidentialite</loc><priority>0.2</priority></url>`,
+        `<url><loc>${SITE}/cgu</loc><priority>0.2</priority></url>`,
+      ].join('')
+      res.type('application/xml').send(
+        `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`
+      )
+    } catch { res.sendFile(path.join(dist, 'sitemap.xml')) }
+  })
+
+  app.use(express.static(dist))
 
   /* Fallback SPA : toute route inconnue → index.html (sauf API) */
   app.get('*', (req, res) => {

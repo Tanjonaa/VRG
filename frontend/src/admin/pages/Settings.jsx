@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Radio, Layout, Star, Image, Package, Megaphone, Truck, Phone, Save, Check, Plus, Trash2, GripVertical, Upload, Clock } from 'lucide-react'
+import { Radio, Layout, Star, Image, Package, Megaphone, Truck, Phone, Save, Check, Plus, Trash2, GripVertical, Upload, Clock, FileText } from 'lucide-react'
 
 const BASE = '/api'
 const h = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
@@ -15,14 +15,20 @@ const SECTIONS = [
   { id: 'cta',          label: 'CTA',         icon: Megaphone, desc: 'Appel à l\'action' },
   { id: 'delivery',     label: 'Livraison',   icon: Truck,     desc: 'Frais de livraison' },
   { id: 'contact',      label: 'Contact',     icon: Phone,     desc: 'WhatsApp & horaires' },
+  { id: 'billing',      label: 'Facturation', icon: FileText,  desc: 'Mentions légales factures' },
 ]
 
 /* ── Defaults ── */
 const DEF = {
   delivery_fee_tana: '3000', delivery_fee_peripherique: '5000',
+  reassurance_text: 'La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours',
   whatsapp: '', business_hours: '', facebook: '', instagram: '',
   coming_soon: '0', coming_soon_date: '',
   coming_soon_message: 'Nous préparons quelque chose d\'exceptionnel. La boutique ouvre bientôt !',
+  company_legal_name: 'VaRyGasy', company_nif: '', company_stat: '',
+  company_address: 'Antananarivo, Madagascar', company_phone: '', company_email: '',
+  invoice_tva_percent: '0',
+  invoice_footer: 'Merci de votre confiance. VaRyGasy — accessoires mobile & gaming à Madagascar.',
 }
 const DEF_TICKER = [
   { text: 'Finger Sleeves Gaming dispo maintenant' },
@@ -140,10 +146,10 @@ export default function Settings() {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', maxWidth: 900 }}>
+    <div className="adm-stack" style={{ display: 'flex', gap: 24, alignItems: 'flex-start', maxWidth: 900 }}>
 
       {/* Sidebar */}
-      <div style={{ width: 180, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div className="adm-settings-nav" style={{ width: 180, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
         {SECTIONS.map(({ id, label, icon: Icon, desc }) => {
           const active = section === id
           return (
@@ -328,7 +334,7 @@ export default function Settings() {
               {field('Points (un par ligne)', null, ta((card_data.points || []).join('\n'), v => setFeat(s => ({ ...s, cards: s.cards.map((c, i) => i === ci ? { ...c, points: v.split('\n').filter(Boolean) } : c) })), '', 4))}
               <div>
                 {lbl('Métriques', '2 chiffres affichés en bas de la carte')}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {(card_data.metrics || []).map((m, mi) => (
                     <div key={mi} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <div style={{ fontSize: 10, color: 'rgba(240,240,245,0.3)', fontWeight: 600 }}>VALEUR {mi + 1}</div>
@@ -365,7 +371,7 @@ export default function Settings() {
             <div key={pi} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
               {sectionTitle(`Pack ${pi + 1}`)}
               {field('Nom', null, inp(plan.name, v => setPricing(s => ({ ...s, plans: s.plans.map((p, i) => i === pi ? { ...p, name: v } : p) }))))}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {field('Prix (Ar)', null, inp(String(plan.price), v => setPricing(s => ({ ...s, plans: s.plans.map((p, i) => i === pi ? { ...p, price: Number(v) || 0 } : p) })), 'number'))}
                 {field('Badge populaire (optionnel)', null, inp(plan.badge || '', v => setPricing(s => ({ ...s, plans: s.plans.map((p, i) => i === pi ? { ...p, badge: v || undefined } : p) })), 'text', 'Ex : Le plus populaire'))}
               </div>
@@ -392,7 +398,7 @@ export default function Settings() {
             {sectionTitle('4 garanties (icônes fixes)')}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {(cta.guarantees || []).map((g, gi) => (
-                <div key={gi} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div key={gi} className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {inp(g.label, v => setCta(s => ({ ...s, guarantees: s.guarantees.map((x, i) => i === gi ? { ...x, label: v } : x) })))}
                   {inp(g.sub, v => setCta(s => ({ ...s, guarantees: s.guarantees.map((x, i) => i === gi ? { ...x, sub: v } : x) })))}
                 </div>
@@ -419,6 +425,9 @@ export default function Settings() {
           <div style={{ padding: '10px 14px', borderRadius: 9, background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.15)', fontSize: 12, color: 'rgba(96,165,250,0.7)' }}>
             Les commandes existantes conservent les frais enregistrés à la création.
           </div>
+          {sectionTitle('Bandeau de réassurance')}
+          {field('Texte affiché sous les tarifs et le CTA', 'Séparez les arguments par « · ». Affiché sur la page d\'accueil.',
+            ta(flat.reassurance_text, setF('reassurance_text'), 'La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours', 3))}
         </>)}
 
         {/* ── CONTACT ── */}
@@ -432,6 +441,31 @@ export default function Settings() {
             {sectionTitle('Réseaux sociaux (footer)')}
             {field('Facebook', 'URL de la page Facebook', inp(flat.facebook, setF('facebook'), 'url', 'https://facebook.com/...'))}
             {field('Instagram', 'URL du profil Instagram', inp(flat.instagram, setF('instagram'), 'url', 'https://instagram.com/...'))}
+          </>)}
+        </div>}
+
+        {/* ── FACTURATION ── */}
+        {section === 'billing' && <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {card(<>
+            {sectionTitle('Identité sur les factures')}
+            <div style={{ fontSize: 12, color: 'rgba(240,240,245,0.4)', marginBottom: 6 }}>
+              Ces informations apparaissent en en-tête des factures PDF générées automatiquement à chaque livraison.
+            </div>
+            {field('Nom / raison sociale', null, inp(flat.company_legal_name, setF('company_legal_name'), 'text', 'VaRyGasy'))}
+            {field('Adresse', null, inp(flat.company_address, setF('company_address'), 'text', 'Antananarivo, Madagascar'))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {field('Téléphone', null, inp(flat.company_phone, setF('company_phone'), 'tel', '+261...'))}
+              {field('Email', null, inp(flat.company_email, setF('company_email'), 'email', 'contact@...'))}
+            </div>
+          </>)}
+          {card(<>
+            {sectionTitle('Mentions légales (optionnel)')}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {field('NIF', 'Numéro d\'Identification Fiscale', inp(flat.company_nif, setF('company_nif'), 'text', ''))}
+              {field('STAT', 'Numéro statistique', inp(flat.company_stat, setF('company_stat'), 'text', ''))}
+            </div>
+            {field('Taux de TVA (%)', '0 = pas de ligne TVA sur la facture', inp(flat.invoice_tva_percent, setF('invoice_tva_percent'), 'number', '0'))}
+            {field('Message de pied de page', null, ta(flat.invoice_footer, setF('invoice_footer'), 'Merci de votre confiance…', 2))}
           </>)}
         </div>}
       </div>

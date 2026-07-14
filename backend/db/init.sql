@@ -1,7 +1,8 @@
 -- ============================================================
 -- VaRyGasy — init.sql  (MariaDB 11)
 -- Exécuté automatiquement au premier démarrage du conteneur db
--- Dernière mise à jour : 2026-05-28
+-- (facultatif : l'API crée elle-même tables + seeds au démarrage)
+-- Dernière mise à jour : 2026-07-02
 -- ============================================================
 
 -- ── users ────────────────────────────────────────────────────
@@ -13,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   referral_code VARCHAR(12)   UNIQUE,
   referred_by   INT           NULL,
   role          VARCHAR(20)   DEFAULT 'client',   -- client | moderator | admin | livreur
+  last_seen     DATETIME      NULL,               -- présence staff (liste "en ligne")
   created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -82,6 +84,13 @@ CREATE TABLE IF NOT EXISTS visits (
   count INT  DEFAULT 1
 );
 
+-- ── visit_uniques ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS visit_uniques (
+  date    DATE     NOT NULL,
+  ip_hash CHAR(16) NOT NULL,                       -- sha256(IP|UA) tronqué
+  PRIMARY KEY (date, ip_hash)
+);
+
 -- ── settings ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS settings (
   `key`      VARCHAR(100) PRIMARY KEY,
@@ -99,7 +108,7 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('facebook',       ''),
   ('instagram',      ''),
   ('business_hours', ''),
-  ('reassurance_text', 'Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours'),
+  ('reassurance_text', 'La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours'),
   ('marquee_items',  '[{"text":"Finger Sleeves Gaming dispo maintenant"},{"text":"Livraison 24h sur Antananarivo"},{"text":"+1 200 gamers équipés à Madagascar"},{"text":"Ventilateurs Turbo — stock limité"},{"text":"Garantie 6 mois sur tous les produits"},{"text":"Support WhatsApp 7j/7 — réponse en 5 min"}]'),
   ('team_badge',    'Notre équipe'),
   ('team_title',    'Les personnes derrière'),
@@ -184,3 +193,8 @@ CREATE INDEX IF NOT EXISTS idx_products_cat   ON products(category);
 CREATE INDEX IF NOT EXISTS idx_products_act   ON products(active);
 CREATE INDEX IF NOT EXISTS idx_team_order     ON team_members(active, order_index);
 CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
+
+-- Pas de compte admin par défaut : le repo est public, un identifiant
+-- pré-inséré serait une porte d'entrée connue de tous.
+-- Créer le premier admin : s'inscrire sur le site (compte client), puis
+--   UPDATE users SET role='admin' WHERE phone='<numéro>';

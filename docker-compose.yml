@@ -35,12 +35,12 @@ services:
       DB_NAME:     vrg
       DB_USER:     ${DB_USER:-vrg_user}
       DB_PASSWORD: ${DB_PASSWORD:-vrg_pass}
-      JWT_SECRET:  ${JWT_SECRET:-change_this_in_production}
+      JWT_SECRET:  ${JWT_SECRET:-dev_only_secret_do_not_use_in_prod_0123456789}
       PORT:        80
     volumes:
       - uploads:/app/uploads
     ports:
-      - "8000:80"
+      - "8001:80"
     depends_on:
       db:
         condition: service_healthy

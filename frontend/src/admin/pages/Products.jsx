@@ -194,7 +194,7 @@ export default function Products() {
       </div>
 
       {/* Table */}
-      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
+      <div className="adm-table-scroll" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '32%' }} />
@@ -247,7 +247,8 @@ export default function Products() {
                         </span>
                       ) : null}
                     </div>
-                    {p.promo_active && (
+                    {/* !! obligatoire : promo_active est un TINYINT — 0 && <jsx> rend le 0 */}
+                    {!!p.promo_active && (
                       <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 99, background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' }}>
                         -{p.promo_percent}%
                       </span>
@@ -447,7 +448,7 @@ export default function Products() {
               <FRow label="Description">
                 <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} style={{ ...inp, resize: 'vertical' }} placeholder="Description courte du produit" />
               </FRow>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <FRow label="Prix (Ar) *">
                   <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} type="number" min="0" required style={inp} placeholder="5000" />
                 </FRow>

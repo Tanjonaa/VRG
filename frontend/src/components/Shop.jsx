@@ -24,7 +24,8 @@ const fmt = n => Number(n).toLocaleString('fr-FR')
 const djb2 = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h*33)^s.charCodeAt(i))>>>0; return h }
 const PALETTE = ['#FF9900','#a78bfa','#34d399','#60a5fa','#f472b6','#fb923c','#38bdf8','#4ade80','#e879f9','#f87171']
 const catColor = c => PALETTE[djb2(c||'')%PALETTE.length]
-const parse = raw => { try { const a = JSON.parse(raw); return Array.isArray(a)?a:[] } catch { return [] } }
+/* images arrive soit en chaîne JSON (API admin), soit déjà parsé en tableau (API publique) */
+const parse = raw => { if (Array.isArray(raw)) return raw; try { const a = JSON.parse(raw); return Array.isArray(a)?a:[] } catch { return [] } }
 
 const AGO_MS = { '7d':7*86400000, '30d':30*86400000, '90d':90*86400000 }
 const isNew7 = p => p.created_at && (Date.now() - new Date(p.created_at)) < AGO_MS['7d']
@@ -147,7 +148,7 @@ function ProductCard({ product, onAdd, onView, forceNew = false }) {
       {/* Image */}
       <div style={{ position:'relative', aspectRatio:'4/3', overflow:'hidden', background:'rgba(255,255,255,0.02)' }}>
         {img
-          ? <img src={img} alt={product.name} style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform 0.5s cubic-bezier(0.4,0,0.2,1)', transform: hov?'scale(1.1)':'scale(1)' }} />
+          ? <img src={img} alt={`${product.name} — ${product.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform 0.5s cubic-bezier(0.4,0,0.2,1)', transform: hov?'scale(1.1)':'scale(1)' }} />
           : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:48, opacity:0.1 }}>📦</div>
         }
 
@@ -245,9 +246,18 @@ function ProductCard({ product, onAdd, onView, forceNew = false }) {
 function ProductModal({ product, onClose, onAdd }) {
   const [idx, setIdx]   = useState(0)
   const [added, setAdded] = useState(false)
+  const [copied, setCopied] = useState(false)
   const imgs = parse(product?.images)
   const oos  = product?.stock === 0
   const col  = catColor(product?.category)
+
+  const shareUrl  = `https://varygasy.net/produit/${product?.id}`
+  const shareText = `${product?.name} · ${fmt(product?.price)} Ar — ${shareUrl}`
+  const copyLink = async () => {
+    /* Partage natif sur mobile, copie du lien sinon */
+    if (navigator.share) { try { await navigator.share({ title: product.name, url: shareUrl }) } catch {} ; return }
+    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch {}
+  }
 
   useEffect(() => { setIdx(0) }, [product])
   useEffect(() => {
@@ -283,7 +293,7 @@ function ProductModal({ product, onClose, onAdd }) {
                 <motion.div key={idx} initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} transition={{ duration:0.25 }}
                   style={{ width:'100%', height:'100%', minHeight:300 }}>
                   {imgs[idx]?.src
-                    ? <img src={imgs[idx].src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    ? <img src={imgs[idx].src} alt={`${product.name} — ${product.category || 'accessoire gaming'} VaRyGasy`} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                     : <div style={{ width:'100%', height:'100%', minHeight:300, display:'flex', alignItems:'center', justifyContent:'center', fontSize:72, opacity:0.08 }}>📦</div>
                   }
                 </motion.div>
@@ -296,7 +306,7 @@ function ProductModal({ product, onClose, onAdd }) {
                 {imgs.map((im, i) => (
                   <button key={i} onClick={() => setIdx(i)}
                     style={{ width:52, height:52, borderRadius:12, overflow:'hidden', border:`2px solid ${i===idx ? T.accent : T.border}`, cursor:'pointer', padding:0, transition:'border-color 0.2s', flexShrink:0, background:'rgba(255,255,255,0.03)' }}>
-                    <img src={im.src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    <img src={im.src} alt={`${product.name} vue ${i + 1}`} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                   </button>
                 ))}
               </div>
@@ -339,6 +349,18 @@ function ProductModal({ product, onClose, onAdd }) {
               <span style={{ fontSize:12, fontWeight:700, color: oos ? '#f87171' : '#4ade80' }}>
                 {oos ? 'Rupture de stock' : product.stock <= 5 ? `Seulement ${product.stock} en stock` : `En stock (${product.stock} disponibles)`}
               </span>
+            </div>
+
+            {/* Partage — chaque produit a son URL propre */}
+            <div style={{ display:'flex', gap:8 }}>
+              <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noreferrer"
+                style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'9px 12px', borderRadius:12, background:'rgba(37,211,102,0.1)', border:'1px solid rgba(37,211,102,0.3)', color:'#25d366', fontSize:12, fontWeight:700, textDecoration:'none' }}>
+                Partager sur WhatsApp
+              </a>
+              <button onClick={copyLink}
+                style={{ flex:1, padding:'9px 12px', borderRadius:12, background:T.glass, border:`1px solid ${T.border}`, color:T.textMuted, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                {copied ? 'Lien copié ✓' : '🔗 Copier le lien'}
+              </button>
             </div>
 
             <div style={{ marginTop:'auto', display:'flex', gap:10 }}>
@@ -824,7 +846,7 @@ function NouveautesView({ products, onAdd, onView, view, setView }) {
                 onMouseEnter={e=>{ e.currentTarget.style.borderColor='rgba(255,153,0,0.25)'; e.currentTarget.style.boxShadow='0 8px 30px rgba(255,153,0,0.08)' }}
                 onMouseLeave={e=>{ e.currentTarget.style.borderColor=novo?'rgba(74,222,128,0.2)':T.border; e.currentTarget.style.boxShadow='none' }}>
                 <div style={{ width:88, height:88, borderRadius:14, background:'rgba(255,255,255,0.04)', overflow:'hidden', flexShrink:0, position:'relative' }}>
-                  {img?<img src={img} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:<div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, opacity:0.1 }}>📦</div>}
+                  {img?<img src={img} alt={`${p.name} — ${p.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:<div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, opacity:0.1 }}>📦</div>}
                 </div>
                 <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', justifyContent:'center', gap:4 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -879,7 +901,7 @@ function PromoCard({ product, onAdd, onView }) {
       {/* Image */}
       <div style={{ position:'relative', aspectRatio:'4/3', overflow:'hidden', background:'rgba(255,255,255,0.02)' }}>
         {img
-          ? <img src={img} alt={product.name} style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform 0.5s', transform: hov?'scale(1.08)':'scale(1)' }} />
+          ? <img src={img} alt={`${product.name} — ${product.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform 0.5s', transform: hov?'scale(1.08)':'scale(1)' }} />
           : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:48, opacity:0.1 }}>📦</div>
         }
         <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(5,5,13,0.7) 0%, transparent 50%)', pointerEvents:'none' }} />
@@ -981,7 +1003,7 @@ function PromosView({ products, onAdd, onView }) {
   )
 }
 
-function ShopInner({ initialProductId }) {
+function ShopInner() {
   const { user } = useAuth()
   const { addItem } = useCart()
   const isMobile = useMobile()
@@ -1004,12 +1026,18 @@ function ShopInner({ initialProductId }) {
       const list = Array.isArray(d) ? d : []
       setProducts(list)
       setLoading(false)
-      if (initialProductId) {
-        const p = list.find(p => String(p.id) === String(initialProductId))
+      /* Arrivée directe via /produit/:id (lien partagé) → ouvre la fiche */
+      const m = window.location.pathname.match(/^\/produit\/(\d+)/)
+      if (m) {
+        const p = list.find(x => x.id === Number(m[1]))
         if (p) setModal(p)
       }
     }).catch(()=>setLoading(false))
   }, [])
+
+  /* URL synchronisée avec la fiche ouverte : chaque produit est partageable */
+  const openProduct  = (p) => { setModal(p); window.history.replaceState(null, '', `/produit/${p.id}`) }
+  const closeProduct = () => { setModal(null); window.history.replaceState(null, '', '/catalogue') }
 
   const cats = Object.entries(
     products.reduce((a,p)=>{ if(p.category) a[p.category]=(a[p.category]||0)+1; return a },{})
@@ -1075,7 +1103,7 @@ function ShopInner({ initialProductId }) {
             {navTab === 'nouveautes' && (
               loading
                 ? <Loader />
-                : <NouveautesView products={products} onAdd={handleAdd} onView={setModal} view={view} setView={setView} />
+                : <NouveautesView products={products} onAdd={handleAdd} onView={openProduct} view={view} setView={setView} />
             )}
 
             {/* ── Onglet Catalogue ── */}
@@ -1089,7 +1117,7 @@ function ShopInner({ initialProductId }) {
                     <AnimatePresence>
                       {filtered.map((p,i) => (
                         <motion.div key={p.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}>
-                          <ProductCard product={p} onAdd={handleAdd} onView={setModal} />
+                          <ProductCard product={p} onAdd={handleAdd} onView={openProduct} />
                         </motion.div>
                       ))}
                     </AnimatePresence>
@@ -1100,12 +1128,12 @@ function ShopInner({ initialProductId }) {
                       const img = parse(p.images)[0]?.src
                       return (
                         <motion.div key={p.id} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.03 }}
-                          onClick={() => setModal(p)}
+                          onClick={() => openProduct(p)}
                           style={{ display:'flex', gap:18, background:T.surface, backdropFilter:'blur(16px)', border:`1px solid ${T.border}`, borderRadius:18, overflow:'hidden', padding:16, cursor:'pointer', transition:'border-color 0.2s, box-shadow 0.2s' }}
                           onMouseEnter={e=>{ e.currentTarget.style.borderColor=T.borderHi; e.currentTarget.style.boxShadow='0 8px 30px rgba(255,153,0,0.08)' }}
                           onMouseLeave={e=>{ e.currentTarget.style.borderColor=T.border; e.currentTarget.style.boxShadow='none' }}>
                           <div style={{ width:88, height:88, borderRadius:14, background:'rgba(255,255,255,0.04)', overflow:'hidden', flexShrink:0 }}>
-                            {img?<img src={img} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:<div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, opacity:0.1 }}>📦</div>}
+                            {img?<img src={img} alt={`${p.name} — ${p.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:<div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, opacity:0.1 }}>📦</div>}
                           </div>
                           <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', justifyContent:'center' }}>
                             <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:4 }}>{p.name}</div>
@@ -1127,7 +1155,7 @@ function ShopInner({ initialProductId }) {
 
             {/* ── Onglet Promotions ── */}
             {navTab === 'promos' && (
-              loading ? <Loader /> : <PromosView products={products} onAdd={handleAdd} onView={setModal} />
+              loading ? <Loader /> : <PromosView products={products} onAdd={handleAdd} onView={openProduct} />
             )}
           </div>
         </div>
@@ -1138,7 +1166,7 @@ function ShopInner({ initialProductId }) {
 
       {/* Modals */}
       <AnimatePresence>
-        {modal && <ProductModal product={modal} onClose={()=>setModal(null)} onAdd={handleAdd} />}
+        {modal && <ProductModal product={modal} onClose={closeProduct} onAdd={handleAdd} />}
       </AnimatePresence>
 
       <CartPanel isOpen={showCart} onClose={()=>setShowCart(false)} onOpenAuth={()=>{ setShowCart(false); setShowAuth(true) }} />
@@ -1167,12 +1195,12 @@ function ComingSoonGate({ children }) {
 }
 
 /* ─── Root ─── */
-export default function Shop({ initialProductId } = {}) {
+export default function Shop() {
   return (
     <AuthProvider>
       <CartProvider>
         <ComingSoonGate>
-          <ShopInner initialProductId={initialProductId} />
+          <ShopInner />
           <SupportChat />
         </ComingSoonGate>
       </CartProvider>

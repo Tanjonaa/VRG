@@ -1,6 +1,6 @@
 -- ============================================================
 -- VaRyGasy — Schéma complet base de données MariaDB 11
--- Dernière mise à jour : 2026-05-28
+-- Dernière mise à jour : 2026-07-02
 -- ============================================================
 
 -- ── users ────────────────────────────────────────────────────
@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   referral_code VARCHAR(12)   UNIQUE,              -- code parrainage unique (8 chars alphanum)
   referred_by   INT           NULL,                -- FK → users.id du parrain
   role          VARCHAR(20)   DEFAULT 'client',    -- client | moderator | admin | livreur
+  last_seen     DATETIME      NULL,                -- présence staff (maj par le polling /admin/notifications)
   created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -80,7 +81,16 @@ CREATE TABLE IF NOT EXISTS referrals (
 CREATE TABLE IF NOT EXISTS visits (
   id    INT  AUTO_INCREMENT PRIMARY KEY,
   date  DATE NOT NULL UNIQUE,                      -- 1 ligne par jour
-  count INT  DEFAULT 1                             -- incrémenté à chaque visite
+  count INT  DEFAULT 1                             -- sessions (1 hit / session navigateur)
+);
+
+-- ── visit_uniques ────────────────────────────────────────────
+-- Visiteurs uniques par jour : empreinte sha256(IP|User-Agent)
+-- tronquée, dédupliquée par clé primaire. Robots exclus côté API.
+CREATE TABLE IF NOT EXISTS visit_uniques (
+  date    DATE     NOT NULL,
+  ip_hash CHAR(16) NOT NULL,
+  PRIMARY KEY (date, ip_hash)
 );
 
 -- ── settings ─────────────────────────────────────────────────
@@ -111,7 +121,7 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('facebook',                  ''),
   ('instagram',                 ''),
   ('business_hours',            ''),
-  ('reassurance_text',          'Livraison gratuite Antananarivo · Paiement à la livraison · Retour sous 7 jours'),
+  ('reassurance_text',          'La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours'),
   ('marquee_items',             '[{"text":"Finger Sleeves Gaming dispo maintenant"},{"text":"Livraison 24h sur Antananarivo"}]'),
   ('team_badge',                'Notre équipe'),
   ('team_title',                'Les personnes derrière'),
@@ -119,6 +129,29 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
   ('coming_soon',               '0'),
   ('coming_soon_date',          ''),
   ('coming_soon_message',       'Nous préparons quelque chose d''exceptionnel. La boutique ouvre bientôt !');
+
+-- ── invoices ─────────────────────────────────────────────────
+-- Facture générée automatiquement au passage d'une commande à 'Livré'
+-- (idempotent : order_id UNIQUE). PDF stocké hors dossier public,
+-- servi uniquement via routes authentifiées. Comptabilité = admin strict.
+CREATE TABLE IF NOT EXISTS invoices (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  number       VARCHAR(30)  NOT NULL UNIQUE,        -- ex: FA2026-00042
+  order_id     INT          NOT NULL UNIQUE,        -- 1 facture par commande
+  user_id      INT          NOT NULL,
+  user_name    VARCHAR(100) NOT NULL,               -- snapshot au moment de la facture
+  user_phone   VARCHAR(20),
+  subtotal     INT          NOT NULL DEFAULT 0,     -- somme des articles (Ar)
+  delivery_fee INT          NOT NULL DEFAULT 0,
+  tva_percent  INT          NOT NULL DEFAULT 0,     -- setting invoice_tva_percent
+  total        INT          NOT NULL,               -- TTC (Ar)
+  pdf_path     VARCHAR(255),                        -- fichier dans INVOICE_DIR
+  created_at   DATETIME     DEFAULT NOW(),
+  INDEX idx_invoices_date (created_at)
+);
+-- Mentions légales configurables (table settings) : company_legal_name,
+-- company_nif, company_stat, company_address, company_phone, company_email,
+-- invoice_tva_percent, invoice_footer
 
 -- ── team_members ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS team_members (
@@ -224,7 +257,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
 --   Livré : livreur marque livrée
 --   livreur_id : FK optionnelle vers users.id (rôle='livreur')
 -- ── Points de fidélité ──────────────────────────────────────
---   1 pt par tranche de 10 000 Ar dépensé (orders.total, status ≠ Annulé)
+--   1 pt par tranche de 2 000 Ar dépensé — commandes status='Livré' UNIQUEMENT
+--   (les commandes en cours affichent des points "en attente", crédités à la livraison)
 --   +10 pts par filleul validé (filleul doit avoir dépensé >= 5 000 Ar, status != Annulé)
 --   Total = orderPoints + referralPoints (validés uniquement)
 --   Niveaux : Bronze 0-199 | Argent 200-499 | Or 500-999 | Platine 1000+
@@ -244,7 +278,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
 --   active=0  : archivé (soft delete), invisible sur le site client
 --   stock=0   : badge "Rupture" côté client, bouton désactivé
 --   images    : tableau JSON [{"src":"/images/uploads/<fichier>"}]
---              fichier stocké dans volume Docker partagé api↔app
+--              fichier stocké dans UPLOAD_DIR (volume Docker en local,
+--              dossier ~/VRG/uploads/ sur o2switch — hors git)
 --              upload via POST /api/admin/upload (multer, 5 Mo max)
 -- ── Catégories ──────────────────────────────────────────────
 --   products.category : libre, pas de table dédiée
@@ -255,8 +290,13 @@ CREATE INDEX IF NOT EXISTS idx_logs_created   ON admin_logs(created_at);
 --   ne pas ajouter de colonne ici — utiliser une nouvelle clé
 -- ── Sécurité ────────────────────────────────────────────────
 --   Rate limiting : 20 tentatives/15 min sur /auth/login, 120 req/min global
+--     (fichiers statiques exclus en mode app-unique o2switch)
+--   trust proxy = 1 : IP réelle des clients derrière Passenger/nginx
+--     (sans ça, tous les clients partagent le même compteur de rate-limit)
 --   POST /orders bloqué pour admin | moderator | livreur
 --   POST /admin/users réservé au rôle admin uniquement
 --   PUT /admin/users/:id : admin ne peut pas modifier son propre rôle
+--   Démarrage : refus (exit 1) si DB_NAME/DB_USER/DB_PASSWORD absents
+--     — aucun identifiant en dur dans le code, tout vient de l'environnement
 --   JWT_SECRET : warning au démarrage si valeur par défaut détectée
 -- ============================================================

@@ -36,39 +36,57 @@ function ChatView({ roomId, me, onBack, title }) {
   const [messages, setMessages] = useState([])
   const [text, setText]         = useState('')
   const [sending, setSending]   = useState(false)
-  const [lastAt, setLastAt]     = useState(null)
+  const [lastId, setLastId]     = useState(null)
+  const [othersRead, setOthersRead] = useState(0)   // plus grand msg lu par les autres
   const bottomRef               = useRef(null)
+
+  const fetchReadStatus = () => {
+    if (!roomId) return
+    fetch(`${BASE}/chat/rooms/${roomId}/read-status`, { headers: h() })
+      .then(r => r.json())
+      .then(d => setOthersRead(Number(d.others_read) || 0))
+      .catch(() => {})
+  }
+
+  const appendNew = (data) => {
+    setMessages(prev => {
+      const seen = new Set(prev.map(m => m.id))
+      const fresh = data.filter(m => !seen.has(m.id))
+      return fresh.length ? [...prev, ...fresh] : prev
+    })
+    setLastId(data[data.length - 1].id)
+  }
 
   useEffect(() => {
     setMessages([])
-    setLastAt(null)
+    setLastId(null)
+    setOthersRead(0)
     if (!roomId) return
     fetch(`${BASE}/livreur/chat/rooms/${roomId}/messages?limit=60`, { headers: h() })
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
           setMessages(data)
-          if (data.length > 0) setLastAt(data[data.length - 1].created_at)
+          if (data.length > 0) setLastId(data[data.length - 1].id)
         }
+        fetchReadStatus()
       })
       .catch(() => {})
   }, [roomId])
 
   useEffect(() => {
-    if (!roomId || !lastAt) return
+    if (!roomId) return
     const poll = setInterval(async () => {
       try {
-        const url = `${BASE}/livreur/chat/rooms/${roomId}/messages?limit=50&since=${encodeURIComponent(lastAt)}`
+        const url = `${BASE}/livreur/chat/rooms/${roomId}/messages?limit=50${lastId ? '&after=' + lastId : ''}`
         const r = await fetch(url, { headers: h() })
         const data = await r.json()
-        if (Array.isArray(data) && data.length > 0) {
-          setMessages(prev => [...prev, ...data])
-          setLastAt(data[data.length - 1].created_at)
-        }
+        if (Array.isArray(data) && data.length > 0) appendNew(data)
+        fetchReadStatus()
       } catch {}
-    }, 3000)
+    }, 8000)
     return () => clearInterval(poll)
-  }, [roomId, lastAt])
+  }, [roomId, lastId])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
@@ -83,7 +101,7 @@ function ChatView({ roomId, me, onBack, title }) {
         body: JSON.stringify({ body: text.trim() }),
       })
       const msg = await r.json()
-      if (msg.id) { setMessages(prev => [...prev, msg]); setLastAt(msg.created_at); setText('') }
+      if (msg.id) { appendNew([msg]); setText('') }
     } catch {} finally { setSending(false) }
   }
 
@@ -105,6 +123,7 @@ function ChatView({ roomId, me, onBack, title }) {
         {messages.map((msg, i) => {
           const isMe    = msg.sender_id === me?.id
           const prevSame = i > 0 && messages[i - 1].sender_id === msg.sender_id
+          const lastMine = isMe && !messages.slice(i + 1).some(m => m.sender_id === me?.id)
           return (
             <div key={msg.id} style={{ display: 'flex', flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 6, marginTop: prevSame ? 2 : 8 }}>
               {!isMe && !prevSame && (
@@ -122,6 +141,11 @@ function ChatView({ roomId, me, onBack, title }) {
                 </div>
                 <span style={{ fontSize: 10, color: 'rgba(240,240,245,0.25)' }}>
                   {new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  {lastMine && (
+                    msg.id <= othersRead
+                      ? <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 700 }}>✓✓ Vu</span>
+                      : <span style={{ marginLeft: 6, color: 'rgba(240,240,245,0.3)', fontWeight: 600 }}>✓ Envoyé</span>
+                  )}
                 </span>
               </div>
             </div>

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Package, LogOut, User, Phone, Lock, Eye, EyeOff,
   Check, AlertCircle, ChevronDown, MapPin, Clock, CreditCard,
-  Pencil, ShieldCheck, Star, Trophy, Zap, Gift, Link, Copy, Users
+  Pencil, ShieldCheck, Star, Trophy, Zap, Gift, Link, Copy, Users, Download
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { api } from '../lib/api.js'
@@ -301,8 +301,12 @@ const TIERS = [
   { name: 'Platine', min: 1000, max: Infinity, color: '#60a5fa', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.25)', icon: Gift },
 ]
 
+/* 1 pt par 2 000 Ar — crédité uniquement quand la commande est livrée */
+const PTS_PER_AR = 2000
+const orderPts = (o) => Math.floor((o.total || 0) / PTS_PER_AR)
+
 function calcPoints(orders) {
-  return orders.reduce((sum, o) => sum + Math.floor((o.total || 0) / 10000), 0)
+  return orders.reduce((sum, o) => o.status === 'Livré' ? sum + orderPts(o) : sum, 0)
 }
 
 function getTier(pts) {
@@ -387,7 +391,7 @@ function FidelitySection({ orders, referralPoints = 0 }) {
       {/* How points work */}
       <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>Comment gagner des points</div>
-        <PointRule icon={<Package size={12} />} label="1 point par 10 000 Ar dépensé" />
+        <PointRule icon={<Package size={12} />} label="1 point par 2 000 Ar dépensé — crédité à la livraison" />
         <PointRule icon={<Zap size={12} color="#fbbf24" />} label="Bonus à partir du niveau Or" />
         <PointRule icon={<Gift size={12} color="#FF9900" />} label="Réductions exclusives à venir" />
       </div>
@@ -397,13 +401,21 @@ function FidelitySection({ orders, referralPoints = 0 }) {
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 0' }}>Historique des points</div>
           {orders.slice(0, 4).map((o, i) => {
-            const pts = Math.floor((o.total || 0) / 10000)
+            const pts = orderPts(o)
+            const delivered = o.status === 'Livré'
+            const cancelled = o.status === 'Annulé'
             return (
               <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 10, padding: '9px 12px' }}>
                 <div style={{ fontSize: 12, color: 'rgba(240,240,245,0.5)' }}>
                   {o.items?.[0]?.name || 'Commande'} · {o.date}
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24' }}>+{pts} pts</span>
+                {delivered ? (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24' }}>+{pts} pts</span>
+                ) : cancelled ? (
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(240,240,245,0.25)' }}>annulée</span>
+                ) : (
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(240,240,245,0.35)' }}>⏳ +{pts} pts à la livraison</span>
+                )}
               </div>
             )
           })}
@@ -613,11 +625,40 @@ function OrderCard({ order: o, index }) {
                 <span>Total</span>
                 <span style={{ color: '#fbbf24' }}>Ar {o.total?.toLocaleString('fr-FR')}</span>
               </div>
+
+              {o.status === 'Livré' && <InvoiceButton orderId={o.id} />}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
+  )
+}
+
+/* Téléchargement de facture (commande livrée) — fetch authentifié → blob */
+function InvoiceButton({ orderId }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr]   = useState(false)
+  const download = async () => {
+    setBusy(true); setErr(false)
+    try {
+      const r = await fetch(`/api/invoices/order/${orderId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('vrg_token')}` },
+      })
+      if (!r.ok) throw new Error()
+      const blob = await r.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `facture-commande-${orderId}.pdf`; a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch { setErr(true) }
+    setBusy(false)
+  }
+  return (
+    <button onClick={download} disabled={busy}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 4, padding: '9px 12px', borderRadius: 9, border: '1px solid rgba(255,153,0,0.3)', background: 'rgba(255,153,0,0.1)', color: '#FF9900', fontSize: 12, fontWeight: 700, cursor: busy ? 'default' : 'pointer', fontFamily: 'inherit', opacity: busy ? 0.5 : 1 }}>
+      <Download size={13} /> {busy ? 'Téléchargement…' : err ? 'Facture indisponible' : 'Télécharger la facture'}
+    </button>
   )
 }
 

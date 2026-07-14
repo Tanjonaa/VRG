@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Phone, Lock, User, Eye, EyeOff, AlertCircle, Check, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { normalizeMgPhone, MG_PHONE_HINT } from '../lib/phone.js'
 
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const [tab, setTab] = useState('login')
@@ -19,14 +20,16 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
-  /* Vérification temps réel de la disponibilité du numéro (inscription) */
+  /* Vérification temps réel du numéro (inscription) : format malgache puis disponibilité */
   useEffect(() => {
     if (tab !== 'register') { setPhoneStatus(null); return }
-    const cleaned = form.phone.replace(/\s/g, '')
+    const cleaned = form.phone.replace(/[\s.\-()]/g, '')
     if (cleaned.length < 10) { setPhoneStatus(null); return }
+    const normalized = normalizeMgPhone(form.phone)
+    if (!normalized) { setPhoneStatus('invalid'); return }
     setPhoneStatus('checking')
     const t = setTimeout(() => {
-      fetch(`/api/auth/check-phone?phone=${encodeURIComponent(form.phone.trim())}`)
+      fetch(`/api/auth/check-phone?phone=${encodeURIComponent(normalized)}`)
         .then(r => r.json())
         .then(d => setPhoneStatus(d.available ? 'available' : 'taken'))
         .catch(() => setPhoneStatus(null))
@@ -42,8 +45,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         setError('Remplis tous les champs')
         return
       }
-      if (form.phone.replace(/\s/g, '').length < 10) {
-        setError('Numéro de téléphone invalide')
+      if (!normalizeMgPhone(form.phone)) {
+        setError(MG_PHONE_HINT)
         return
       }
       if (phoneStatus === 'taken') {
@@ -62,7 +65,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     }
     setBusy(true)
     try {
-      if (tab === 'register') await register({ ...form, referralCode: refCode || undefined })
+      if (tab === 'register') await register({ ...form, phone: normalizeMgPhone(form.phone), referralCode: refCode || undefined })
       else await login({ phone: form.phone, password: form.password })
       onSuccess()
     } catch (err) {
@@ -180,6 +183,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                         Ce numéro est déjà enregistré — connecte-toi plutôt.
                       </motion.div>
                     )}
+                    {tab === 'register' && phoneStatus === 'invalid' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                        style={{ fontSize: 12, color: '#f87171', marginTop: 6, paddingLeft: 4, overflow: 'hidden' }}>
+                        {MG_PHONE_HINT}
+                      </motion.div>
+                    )}
                     {tab === 'register' && phoneStatus === 'available' && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                         style={{ fontSize: 12, color: '#22c55e', marginTop: 6, paddingLeft: 4, overflow: 'hidden' }}>
@@ -215,7 +224,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                 </AnimatePresence>
 
                 {(() => {
-                  const blocked = busy || (tab === 'register' && (phoneStatus === 'taken' || phoneStatus === 'checking'))
+                  const blocked = busy || (tab === 'register' && (phoneStatus === 'taken' || phoneStatus === 'checking' || phoneStatus === 'invalid'))
                   return (
                     <motion.button
                       whileHover={!blocked ? { scale: 1.02, boxShadow: '0 6px 28px rgba(202,138,4,0.4)' } : {}}

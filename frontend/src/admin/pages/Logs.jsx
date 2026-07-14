@@ -114,9 +114,9 @@ export default function Logs() {
       </div>
 
       {/* Table */}
-      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
+      <div className="adm-table-scroll adm-logs" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px 130px 145px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+        <div className="adm-logs-grid" style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px 130px 145px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
           {['Action', 'Cible', 'Avant → Après', 'Effectué par', 'Date'].map(col => (
             <div key={col} style={{ padding: '11px 16px', fontSize: 11, fontWeight: 700,
               color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
@@ -142,7 +142,7 @@ export default function Logs() {
             const meta = ACTION_META[row.action] || ACTION_META.product_edit
             const { Icon } = meta
             return (
-              <div key={row.id}
+              <div key={row.id} className="adm-logs-grid"
                 style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px 130px 145px',
                   borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
                   transition: 'background 0.15s', fontSize: 13 }}

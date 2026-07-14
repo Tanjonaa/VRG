@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell, MessageSquare } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell, MessageSquare, Shield, Lock, Receipt } from 'lucide-react'
+import PasswordModal from './components/PasswordModal.jsx'
 import Dashboard    from './pages/Dashboard.jsx'
 import Products     from './pages/Products.jsx'
 import Orders       from './pages/Orders.jsx'
@@ -9,19 +10,32 @@ import SettingsPage from './pages/Settings.jsx'
 import TeamAdmin    from './pages/Team.jsx'
 import LogsPage     from './pages/Logs.jsx'
 import MsgsPage     from './pages/Msgs.jsx'
+import Accounting   from './pages/Accounting.jsx'
 import AdminLogin   from './AdminLogin.jsx'
 
 const NAV = [
+  /* Pilotage quotidien */
   { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-  { id: 'products',  label: 'Articles',         icon: Package },
   { id: 'orders',    label: 'Commandes',        icon: ShoppingBag },
-  { id: 'stocks',    label: 'Stocks',           icon: BarChart3 },
-  { id: 'team',      label: 'Équipe',           icon: UserSquare2 },
   { id: 'msgs',      label: 'Messages',         icon: MessageSquare },
-  { id: 'settings',  label: 'Paramètres',       icon: Settings2,  adminOnly: true },
-  { id: 'users',     label: 'Clients',          icon: Users,      adminOnly: true },
-  { id: 'logs',      label: 'Historique',       icon: Scroll,     adminOnly: true },
+  /* Catalogue */
+  { id: 'products',  label: 'Articles',         icon: Package },
+  { id: 'stocks',    label: 'Stocks',           icon: BarChart3 },
+  /* Finance */
+  { id: 'accounting', label: 'Comptabilité',    icon: Receipt,    adminOnly: true },
+  /* Comptes */
+  { id: 'users',      label: 'Clients',         icon: Users,      adminOnly: true },
+  { id: 'staff',      label: 'Staff',           icon: Shield,     adminOnly: true },
+  /* Contenu & configuration */
+  { id: 'team',       label: 'Équipe',          icon: UserSquare2 },
+  { id: 'settings',   label: 'Paramètres',      icon: Settings2,  adminOnly: true },
+  { id: 'logs',       label: 'Historique',      icon: Scroll,     adminOnly: true },
 ]
+
+/* Deux vues de la même page Users — définies au niveau module pour
+   garder une identité de composant stable entre les re-renders */
+const ClientsSection = (props) => <UsersPage {...props} section="clients" />
+const StaffSection   = (props) => <UsersPage {...props} section="staff" />
 
 /* ── Auth ── */
 function useAdminAuth() {
@@ -62,12 +76,41 @@ function useAdminAuth() {
   return { user, loading, login, logout }
 }
 
+/* ── Déconnexion auto après inactivité ── */
+const IDLE_TIMEOUT = 60 * 60 * 1000   // 1 h d'inactivité avant déconnexion auto
+function useIdleLogout(user, logout) {
+  const lastActivity = useRef(Date.now())
+  useEffect(() => {
+    if (!user) return
+    lastActivity.current = Date.now()
+    const bump = () => { lastActivity.current = Date.now() }
+    const events = ['mousemove', 'mousedown', 'keydown', 'wheel', 'scroll', 'touchstart']
+    events.forEach(e => window.addEventListener(e, bump, { capture: true, passive: true }))
+    const t = setInterval(() => {
+      if (Date.now() - lastActivity.current >= IDLE_TIMEOUT) {
+        sessionStorage.setItem('vrg_idle_logout', '1')
+        logout()
+      }
+    }, 10000)
+    return () => {
+      events.forEach(e => window.removeEventListener(e, bump, { capture: true }))
+      clearInterval(t)
+    }
+  }, [user])
+}
+
 /* ── Notifications temps réel (polling 5s) ── */
 function useNotifications(user) {
   const [notifs, setNotifs] = useState({ orders: 0, msgs: 0 })
   const [toasts, setToasts] = useState([])
-  const prev = useRef({ orders: 0, msgs: 0 })
+  /* null = pas encore de référence : le premier poll ne notifie jamais,
+     il établit la base de comparaison. Sinon chaque rechargement de la
+     page re-toaste les commandes en attente existantes. */
+  const prev = useRef(null)
   const timer = useRef(null)
+  /* Horloge serveur (renvoyée par l'API) — seule référence valable pour "since" :
+     l'horloge du navigateur est en UTC, created_at en heure locale serveur */
+  const serverNow = useRef(null)
 
   const addToast = (text, color) => {
     const id = Date.now()
@@ -92,31 +135,31 @@ function useNotifications(user) {
 
     const poll = async () => {
       try {
-        const since = localStorage.getItem('vrg_admin_msgs_seen')
-          || new Date(Date.now() - 86400000).toISOString()
+        const since = localStorage.getItem('vrg_admin_msgs_seen') || ''
         const res = await fetch(
-          `/api/admin/notifications?since=${encodeURIComponent(since)}`,
+          `/api/admin/notifications${since ? `?since=${encodeURIComponent(since)}` : ''}`,
           { headers: { Authorization: `Bearer ${localStorage.getItem('vrg_token')}` } }
         )
         if (!res.ok) return
         const data = await res.json()
+        if (data.server_now) serverNow.current = data.server_now
 
         const p = prev.current
 
-        /* Nouvelles commandes */
-        if (data.pending_orders > p.orders) {
-          const n = data.pending_orders - p.orders
-          addToast(`🛍 ${n} nouvelle${n > 1 ? 's' : ''} commande${n > 1 ? 's' : ''} en attente`, '#FF9900')
-          sendBrowserNotif('VaRyGasy Admin — Nouvelle commande',
-            `${n} commande${n > 1 ? 's' : ''} en attente`)
-        }
-
-        /* Nouveaux messages */
-        if (data.unread_msgs > p.msgs) {
-          const n = data.unread_msgs - p.msgs
-          addToast(`💬 ${n} nouveau${n > 1 ? 'x' : ''} message${n > 1 ? 's' : ''}`, '#a78bfa')
-          sendBrowserNotif('VaRyGasy Admin — Nouveau message',
-            `${n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}`)
+        /* Notifie uniquement les vrais accroissements (jamais au premier poll) */
+        if (p) {
+          if (data.pending_orders > p.orders) {
+            const n = data.pending_orders - p.orders
+            addToast(`🛍 ${n} nouvelle${n > 1 ? 's' : ''} commande${n > 1 ? 's' : ''} en attente`, '#FF9900')
+            sendBrowserNotif('VaRyGasy Admin — Nouvelle commande',
+              `${n} commande${n > 1 ? 's' : ''} en attente`)
+          }
+          if (data.unread_msgs > p.msgs) {
+            const n = data.unread_msgs - p.msgs
+            addToast(`💬 ${n} nouveau${n > 1 ? 'x' : ''} message${n > 1 ? 's' : ''}`, '#a78bfa')
+            sendBrowserNotif('VaRyGasy Admin — Nouveau message',
+              `${n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}`)
+          }
         }
 
         prev.current = { orders: data.pending_orders, msgs: data.unread_msgs }
@@ -125,23 +168,71 @@ function useNotifications(user) {
     }
 
     poll()
-    timer.current = setInterval(poll, 5000)
+    /* 15 s : assez réactif, et évite de déclencher le WAF o2switch (Tiger Protect)
+       qui prend les rafales de requêtes pour du trafic de bot */
+    timer.current = setInterval(poll, 15000)
     return () => clearInterval(timer.current)
   }, [user])
 
+  /* Efface les badges SANS toucher à la référence de comparaison —
+     sinon le prochain poll re-notifie les éléments déjà vus (boucle) */
   const clearMsgs = () => {
-    localStorage.setItem('vrg_admin_msgs_seen', new Date().toISOString())
-    prev.current.msgs = 0
+    /* Toujours l'horloge SERVEUR — jamais new Date() (décalage UTC/local) */
+    if (serverNow.current) localStorage.setItem('vrg_admin_msgs_seen', serverNow.current)
+    if (prev.current) prev.current.msgs = 0   // le compteur serveur retombe à 0 avec le nouveau "since"
     setNotifs(n => ({ ...n, msgs: 0 }))
   }
 
   const clearOrders = () => {
-    prev.current.orders = 0
     setNotifs(n => ({ ...n, orders: 0 }))
   }
 
-  return { notifs, toasts, clearMsgs, clearOrders }
+  return { notifs, toasts, addToast, clearMsgs, clearOrders }
 }
+
+/* ── Présence staff (polling 15s) ── */
+const TOAST_COOLDOWN = 10 * 60 * 1000
+function useOnlineStaff(user, addToast) {
+  const [online, setOnline] = useState([])
+  const prevIds = useRef(null)
+  const lastToastAt = useRef({})   // id → timestamp du dernier toast (anti-boucle)
+
+  useEffect(() => {
+    if (!user) return
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/admin/online', { headers: { Authorization: `Bearer ${localStorage.getItem('vrg_token')}` } })
+        if (!res.ok) return
+        const rows = await res.json()
+        setOnline(rows)
+        /* Notifie les nouvelles connexions : pas au premier chargement, pas
+           soi-même, seulement si l'activité est réellement récente (ago < 60 s),
+           et au plus un toast par personne par période de cooldown — sinon le
+           throttling des onglets en arrière-plan fait "flapper" la présence
+           et le même toast revient en boucle */
+        if (prevIds.current) {
+          rows.forEach(r => {
+            const isNew    = !prevIds.current.has(r.id) && r.id !== user.id
+            const isFresh  = (r.ago ?? 999) < 60
+            const cooledDown = !lastToastAt.current[r.id] || Date.now() - lastToastAt.current[r.id] > TOAST_COOLDOWN
+            if (isNew && isFresh && cooledDown) {
+              addToast(`🟢 ${r.name} (${r.role === 'admin' ? 'admin' : 'modérateur'}) est en ligne`, '#22c55e')
+              lastToastAt.current[r.id] = Date.now()
+            }
+          })
+        }
+        prevIds.current = new Set(rows.map(r => r.id))
+      } catch {}
+    }
+    poll()
+    const t = setInterval(poll, 30000)
+    return () => clearInterval(t)
+  }, [user])
+
+  return online
+}
+
+/* Modale de changement de mot de passe : voir components/PasswordModal.jsx */
 
 /* ── Toast container ── */
 function ToastStack({ toasts }) {
@@ -183,10 +274,13 @@ function Badge({ count, color = '#ef4444' }) {
 
 export default function AdminApp() {
   const { user, loading, login, logout } = useAdminAuth()
+  useIdleLogout(user, logout)
   const [page, setPage]         = useState('dashboard')
-  const [sideOpen, setSideOpen] = useState(true)
+  const [sideOpen, setSideOpen] = useState(() => window.innerWidth > 768)
   const [alerts, setAlerts]     = useState(0)
-  const { notifs, toasts, clearMsgs, clearOrders } = useNotifications(user)
+  const [showPwd, setShowPwd]   = useState(false)
+  const { notifs, toasts, addToast, clearMsgs, clearOrders } = useNotifications(user)
+  const online = useOnlineStaff(user, addToast)
 
   useEffect(() => {
     fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${localStorage.getItem('vrg_token')}` } })
@@ -217,7 +311,7 @@ export default function AdminApp() {
   if (!user) return <AdminLogin onLogin={login} />
 
   const safePage = visibleNav.some(n => n.id === page) ? page : 'dashboard'
-  const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: UsersPage, stocks: Stocks, team: TeamAdmin, settings: SettingsPage, logs: LogsPage, msgs: MsgsPage }[safePage]
+  const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: ClientsSection, staff: StaffSection, stocks: Stocks, team: TeamAdmin, settings: SettingsPage, logs: LogsPage, msgs: MsgsPage, accounting: Accounting }[safePage]
 
   const totalNotifs = notifs.orders + notifs.msgs
 
@@ -247,7 +341,7 @@ export default function AdminApp() {
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <nav style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {visibleNav.map(({ id, label, icon: Icon }) => {
             const active = safePage === id
             const badge = id === 'orders' ? notifs.orders
@@ -279,11 +373,36 @@ export default function AdminApp() {
         </nav>
 
         {/* User + logout */}
-        <div style={{ padding: '12px 8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ padding: '12px 8px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+          {sideOpen && online.length > 0 && (
+            <div style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+                En ligne ({online.filter(o => (o.ago ?? 0) < 60).length})
+              </div>
+              <div style={{ maxHeight: 96, overflowY: 'auto' }}>
+                {online.map(o => {
+                  const active = (o.ago ?? 0) < 60
+                  return (
+                    <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '2px 0', color: 'rgba(240,240,245,0.6)', opacity: active ? 1 : 0.55 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: active ? '#22c55e' : '#ef4444', flexShrink: 0, boxShadow: `0 0 6px ${active ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)'}` }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}{o.id === user.id ? ' (toi)' : ''}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 800, color: o.role === 'admin' ? '#FF9900' : '#60a5fa', flexShrink: 0 }}>
+                        {o.role === 'admin' ? 'ADMIN' : 'MOD'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {sideOpen && (
             <div style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#f0f0f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
               <div style={{ fontSize: 10, color: user.role === 'admin' ? '#FF9900' : '#60a5fa', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>{user.role}</div>
+              <button onClick={() => setShowPwd(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', width: '100%', background: 'rgba(255,255,255,0.03)', color: 'rgba(240,240,245,0.55)', fontSize: 11, fontWeight: 600, fontFamily: 'inherit' }}>
+                <Lock size={12} /> Changer mot de passe
+              </button>
             </div>
           )}
           <button onClick={logout}
@@ -329,10 +448,17 @@ export default function AdminApp() {
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+        <main className="adm-main" style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
           <PageComponent user={user} onAlertsChange={setAlerts} />
         </main>
       </div>
+
+      {showPwd && (
+        <PasswordModal
+          onClose={() => setShowPwd(false)}
+          onDone={() => { setShowPwd(false); addToast('🔒 Mot de passe mis à jour', '#22c55e') }}
+        />
+      )}
 
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
     </div>

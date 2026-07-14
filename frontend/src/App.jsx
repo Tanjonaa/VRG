@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { CartProvider } from './context/CartContext.jsx'
 import { useSettings } from './hooks/useSettings.js'
@@ -25,6 +25,13 @@ function AppInner() {
   const [showAuth, setShowAuth]       = useState(false)
   const [showAccount, setShowAccount] = useState(false)
   const [showCart, setShowCart]       = useState(false)
+
+  /* Compteur de visites : un hit par session navigateur (pas par rechargement) */
+  useEffect(() => {
+    if (sessionStorage.getItem('vrg_visit')) return
+    sessionStorage.setItem('vrg_visit', '1')
+    fetch('/api/visits', { method: 'POST' }).catch(() => {})
+  }, [])
 
   // Attendre que les settings soient chargés avant d'afficher quoi que ce soit
   const loaded = Object.keys(settings).length > 0

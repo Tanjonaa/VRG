@@ -38,6 +38,44 @@ body {
   }
 }
 
+/* ═══ Admin responsive ═══════════════════════════════════════
+   Classes utilitaires posées sur les conteneurs de l'admin.
+   !important requis : les composants utilisent des styles inline. */
+@media (max-width: 768px) {
+  /* Grilles à colonnes fixes → 1 colonne (ou 2 pour les stats) */
+  .adm-grid-2, .adm-grid-3 { grid-template-columns: 1fr !important; }
+  .adm-grid-4 { grid-template-columns: 1fr 1fr !important; }
+
+  /* Layout côte à côte → empilé */
+  .adm-stack { flex-direction: column !important; }
+
+  /* Nav interne de la page Paramètres → rangée de chips */
+  .adm-stack > .adm-settings-nav {
+    width: 100% !important;
+    flex-direction: row !important;
+    flex-wrap: wrap;
+  }
+  .adm-settings-nav > button { width: auto !important; }
+
+  /* Tableaux larges → défilement horizontal */
+  .adm-table-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .adm-table-scroll table { min-width: 660px; }
+  .adm-table-scroll > div { min-width: 660px; overflow-x: visible !important; }
+  .adm-logs .adm-logs-grid { min-width: 840px; }
+  .adm-logs > div { min-width: 840px; }
+
+  /* Barres d'outils (onglets + recherche) → retour à la ligne */
+  .adm-toolbar { flex-wrap: wrap !important; }
+  .adm-toolbar > * { max-width: 100%; }
+
+  /* Contenu principal : padding réduit */
+  .adm-main { padding: 14px !important; }
+
+  /* Messagerie : la liste des conversations prend toute la largeur
+     (le JS n'affiche que liste OU conversation sur mobile) */
+  .adm-chat-list { width: 100% !important; border-right: none !important; }
+}
+
 /* Date/select inputs — dark mode natif */
 input[type="date"] { color-scheme: dark; }
 input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.55); cursor: pointer; opacity: 0.7; }

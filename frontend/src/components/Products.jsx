@@ -237,7 +237,7 @@ function ProductCard({ item, catStyle, index }) {
             <Package size={48} />
           </div>
         ) : (
-          <motion.img src={imgSrc} alt={item.name} onError={() => setImgError(true)}
+          <motion.img src={imgSrc} alt={`${item.name} — ${item.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" onError={() => setImgError(true)}
             whileHover={{ scale: 1.08 }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
