@@ -14,6 +14,7 @@ const isLivreur    = path.startsWith('/livreur')
 const isPrivacy    = path.startsWith('/confidentialite')
 const isCGU        = path.startsWith('/cgu')
 const isCatalogue  = path.startsWith('/catalogue')
+const produitMatch = path.match(/^\/produit\/([^/]+)/)
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
      isPrivacy   ? <PrivacyPage />:
      isCGU       ? <CGUPage />    :
      isCatalogue ? <Shop />        :
+     produitMatch ? <Shop initialProductId={produitMatch[1]} /> :
      <App />}
   </React.StrictMode>,
 )

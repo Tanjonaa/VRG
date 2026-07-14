@@ -981,7 +981,7 @@ function PromosView({ products, onAdd, onView }) {
   )
 }
 
-function ShopInner() {
+function ShopInner({ initialProductId }) {
   const { user } = useAuth()
   const { addItem } = useCart()
   const isMobile = useMobile()
@@ -1000,7 +1000,15 @@ function ShopInner() {
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
-    fetch('/api/products').then(r=>r.json()).then(d=>{setProducts(Array.isArray(d)?d:[]); setLoading(false)}).catch(()=>setLoading(false))
+    fetch('/api/products').then(r=>r.json()).then(d=>{
+      const list = Array.isArray(d) ? d : []
+      setProducts(list)
+      setLoading(false)
+      if (initialProductId) {
+        const p = list.find(p => String(p.id) === String(initialProductId))
+        if (p) setModal(p)
+      }
+    }).catch(()=>setLoading(false))
   }, [])
 
   const cats = Object.entries(
@@ -1159,12 +1167,12 @@ function ComingSoonGate({ children }) {
 }
 
 /* ─── Root ─── */
-export default function Shop() {
+export default function Shop({ initialProductId } = {}) {
   return (
     <AuthProvider>
       <CartProvider>
         <ComingSoonGate>
-          <ShopInner />
+          <ShopInner initialProductId={initialProductId} />
           <SupportChat />
         </ComingSoonGate>
       </CartProvider>

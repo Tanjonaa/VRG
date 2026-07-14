@@ -552,6 +552,19 @@ app.get('/products', async (req, res) => {
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
+/* ── GET /products/:id (public) ──────────────────────── */
+app.get('/products/:id', async (req, res) => {
+  try {
+    const [[p]] = await pool.execute(
+      'SELECT id, name, description, price, category, stock, images, created_at, promo_percent, promo_active FROM products WHERE id=? AND active=1',
+      [req.params.id]
+    )
+    if (!p) return res.status(404).json({ error: 'Produit introuvable' })
+    p.images = (() => { try { return JSON.parse(p.images) } catch { return [] } })()
+    res.json(p)
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
 /* ── GET /admin/categories ───────────────────────────── */
 app.get('/admin/categories', adminAuth, async (req, res) => {
   try {
@@ -1287,6 +1300,43 @@ app.use('/images/uploads', express.static(UPLOAD_DIR))
 if (process.env.FRONTEND_DIST) {
   const dist = process.env.FRONTEND_DIST
   app.use(express.static(dist))
+
+  const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
+
+  /* Page produit : injecte des balises Open Graph dynamiques (photo/titre)
+     pour que les partages Facebook/WhatsApp affichent la bonne image.       */
+  app.get('/produit/:id', async (req, res) => {
+    try {
+      const [[p]] = await pool.execute(
+        'SELECT id, name, description, price, images FROM products WHERE id=? AND active=1',
+        [req.params.id]
+      )
+      let html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
+      if (p) {
+        const images  = (() => { try { return JSON.parse(p.images) } catch { return [] } })()
+        const imgPath = images[0]?.src || images[0] || '/images/gallery/hero-gaming.jpg'
+        const imgUrl  = /^https?:\/\//.test(imgPath) ? imgPath : `${req.protocol}://${req.get('host')}${imgPath}`
+        const title   = `${p.name} — ${Number(p.price).toLocaleString('fr-FR')} Ar | VaRyGasy`
+        const desc    = (p.description || 'Accessoires mobile & gaming à Madagascar').slice(0, 200)
+        const url     = `${req.protocol}://${req.get('host')}${req.originalUrl}`
+
+        html = html.replace(/<title>.*?<\/title>/, `<title>${escapeHtml(title)}</title>`)
+        html = html.replace('</head>', `
+    <meta property="og:type" content="product" />
+    <meta property="og:title" content="${escapeHtml(title)}" />
+    <meta property="og:description" content="${escapeHtml(desc)}" />
+    <meta property="og:image" content="${escapeHtml(imgUrl)}" />
+    <meta property="og:url" content="${escapeHtml(url)}" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>`)
+      }
+      res.send(html)
+    } catch (e) {
+      console.error(e)
+      res.sendFile(path.join(dist, 'index.html'))
+    }
+  })
+
   /* Fallback SPA : toute route inconnue → index.html (sauf API) */
   app.get('*', (req, res) => {
     if (req.isApi) return res.status(404).json({ error: 'Route introuvable' })
