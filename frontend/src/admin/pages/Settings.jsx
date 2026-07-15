@@ -25,6 +25,7 @@ const DEF = {
   whatsapp: '', business_hours: '', facebook: '', instagram: '',
   coming_soon: '0', coming_soon_date: '',
   coming_soon_message: 'Nous préparons quelque chose d\'exceptionnel. La boutique ouvre bientôt !',
+  pricing_hidden: '0',
   company_legal_name: 'VaRyGasy', company_nif: '', company_stat: '',
   company_address: 'Antananarivo, Madagascar', company_phone: '', company_email: '',
   invoice_tva_percent: '0',
@@ -360,6 +361,37 @@ export default function Settings() {
 
         {/* ── PRICING ── */}
         {section === 'pricing' && <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {card(<>
+            {sectionTitle('Affichage')}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#f0f0f5' }}>Masquer la section Packs</div>
+                <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)', marginTop: 3 }}>
+                  Cache toute la section Packs sur le site public (les réglages ci-dessous sont conservés)
+                </div>
+              </div>
+              <button
+                onClick={() => setFlat(v => ({ ...v, pricing_hidden: v.pricing_hidden === '1' ? '0' : '1' }))}
+                style={{
+                  width: 52, height: 28, borderRadius: 99, border: 'none', cursor: 'pointer',
+                  background: flat.pricing_hidden === '1' ? '#FF9900' : 'rgba(255,255,255,0.1)',
+                  position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+                }}>
+                <span style={{
+                  position: 'absolute', top: 3,
+                  left: flat.pricing_hidden === '1' ? 26 : 3,
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: '#fff', transition: 'left 0.2s',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                }} />
+              </button>
+            </div>
+            {flat.pricing_hidden === '1' && (
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(255,153,0,0.08)', border: '1px solid rgba(255,153,0,0.2)', fontSize: 12, color: '#FF9900', fontWeight: 600 }}>
+                La section Packs est actuellement masquée sur le site.
+              </div>
+            )}
+          </>)}
           {card(<>
             {sectionTitle('En-tête section packs')}
             {field('Badge', null, inp(pricing.badge, setP('badge')))}

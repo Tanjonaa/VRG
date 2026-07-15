@@ -65,7 +65,7 @@ function AppInner() {
         <Features />
         <Products />
         <Gallery />
-        <Pricing />
+        {settings.pricing_hidden !== '1' && <Pricing />}
         <Team />
         <CTA />
       </main>
