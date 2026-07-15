@@ -64,7 +64,13 @@ export default function Products() {
 
   /* Sélection fichier */
   const selectFile = useCallback((file) => {
-    if (!file || !file.type.startsWith('image/')) return
+    if (!file) return
+    /* On n'exige pas un type image/* strict : certains mobiles (iPhone HEIC)
+       envoient un type vide. Le backend valide de toute façon le format. */
+    if (file.type && !file.type.startsWith('image/')) {
+      setMsg({ type: 'err', text: 'Ce fichier n\'est pas une image' })
+      return
+    }
     if (imageFile) URL.revokeObjectURL(imagePreview)
     setImageFile(file)
     setImagePreview(URL.createObjectURL(file))
@@ -386,23 +392,21 @@ export default function Products() {
               {/* ── Zone image ────────────────────────────── */}
               <div>
                 <label style={labelStyle}>Image du produit</label>
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={onFileInput} style={{ display: 'none' }} />
+                <input id="prod-image-input" ref={fileInputRef} type="file" accept="image/*" onChange={onFileInput} style={{ display: 'none' }} />
 
                 {imagePreview ? (
                   /* Prévisualisation */
                   <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', aspectRatio: '16/9', background: '#0a0a18' }}>
                     <img src={imagePreview} alt="aperçu"
                       style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                    {/* Overlay boutons */}
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: 0, transition: 'all 0.2s' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.55)'; e.currentTarget.style.opacity = 1 }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0)'; e.currentTarget.style.opacity = 0 }}>
-                      <button type="button" onClick={() => fileInputRef.current.click()}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(255,153,0,0.9)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    {/* Boutons toujours visibles (pas de hover requis — indispensable sur mobile) */}
+                    <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 8 }}>
+                      <label htmlFor="prod-image-input"
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(255,153,0,0.95)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                         <Upload size={13} /> Changer
-                      </button>
+                      </label>
                       <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(239,68,68,0.85)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(239,68,68,0.9)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                         <X size={13} /> Supprimer
                       </button>
                     </div>
@@ -412,13 +416,15 @@ export default function Products() {
                     </div>
                   </div>
                 ) : (
-                  /* Drop zone */
-                  <div
-                    onClick={() => fileInputRef.current.click()}
+                  /* Drop zone : <label> natif → ouvre le sélecteur au tap sur mobile
+                     (le .click() JS sur input display:none est bloqué par certains mobiles) */
+                  <label
+                    htmlFor="prod-image-input"
                     onDragOver={e => { e.preventDefault(); setDragOver(true) }}
                     onDragLeave={() => setDragOver(false)}
                     onDrop={onDrop}
                     style={{
+                      display: 'block',
                       border: `2px dashed ${dragOver ? 'rgba(255,153,0,0.6)' : 'rgba(255,255,255,0.12)'}`,
                       borderRadius: 12, padding: '32px 20px', textAlign: 'center', cursor: 'pointer',
                       background: dragOver ? 'rgba(255,153,0,0.05)' : 'rgba(255,255,255,0.02)',
@@ -430,14 +436,14 @@ export default function Products() {
                       </div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#f0f0f5', marginBottom: 4 }}>
-                          Glisser une image ici
+                          Toucher pour ajouter une photo
                         </div>
                         <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)' }}>
-                          ou <span style={{ color: '#FF9900', fontWeight: 600 }}>parcourir</span> — JPG, PNG, WebP, AVIF · max 5 Mo
+                          ou glisser une image — JPG, PNG, WebP, AVIF · max 5 Mo
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </label>
                 )}
               </div>
 
