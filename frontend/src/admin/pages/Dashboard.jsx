@@ -84,7 +84,44 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Visiteurs par pays (ce mois) */}
+      <Card title="Visiteurs par pays · ce mois">
+        {(!stats.countries || stats.countries.length === 0) ? (
+          <div style={{ fontSize: 12, color: 'rgba(240,240,245,0.3)', padding: '8px 0' }}>
+            Aucune donnée de localisation pour l'instant — elle se remplit au fil des visites.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+            {(() => {
+              const maxC = Math.max(...stats.countries.map(c => Number(c.count)), 1)
+              return stats.countries.map(c => (
+                <div key={c.country_code} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18, width: 24, flexShrink: 0 }}>{flagEmoji(c.country_code)}</span>
+                  <span style={{ fontSize: 12, color: '#f0f0f5', width: 120, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {c.country || c.country_code}
+                  </span>
+                  <div style={{ flex: 1, height: 8, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.round((c.count / maxC) * 100)}%`, height: '100%', background: 'linear-gradient(90deg,#34d399,#059669)', borderRadius: 99 }} />
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#34d399', width: 36, textAlign: 'right', flexShrink: 0 }}>{c.count}</span>
+                </div>
+              ))
+            })()}
+          </div>
+        )}
+      </Card>
     </div>
+  )
+}
+
+/* Code pays ISO-2 → emoji drapeau (paire de regional indicator symbols) */
+function flagEmoji(cc) {
+  if (!cc || cc.length !== 2) return '🌐'
+  const base = 0x1F1E6
+  return String.fromCodePoint(
+    base + cc.toUpperCase().charCodeAt(0) - 65,
+    base + cc.toUpperCase().charCodeAt(1) - 65
   )
 }
 

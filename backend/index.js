@@ -183,10 +183,14 @@ if (!SECRET || SECRET === 'change_this_in_production' || SECRET.length < 16) {
     count INT  DEFAULT 1
   )`)
   await pool.execute(`CREATE TABLE IF NOT EXISTS visit_uniques (
-    date    DATE     NOT NULL,
-    ip_hash CHAR(16) NOT NULL,
+    date         DATE     NOT NULL,
+    ip_hash      CHAR(16) NOT NULL,
+    country_code CHAR(2)  NULL,          -- pays géolocalisé (ISO-2), NULL si inconnu
+    country      VARCHAR(60) NULL,
     PRIMARY KEY (date, ip_hash)
   )`)
+  await pool.execute(`ALTER TABLE visit_uniques ADD COLUMN IF NOT EXISTS country_code CHAR(2) NULL`).catch(() => {})
+  await pool.execute(`ALTER TABLE visit_uniques ADD COLUMN IF NOT EXISTS country VARCHAR(60) NULL`).catch(() => {})
   await pool.execute(`CREATE TABLE IF NOT EXISTS settings (
     \`key\`      VARCHAR(100) PRIMARY KEY,
     \`value\`    TEXT,
@@ -727,6 +731,26 @@ app.post('/orders', auth, async (req, res) => {
 })
 
 /* ── POST /visits ────────────────────────────────────── */
+/* Géolocalise une IP → { code, name } via ip-api.com (gratuit, sans clé).
+   Appelé uniquement pour un NOUVEAU visiteur unique du jour (faible volume),
+   en arrière-plan : ne bloque jamais la réponse. IP privées ignorées. */
+async function geolocateAndSave(ip, hash) {
+  try {
+    if (!ip || /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1|fc|fd)/i.test(ip)) return
+    const ctrl = new AbortController()
+    const to = setTimeout(() => ctrl.abort(), 2500)
+    const r = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,countryCode`, { signal: ctrl.signal })
+    clearTimeout(to)
+    const d = await r.json()
+    if (d.status === 'success' && d.countryCode) {
+      await pool.execute(
+        'UPDATE visit_uniques SET country_code=?, country=? WHERE date=CURDATE() AND ip_hash=?',
+        [d.countryCode, d.country || null, hash]
+      )
+    }
+  } catch {}
+}
+
 app.post('/visits', async (req, res) => {
   try {
     /* Les robots connus ne comptent pas (Googlebot exécute le JS du site) */
@@ -743,8 +767,10 @@ app.post('/visits', async (req, res) => {
        IP+UA (et pas IP seule) : les IP mobiles malgaches sont partagées (CGNAT),
        l'User-Agent distingue partiellement les appareils derrière. */
     const hash = crypto.createHash('sha256').update(req.ip + '|' + ua).digest('hex').slice(0, 16)
-    await pool.execute('INSERT IGNORE INTO visit_uniques (date, ip_hash) VALUES (CURDATE(), ?)', [hash])
+    const [ins] = await pool.execute('INSERT IGNORE INTO visit_uniques (date, ip_hash) VALUES (CURDATE(), ?)', [hash])
     res.json({ ok: true })
+    /* Nouveau visiteur unique du jour → géolocalisation en arrière-plan */
+    if (ins.affectedRows > 0) geolocateAndSave(req.ip, hash)
   } catch { res.json({ ok: false }) }
 })
 
@@ -818,6 +844,13 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
       `SELECT MONTH(created_at) as month, COUNT(*) as count
        FROM users WHERE YEAR(created_at)=YEAR(NOW()) AND role='client' GROUP BY MONTH(created_at) ORDER BY month`
     )
+    /* Répartition des visiteurs uniques du mois par pays (top 8) */
+    const [visit_countries] = await pool.execute(
+      `SELECT country_code, MAX(country) AS country, COUNT(*) AS count
+       FROM visit_uniques
+       WHERE MONTH(date)=MONTH(NOW()) AND YEAR(date)=YEAR(NOW()) AND country_code IS NOT NULL
+       GROUP BY country_code ORDER BY count DESC LIMIT 8`
+    )
 
     res.json({
       sales:   { total: total_sales, month: month_sales, today: today_sales },
@@ -826,6 +859,7 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
       visits:  { today: today_visits, month: month_visits, today_uniques, month_uniques },
       alerts:  { low_stock },
       charts:  { monthly_sales, monthly_users },
+      countries: visit_countries,
     })
   } catch(e) { console.error(e); res.status(500).json({ error: 'Erreur serveur' }) }
 })
