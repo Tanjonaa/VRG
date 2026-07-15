@@ -69,11 +69,18 @@ export default function AdminDropdown({
     if (disabled) return
     if (!open) {
       const r = triggerRef.current.getBoundingClientRect()
+      /* Espace sous/au-dessus du trigger : ouvre vers le haut si peu de place
+         en bas (dropdown en bas d'écran), et borne la hauteur pour défiler. */
+      const spaceBelow = window.innerHeight - r.bottom
+      const spaceAbove = r.top
+      const openUp = spaceBelow < 220 && spaceAbove > spaceBelow
       setPos({
-        top:   r.bottom + 6,
+        top:    openUp ? undefined : r.bottom + 6,
+        bottom: openUp ? window.innerHeight - r.top + 6 : undefined,
         left:  compact ? undefined : r.left,
         right: compact ? window.innerWidth - r.right : undefined,
         width: compact ? undefined : r.width,
+        maxHeight: Math.max(160, (openUp ? spaceAbove : spaceBelow) - 16),
       })
       onOpen?.()
     }
@@ -111,26 +118,32 @@ export default function AdminDropdown({
   const panel = open && pos ? createPortal(
     <div ref={panelRef} style={{
       position: 'fixed',
-      top:   pos.top,
+      top:    pos.top,
+      bottom: pos.bottom,
       left:  pos.left,
       right: pos.right,
       width: pos.width,
       minWidth: compact ? 150 : undefined,
+      maxHeight: pos.maxHeight,
       zIndex: 9999,
       backgroundColor: '#13131f',
       border: '1px solid rgba(255,255,255,0.12)',
       borderRadius: 12,
       boxShadow: '0 20px 48px rgba(0,0,0,0.7)',
       overflow: 'hidden',
+      display: 'flex', flexDirection: 'column',
       animation: '_dropIn 0.15s ease',
     }}>
-      {options.map((opt, i) =>
-        opt.separator
-          ? <hr key={i} style={{ margin: '4px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.07)' }} />
-          : <DropOption key={i} opt={opt} active={opt.value === value} compact={compact} onPick={e => pick(e, opt)} />
-      )}
+      {/* Liste défilable — le footer (ex: "Nouvelle catégorie") reste visible */}
+      <div style={{ overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+        {options.map((opt, i) =>
+          opt.separator
+            ? <hr key={i} style={{ margin: '4px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.07)' }} />
+            : <DropOption key={i} opt={opt} active={opt.value === value} compact={compact} onPick={e => pick(e, opt)} />
+        )}
+      </div>
       {footer && (
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
           {typeof footer === 'function' ? footer(close) : footer}
         </div>
       )}
