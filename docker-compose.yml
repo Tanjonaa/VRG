@@ -27,6 +27,31 @@ services:
       - db
     restart: unless-stopped
 
+  backup:
+    image: mariadb:11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-vrg_root_secret}
+    volumes:
+      - D:/Tanjona/VRG/Backup:/backup
+      - uploads:/app/uploads:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    entrypoint: >
+      sh -c "
+      while true; do
+        mariadb-dump -h db -u root -p\"$$MYSQL_ROOT_PASSWORD\" vrg > /backup/vrg_backup.sql.tmp \
+          && [ -s /backup/vrg_backup.sql.tmp ] \
+          && mv -f /backup/vrg_backup.sql.tmp /backup/vrg_backup.sql \
+          || { echo \"[backup] echec du dump SQL, ancienne sauvegarde conservee\"; rm -f /backup/vrg_backup.sql.tmp; };
+        tar -czf /backup/uploads_backup.tar.gz.tmp -C /app/uploads . \
+          && [ -s /backup/uploads_backup.tar.gz.tmp ] \
+          && mv -f /backup/uploads_backup.tar.gz.tmp /backup/uploads_backup.tar.gz \
+          || { echo \"[backup] echec de l'archive uploads, ancienne sauvegarde conservee\"; rm -f /backup/uploads_backup.tar.gz.tmp; };
+        sleep 3600;
+      done"
+
   app:
     build: .
     environment:
