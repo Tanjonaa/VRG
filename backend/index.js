@@ -689,20 +689,69 @@ app.get('/orders', auth, async (req, res) => {
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
-/* ── POST /orders ────────────────────────────────────── */
+/* ── POST /orders ──────────────────────────────────────
+   Le serveur est la SEULE source de vérité sur l'argent : prix des articles
+   relus en base (avec promo), frais de livraison lus dans `settings` selon la
+   zone, total recalculé. Les champs `price`/`total`/`delivery_fee`/`name`
+   envoyés par le client sont ignorés — sans quoi un client peut commander à
+   1 Ar en modifiant la requête (et fausser factures + comptabilité). */
+const DELIVERY_FEE_KEY = { tana: 'delivery_fee_tana', peripherique: 'delivery_fee_peripherique' }
 app.post('/orders', auth, async (req, res) => {
   if (['admin', 'moderator', 'livreur'].includes(req.user.role))
     return res.status(403).json({ error: 'Les comptes staff ne peuvent pas passer de commande' })
-  const { payment, address, zone, delivery_fee, hours, note, total, transfer, items } = req.body
-  if (!payment || !address || !total) return res.status(400).json({ error: 'Données incomplètes' })
+  const { payment, address, zone, hours, note, transfer, items } = req.body
+  if (!payment || !address || !zone)
+    return res.status(400).json({ error: 'Données incomplètes' })
+  if (!DELIVERY_FEE_KEY[zone])
+    return res.status(400).json({ error: 'Zone de livraison invalide' })
+  if (!Array.isArray(items) || items.length === 0)
+    return res.status(400).json({ error: 'Panier vide' })
 
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
+
+    /* Frais de livraison : valeur serveur (réglages admin), jamais le client */
+    const [[feeRow]] = await conn.execute('SELECT `value` FROM settings WHERE `key`=?', [DELIVERY_FEE_KEY[zone]])
+    const deliveryFee = Number(feeRow?.value) || 0
+
+    /* Articles : prix et nom relus en base, stock décrémenté de façon atomique.
+       L'UPDATE conditionnel (stock >= qty) empêche la survente en cas de
+       commandes simultanées : si affectedRows=0, le stock est insuffisant. */
+    const resolved = []
+    let subtotal = 0
+    for (const item of items) {
+      const pid = Number(item.id)
+      const qty = Math.floor(Number(item.qty))
+      if (!pid || !Number.isFinite(qty) || qty < 1) {
+        await conn.rollback(); return res.status(400).json({ error: 'Article invalide' })
+      }
+      const [[p]] = await conn.execute(
+        'SELECT name, price, stock, active, promo_percent, promo_active FROM products WHERE id=? FOR UPDATE',
+        [pid]
+      )
+      if (!p || !p.active) {
+        await conn.rollback(); return res.status(400).json({ error: 'Produit indisponible' })
+      }
+      const unit = p.promo_active ? Math.round(p.price * (1 - p.promo_percent / 100)) : p.price
+      const [upd] = await conn.execute(
+        'UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?',
+        [qty, pid, qty]
+      )
+      if (upd.affectedRows === 0) {
+        await conn.rollback()
+        return res.status(409).json({ error: `Stock insuffisant pour « ${p.name} »` })
+      }
+      subtotal += unit * qty
+      resolved.push({ id: pid, name: p.name, qty, price: unit })
+    }
+
+    const total = subtotal + deliveryFee
+
     const [r] = await conn.execute(
       `INSERT INTO orders (user_id, payment, address, zone, delivery_fee, hours, note, total,
         transfer_phone, transfer_name, transfer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, payment, address, zone || null, delivery_fee || 0, hours || null,
+      [req.user.id, payment, address, zone, deliveryFee, hours || null,
        note || '', total,
        /* numéro mobile money : normalisé si valide, brut sinon — on ne bloque
           jamais une commande dont le paiement est déjà parti */
@@ -710,22 +759,14 @@ app.post('/orders', auth, async (req, res) => {
        transfer?.name || null, transfer?.id || null]
     )
     const orderId = r.insertId
-    if (items?.length) {
-      for (const item of items) {
-        await conn.execute('INSERT INTO order_items (order_id, name, qty, price) VALUES (?, ?, ?, ?)',
-          [orderId, item.name, item.qty, item.price])
-        if (item.id) {
-          await conn.execute(
-            'UPDATE products SET stock = GREATEST(0, stock - ?) WHERE id = ?',
-            [item.qty, item.id]
-          )
-        }
-      }
+    for (const it of resolved) {
+      await conn.execute('INSERT INTO order_items (order_id, name, qty, price) VALUES (?, ?, ?, ?)',
+        [orderId, it.name, it.qty, it.price])
     }
     await conn.commit()
-    res.json({ id: orderId, payment, address, zone: zone || null, delivery_fee: delivery_fee || 0,
+    res.json({ id: orderId, payment, address, zone, delivery_fee: deliveryFee,
       hours: hours || null, note: note || '', total, status: 'En attente',
-      date: new Date().toLocaleDateString('fr-FR'), items: items || [], transfer: transfer || null })
+      date: new Date().toLocaleDateString('fr-FR'), items: resolved, transfer: transfer || null })
   } catch { await conn.rollback(); res.status(500).json({ error: 'Erreur lors de la commande, réessaie' }) }
   finally { conn.release() }
 })
