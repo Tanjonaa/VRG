@@ -349,6 +349,8 @@ export default function SupportChat() {
       <button
         onClick={() => setOpen(o => !o)}
         title="Support VaRyGasy"
+        aria-label="Ouvrir le chat support"
+        className="vs-chat-bubble"
         style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 99999,
           width: 56, height: 56, borderRadius: '50%', border: 'none',

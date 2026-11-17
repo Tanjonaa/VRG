@@ -7,6 +7,8 @@ import CartPanel from './CartPanel.jsx'
 import AuthModal from './AuthModal.jsx'
 import SupportChat from './SupportChat.jsx'
 import ComingSoon from './ComingSoon.jsx'
+import AccountPanel from './AccountPanel.jsx'
+import ProductCard from './store/ProductCard.jsx'
 
 /* ─── useMobile hook ─── */
 function useMobile(bp = 768) {
@@ -22,7 +24,7 @@ function useMobile(bp = 768) {
 /* ─── helpers ─── */
 const fmt = n => Number(n).toLocaleString('fr-FR')
 const djb2 = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h*33)^s.charCodeAt(i))>>>0; return h }
-const PALETTE = ['#FF9900','#a78bfa','#34d399','#60a5fa','#f472b6','#fb923c','#38bdf8','#4ade80','#e879f9','#f87171']
+const PALETTE = ['#f5b70a','#a78bfa','#34d399','#60a5fa','#f472b6','#fb923c','#38bdf8','#4ade80','#e879f9','#f87171']
 const catColor = c => PALETTE[djb2(c||'')%PALETTE.length]
 /* images arrive soit en chaîne JSON (API admin), soit déjà parsé en tableau (API publique) */
 const parse = raw => { if (Array.isArray(raw)) return raw; try { const a = JSON.parse(raw); return Array.isArray(a)?a:[] } catch { return [] } }
@@ -45,16 +47,16 @@ const fmtDate = ts => {
    DESIGN TOKENS
 ══════════════════════════════════════════ */
 const T = {
-  bg:       '#05050d',
-  surface:  'rgba(12,12,26,0.85)',
+  bg:       '#0b0b10',
+  surface:  '#14141c',
   glass:    'rgba(255,255,255,0.04)',
   border:   'rgba(255,255,255,0.07)',
-  borderHi: 'rgba(255,153,0,0.35)',
-  accent:   '#FF9900',
-  accentDim:'rgba(255,153,0,0.15)',
+  borderHi: 'rgba(245,183,10,0.35)',
+  accent:   '#f5b70a',
+  accentDim:'rgba(245,183,10,0.15)',
   text:     '#f0f0f8',
-  textMuted:'rgba(240,240,248,0.45)',
-  textDim:  'rgba(240,240,248,0.22)',
+  textMuted:'rgba(240,240,248,0.64)',
+  textDim:  'rgba(240,240,248,0.42)',
 }
 
 /* ══════════════════════════════════════════
@@ -64,7 +66,7 @@ function Btn({ children, onClick, variant = 'ghost', size = 'md', disabled, full
   const pads = { sm:'7px 16px', md:'11px 22px', lg:'14px 32px' }
   const sizes = { sm:11, md:13, lg:15 }
   const variants = {
-    primary:  { background:'linear-gradient(135deg,#FF9900 0%,#e67e00 100%)', border:'none', color:'#fff', boxShadow:'0 4px 24px rgba(255,153,0,0.35)' },
+    primary:  { background:'linear-gradient(135deg,#f5b70a 0%,#e0a400 100%)', border:'none', color:'#17130a', boxShadow:'0 4px 24px rgba(245,183,10,0.35)' },
     ghost:    { background:T.glass, border:`1px solid ${T.border}`, color:T.text, boxShadow:'none' },
     outline:  { background:'transparent', border:`1px solid ${T.borderHi}`, color:T.accent, boxShadow:'none' },
     danger:   { background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.25)', color:'#f87171', boxShadow:'none' },
@@ -72,7 +74,7 @@ function Btn({ children, onClick, variant = 'ghost', size = 'md', disabled, full
   const v = disabled ? { background:'rgba(255,255,255,0.03)', border:`1px solid ${T.border}`, color:T.textDim, boxShadow:'none' } : variants[variant]
   return (
     <motion.button
-      whileHover={disabled ? {} : variant==='primary' ? { scale:1.03, boxShadow:'0 6px 32px rgba(255,153,0,0.45)' } : { scale:1.02, background:'rgba(255,255,255,0.07)' }}
+      whileHover={disabled ? {} : variant==='primary' ? { scale:1.03, boxShadow:'0 6px 32px rgba(245,183,10,0.45)' } : { scale:1.02, background:'rgba(255,255,255,0.07)' }}
       whileTap={disabled ? {} : { scale:0.97 }}
       onClick={disabled ? undefined : onClick}
       style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', gap:7, padding:pads[size], borderRadius:99, fontSize:sizes[size], fontWeight:700, letterSpacing:'0.01em', cursor:disabled?'not-allowed':'pointer', fontFamily:'inherit', width:full?'100%':'auto', transition:'background 0.2s', ...v, ...sx }}>
@@ -92,151 +94,12 @@ function GlassCard({ children, style: sx = {}, glow = false, onClick }) {
       WebkitBackdropFilter: 'blur(20px)',
       border: `1px solid ${glow ? T.borderHi : T.border}`,
       borderRadius: 20,
-      boxShadow: glow ? `0 8px 40px rgba(255,153,0,0.1), inset 0 1px 0 rgba(255,255,255,0.06)` : `0 2px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)`,
+      boxShadow: glow ? `0 8px 40px rgba(245,183,10,0.1), inset 0 1px 0 rgba(255,255,255,0.06)` : `0 2px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)`,
       transition: 'border-color 0.25s, box-shadow 0.25s',
       ...sx,
     }}>
       {children}
     </div>
-  )
-}
-
-/* ══════════════════════════════════════════
-   PRODUCT CARD — PREMIUM
-══════════════════════════════════════════ */
-function ProductCard({ product, onAdd, onView, forceNew = false }) {
-  const [hov, setHov] = useState(false)
-  const [added, setAdded] = useState(false)
-  const imgs = parse(product.images)
-  const img  = imgs[0]?.src
-  const oos  = product.stock === 0
-  const col  = catColor(product.category)
-  const nouveau = forceNew || isNew7(product)
-
-  const handleAdd = e => {
-    e.stopPropagation()
-    if (oos) return
-    onAdd(product)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1500)
-  }
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity:0, y:20 }}
-      animate={{ opacity:1, y:0 }}
-      exit={{ opacity:0, scale:0.93 }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      onClick={() => onView(product)}
-      style={{
-        background: T.surface,
-        backdropFilter: 'blur(20px)',
-        border: `1px solid ${hov ? T.borderHi : T.border}`,
-        borderRadius: 22,
-        overflow: 'hidden',
-        display: 'flex', flexDirection: 'column',
-        cursor: 'pointer',
-        transition: 'border-color 0.25s, box-shadow 0.25s, transform 0.25s',
-        transform: hov ? 'translateY(-4px)' : 'translateY(0)',
-        boxShadow: hov
-          ? '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,153,0,0.1)'
-          : '0 4px 24px rgba(0,0,0,0.25)',
-      }}>
-
-      {/* Image */}
-      <div style={{ position:'relative', aspectRatio:'4/3', overflow:'hidden', background:'rgba(255,255,255,0.02)' }}>
-        {img
-          ? <img src={img} alt={`${product.name} — ${product.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform 0.5s cubic-bezier(0.4,0,0.2,1)', transform: hov?'scale(1.1)':'scale(1)' }} />
-          : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:48, opacity:0.1 }}>📦</div>
-        }
-
-        {/* Gradient overlay */}
-        <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(5,5,13,0.7) 0%, transparent 50%)', pointerEvents:'none' }} />
-
-        {/* Badges top-left */}
-        <div style={{ position:'absolute', top:12, left:12, display:'flex', flexDirection:'column', gap:5 }}>
-          {nouveau && (
-            <motion.span
-              initial={{ scale:0, opacity:0 }} animate={{ scale:1, opacity:1 }} transition={{ type:'spring', damping:14 }}
-              style={{ fontSize:9, fontWeight:900, padding:'3px 9px', borderRadius:99, background:'linear-gradient(135deg,#4ade80,#16a34a)', color:'#fff', letterSpacing:'0.1em', textTransform:'uppercase', boxShadow:'0 2px 10px rgba(74,222,128,0.4)' }}>
-              ✦ Nouveau
-            </motion.span>
-          )}
-          {product.category && (
-            <span style={{ fontSize:10, fontWeight:800, padding:'4px 10px', borderRadius:99, background:`${col}20`, color:col, border:`1px solid ${col}35`, backdropFilter:'blur(8px)', letterSpacing:'0.05em' }}>
-              {product.category}
-            </span>
-          )}
-        </div>
-
-        {/* Out of stock */}
-        {oos && (
-          <div style={{ position:'absolute', inset:0, background:'rgba(5,5,13,0.65)', display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(2px)' }}>
-            <span style={{ fontSize:12, fontWeight:800, color:'rgba(240,240,248,0.6)', border:'1px solid rgba(240,240,248,0.15)', padding:'6px 16px', borderRadius:99, letterSpacing:'0.1em', textTransform:'uppercase' }}>
-              Rupture
-            </span>
-          </div>
-        )}
-
-        {/* Quick add overlay */}
-        <AnimatePresence>
-          {hov && !oos && (
-            <motion.div
-              initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:8 }}
-              style={{ position:'absolute', bottom:12, left:12, right:12, display:'flex', gap:8 }}
-              onClick={e => e.stopPropagation()}>
-              <motion.button
-                whileTap={{ scale:0.95 }}
-                onClick={handleAdd}
-                style={{ flex:1, padding:'10px', borderRadius:12, border:'none', cursor:'pointer', background: added ? 'rgba(34,197,94,0.9)' : 'rgba(255,153,0,0.9)', color:'#fff', fontSize:12, fontWeight:800, backdropFilter:'blur(8px)', letterSpacing:'0.02em', transition:'background 0.2s' }}>
-                {added ? '✓ Ajouté !' : '+ Ajouter au panier'}
-              </motion.button>
-              <motion.button
-                whileTap={{ scale:0.95 }}
-                onClick={() => onView(product)}
-                style={{ padding:'10px 14px', borderRadius:12, border:'1px solid rgba(255,255,255,0.2)', cursor:'pointer', background:'rgba(5,5,13,0.7)', color:'rgba(240,240,248,0.8)', fontSize:12, fontWeight:700, backdropFilter:'blur(8px)' }}>
-                Voir →
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Info */}
-      <div style={{ padding:'16px 18px 18px', flex:1, display:'flex', flexDirection:'column', gap:10 }}>
-        <div style={{ fontSize:14, fontWeight:700, color:T.text, lineHeight:1.35, letterSpacing:'-0.2px' }}>
-          {product.name}
-        </div>
-        {product.description && (
-          <div style={{ fontSize:11, color:T.textMuted, lineHeight:1.6, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
-            {product.description}
-          </div>
-        )}
-        {product.created_at && (
-          <div style={{ fontSize:10, color:T.textDim, display:'flex', alignItems:'center', gap:4 }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Ajouté le {fmtDate(product.created_at)}
-          </div>
-        )}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:'auto', paddingTop:8, borderTop:`1px solid ${T.border}` }}>
-          <div style={{ display:'flex', alignItems:'baseline', gap:3 }}>
-            <span style={{ fontSize:20, fontWeight:900, color:T.accent, letterSpacing:'-1px', lineHeight:1 }}>{fmt(product.price)}</span>
-            <span style={{ fontSize:11, color:T.textMuted, fontWeight:600 }}>Ar</span>
-          </div>
-          {product.stock > 0 && product.stock <= 5 ? (
-            <span style={{ fontSize:10, fontWeight:700, color:'#fbbf24', background:'rgba(251,191,36,0.1)', border:'1px solid rgba(251,191,36,0.2)', padding:'2px 8px', borderRadius:99 }}>
-              {product.stock} restant{product.stock>1?'s':''}
-            </span>
-          ) : !oos ? (
-            <span style={{ fontSize:10, fontWeight:700, color:'#4ade80', background:'rgba(74,222,128,0.08)', border:'1px solid rgba(74,222,128,0.18)', padding:'2px 8px', borderRadius:99 }}>
-              En stock
-            </span>
-          ) : null}
-        </div>
-      </div>
-    </motion.div>
   )
 }
 
@@ -334,7 +197,7 @@ function ProductModal({ product, onClose, onAdd }) {
             </div>
 
             {/* Price */}
-            <div style={{ display:'flex', alignItems:'baseline', gap:6, padding:'16px', borderRadius:16, background:'rgba(255,153,0,0.06)', border:'1px solid rgba(255,153,0,0.15)' }}>
+            <div style={{ display:'flex', alignItems:'baseline', gap:6, padding:'16px', borderRadius:16, background:'rgba(245,183,10,0.06)', border:'1px solid rgba(245,183,10,0.15)' }}>
               <span style={{ fontSize:34, fontWeight:900, color:T.accent, letterSpacing:'-1.5px', lineHeight:1 }}>{fmt(product.price)}</span>
               <span style={{ fontSize:14, color:T.textMuted, fontWeight:700 }}>Ar</span>
             </div>
@@ -417,12 +280,12 @@ function FilterDrawer({ open, onClose, categories, active, setActive, price, set
                   <div style={{ fontSize:10, fontWeight:800, color:T.textDim, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>Catégories</div>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                     <button onClick={() => setActive(null)}
-                      style={{ padding:'7px 14px', borderRadius:99, fontSize:12, fontWeight:700, border:'1px solid', cursor:'pointer', background: active===null?T.accentDim:'rgba(255,255,255,0.04)', borderColor: active===null?'rgba(255,153,0,0.3)':T.border, color: active===null?T.accent:T.textMuted }}>
+                      style={{ padding:'7px 14px', borderRadius:99, fontSize:12, fontWeight:700, border:'1px solid', cursor:'pointer', background: active===null?T.accentDim:'rgba(255,255,255,0.04)', borderColor: active===null?'rgba(245,183,10,0.3)':T.border, color: active===null?T.accent:T.textMuted }}>
                       Tous ({total})
                     </button>
                     {categories.map(c => (
                       <button key={c.name} onClick={() => { setActive(c.name); onClose() }}
-                        style={{ padding:'7px 14px', borderRadius:99, fontSize:12, fontWeight:700, border:'1px solid', cursor:'pointer', background: active===c.name?T.accentDim:'rgba(255,255,255,0.04)', borderColor: active===c.name?'rgba(255,153,0,0.3)':T.border, color: active===c.name?T.accent:T.textMuted }}>
+                        style={{ padding:'7px 14px', borderRadius:99, fontSize:12, fontWeight:700, border:'1px solid', cursor:'pointer', background: active===c.name?T.accentDim:'rgba(255,255,255,0.04)', borderColor: active===c.name?'rgba(245,183,10,0.3)':T.border, color: active===c.name?T.accent:T.textMuted }}>
                         {c.name} ({c.count})
                       </button>
                     ))}
@@ -438,7 +301,7 @@ function FilterDrawer({ open, onClose, categories, active, setActive, price, set
                     <span style={{ fontSize:13, fontWeight:800, color:T.accent }}>{fmt(price)} Ar</span>
                   </div>
                   <div style={{ position:'relative', height:4, borderRadius:99, background:'rgba(255,255,255,0.08)', marginBottom:-4 }}>
-                    <div style={{ position:'absolute', left:0, top:0, height:'100%', borderRadius:99, background:`linear-gradient(90deg,${T.accent},#e67e00)`, width:`${(price/200000)*100}%` }} />
+                    <div style={{ position:'absolute', left:0, top:0, height:'100%', borderRadius:99, background:`linear-gradient(90deg,${T.accent},#e0a400)`, width:`${(price/200000)*100}%` }} />
                   </div>
                   <input type="range" min={0} max={200000} step={5000} value={price} onChange={e => setPrice(Number(e.target.value))}
                     style={{ width:'100%', accentColor:T.accent, cursor:'pointer', opacity:0, marginTop:-4, height:24 }} />
@@ -496,7 +359,7 @@ function Sidebar({ categories, active, setActive, price, setPrice, inStock, setI
             <span style={{ fontSize:12, fontWeight:800, color:T.accent }}>{fmt(price)} Ar</span>
           </div>
           <div style={{ position:'relative', height:4, borderRadius:99, background:'rgba(255,255,255,0.08)' }}>
-            <div style={{ position:'absolute', left:0, top:0, height:'100%', borderRadius:99, background:`linear-gradient(90deg,${T.accent},#e67e00)`, width:`${(price/200000)*100}%`, transition:'width 0.1s' }} />
+            <div style={{ position:'absolute', left:0, top:0, height:'100%', borderRadius:99, background:`linear-gradient(90deg,${T.accent},#e0a400)`, width:`${(price/200000)*100}%`, transition:'width 0.1s' }} />
           </div>
           <input type="range" min={0} max={200000} step={5000}
             value={price} onChange={e => setPrice(Number(e.target.value))}
@@ -527,7 +390,7 @@ function Sidebar({ categories, active, setActive, price, setPrice, inStock, setI
 function SideBtn({ active, onClick, count, label, dot }) {
   return (
     <button onClick={onClick}
-      style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', padding:'8px 12px', borderRadius:12, border:'none', cursor:'pointer', background: active ? 'rgba(255,153,0,0.12)' : 'none', color: active ? T.accent : T.textMuted, fontSize:12, fontWeight: active?700:500, transition:'all 0.15s', textAlign:'left' }}>
+      style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', padding:'8px 12px', borderRadius:12, border:'none', cursor:'pointer', background: active ? 'rgba(245,183,10,0.12)' : 'none', color: active ? T.accent : T.textMuted, fontSize:12, fontWeight: active?700:500, transition:'all 0.15s', textAlign:'left' }}>
       <span style={{ display:'flex', alignItems:'center', gap:8 }}>
         <span style={{ width:6, height:6, borderRadius:'50%', background: active ? T.accent : dot, opacity: active ? 1 : 0.7, flexShrink:0 }} />
         {label}
@@ -590,7 +453,7 @@ function CartFloatBar({ onOpen }) {
       {count > 0 && (
         <motion.div
           initial={{ y:80, opacity:0 }} animate={{ y:0, opacity:1 }} exit={{ y:80, opacity:0 }}
-          style={{ position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)', zIndex:30, display:'flex', alignItems:'center', gap:20, background:'rgba(11,11,26,0.95)', backdropFilter:'blur(20px)', border:`1px solid ${T.borderHi}`, borderRadius:99, padding:'10px 16px 10px 20px', boxShadow:'0 8px 40px rgba(255,153,0,0.15), 0 2px 20px rgba(0,0,0,0.5)' }}>
+          style={{ position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)', zIndex:30, display:'flex', alignItems:'center', gap:20, background:'rgba(11,11,26,0.95)', backdropFilter:'blur(20px)', border:`1px solid ${T.borderHi}`, borderRadius:99, padding:'10px 16px 10px 20px', boxShadow:'0 8px 40px rgba(245,183,10,0.15), 0 2px 20px rgba(0,0,0,0.5)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <span style={{ background:T.accent, color:'#000', fontSize:11, fontWeight:900, borderRadius:99, width:22, height:22, display:'flex', alignItems:'center', justifyContent:'center' }}>{count}</span>
             <div>
@@ -620,7 +483,7 @@ function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, 
   ]
 
   return (
-    <header style={{ background:'rgba(5,5,13,0.95)', backdropFilter:'blur(20px)', borderBottom:`1px solid ${T.border}`, position:'sticky', top:0, zIndex:30 }}>
+    <header style={{ background:'rgba(11,11,16,0.95)', backdropFilter:'blur(20px)', borderBottom:`1px solid ${T.border}`, position:'sticky', top:0, zIndex:30 }}>
 
 
       {/* Main nav */}
@@ -628,7 +491,7 @@ function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, 
 
         {/* Logo */}
         <a href="/" style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none', flexShrink:0 }}>
-          <div style={{ width: isMobile?32:36, height: isMobile?32:36, borderRadius:11, background:'linear-gradient(135deg,#FF9900,#e67e00)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 14px rgba(255,153,0,0.4)' }}>
+          <div style={{ width: isMobile?32:36, height: isMobile?32:36, borderRadius:11, background:'linear-gradient(135deg,#f5b70a,#e0a400)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 14px rgba(245,183,10,0.4)' }}>
             <img src="/images/logo/logo.svg" alt="VRG" style={{ width: isMobile?20:24, height: isMobile?20:24 }} onError={e => { e.target.style.display='none' }} />
           </div>
           <div>
@@ -644,7 +507,7 @@ function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, 
               const active = navTab === n.id
               return (
                 <button key={n.id} onClick={() => setNavTab(n.id)}
-                  style={{ position:'relative', padding:'8px 15px', borderRadius:99, fontSize:13, fontWeight:600, cursor:'pointer', background: active?T.accentDim:'none', color: active?T.accent:T.textMuted, border: active?`1px solid rgba(255,153,0,0.2)`:'1px solid transparent', transition:'all 0.15s', display:'flex', alignItems:'center', gap:6 }}>
+                  style={{ position:'relative', padding:'8px 15px', borderRadius:99, fontSize:13, fontWeight:600, cursor:'pointer', background: active?T.accentDim:'none', color: active?T.accent:T.textMuted, border: active?`1px solid rgba(245,183,10,0.2)`:'1px solid transparent', transition:'all 0.15s', display:'flex', alignItems:'center', gap:6 }}>
                   {n.label}
                   {n.badge && <span style={{ background:n.badgeColor||'#4ade80', color:'#000', fontSize:9, fontWeight:900, borderRadius:99, padding:'1px 6px', lineHeight:1.4 }}>{n.badge}</span>}
                 </button>
@@ -673,7 +536,7 @@ function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, 
             </Btn>
           )}
           {isMobile && (
-            <button onClick={onOpenAuth}
+            <button onClick={onOpenAuth} aria-label={user ? 'Mon compte' : 'Se connecter'}
               style={{ width:38, height:38, borderRadius:99, border:`1px solid ${T.border}`, background:T.glass, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </button>
@@ -686,7 +549,7 @@ function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, 
             </svg>
             {count>0 && (
               <motion.span key={count} initial={{ scale:1.4 }} animate={{ scale:1 }}
-                style={{ position:'absolute', top:-5, right:-5, background:T.accent, color:'#000', fontSize:10, fontWeight:900, borderRadius:99, width:18, height:18, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 8px rgba(255,153,0,0.4)' }}>
+                style={{ position:'absolute', top:-5, right:-5, background:T.accent, color:'#000', fontSize:10, fontWeight:900, borderRadius:99, width:18, height:18, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 8px rgba(245,183,10,0.4)' }}>
                 {count}
               </motion.span>
             )}
@@ -701,7 +564,7 @@ function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, 
             const active = navTab === n.id
             return (
               <button key={n.id} onClick={() => setNavTab(n.id)}
-                style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'7px 16px', borderRadius:99, fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, background: active?T.accentDim:'rgba(255,255,255,0.05)', color: active?T.accent:T.textMuted, border: active?`1px solid rgba(255,153,0,0.3)`:`1px solid ${T.border}`, transition:'all 0.15s' }}>
+                style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'7px 16px', borderRadius:99, fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, background: active?T.accentDim:'rgba(255,255,255,0.05)', color: active?T.accent:T.textMuted, border: active?`1px solid rgba(245,183,10,0.3)`:`1px solid ${T.border}`, transition:'all 0.15s' }}>
                 {n.label}
                 {n.badge && <span style={{ background:n.badgeColor, color:'#000', fontSize:9, fontWeight:900, borderRadius:99, padding:'1px 6px' }}>{n.badge}</span>}
               </button>
@@ -829,7 +692,7 @@ function NouveautesView({ products, onAdd, onView, view, setView }) {
           <AnimatePresence>
             {list.map((p, i) => (
               <motion.div key={p.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}>
-                <ProductCard product={p} onAdd={onAdd} onView={onView} forceNew={isNew7(p)} />
+                <ProductCard product={p} onAdd={onAdd} onView={onView} />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -843,7 +706,7 @@ function NouveautesView({ products, onAdd, onView, view, setView }) {
               <motion.div key={p.id} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.03 }}
                 onClick={() => onView(p)}
                 style={{ display:'flex', gap:18, background:T.surface, backdropFilter:'blur(16px)', border:`1px solid ${novo ? 'rgba(74,222,128,0.2)' : T.border}`, borderRadius:18, overflow:'hidden', padding:16, cursor:'pointer', transition:'all 0.2s' }}
-                onMouseEnter={e=>{ e.currentTarget.style.borderColor='rgba(255,153,0,0.25)'; e.currentTarget.style.boxShadow='0 8px 30px rgba(255,153,0,0.08)' }}
+                onMouseEnter={e=>{ e.currentTarget.style.borderColor='rgba(245,183,10,0.25)'; e.currentTarget.style.boxShadow='0 8px 30px rgba(245,183,10,0.08)' }}
                 onMouseLeave={e=>{ e.currentTarget.style.borderColor=novo?'rgba(74,222,128,0.2)':T.border; e.currentTarget.style.boxShadow='none' }}>
                 <div style={{ width:88, height:88, borderRadius:14, background:'rgba(255,255,255,0.04)', overflow:'hidden', flexShrink:0, position:'relative' }}>
                   {img?<img src={img} alt={`${p.name} — ${p.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:<div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, opacity:0.1 }}>📦</div>}
@@ -874,85 +737,12 @@ function NouveautesView({ products, onAdd, onView, view, setView }) {
 /* ══════════════════════════════════════════
    PROMOTIONS VIEW
 ══════════════════════════════════════════ */
-function PromoCard({ product, onAdd, onView }) {
-  const [hov, setHov]   = useState(false)
-  const [added, setAdded] = useState(false)
-  const imgs = parse(product.images)
-  const img  = imgs[0]?.src
-  const oos  = product.stock === 0
-  const promoPrice = Math.round(product.price * (1 - product.promo_percent / 100))
-  const saving     = product.price - promoPrice
-
-  const handleAdd = e => {
-    e.stopPropagation()
-    if (oos) return
-    onAdd(product)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1500)
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      onClick={() => onView(product)}
-      style={{ background:T.surface, backdropFilter:'blur(20px)', border:`1px solid ${hov ? 'rgba(248,113,113,0.35)' : T.border}`, borderRadius:22, overflow:'hidden', display:'flex', flexDirection:'column', cursor:'pointer', transition:'all 0.25s', transform: hov?'translateY(-4px)':'translateY(0)', boxShadow: hov?'0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(248,113,113,0.1)':'0 4px 24px rgba(0,0,0,0.25)' }}>
-
-      {/* Image */}
-      <div style={{ position:'relative', aspectRatio:'4/3', overflow:'hidden', background:'rgba(255,255,255,0.02)' }}>
-        {img
-          ? <img src={img} alt={`${product.name} — ${product.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform 0.5s', transform: hov?'scale(1.08)':'scale(1)' }} />
-          : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:48, opacity:0.1 }}>📦</div>
-        }
-        <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(5,5,13,0.7) 0%, transparent 50%)', pointerEvents:'none' }} />
-
-        {/* Promo badge */}
-        <motion.div
-          initial={{ scale:0 }} animate={{ scale:1 }} transition={{ type:'spring', damping:12 }}
-          style={{ position:'absolute', top:12, right:12, width:52, height:52, borderRadius:'50%', background:'linear-gradient(135deg,#f87171,#dc2626)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 16px rgba(248,113,113,0.5)' }}>
-          <span style={{ fontSize:13, fontWeight:900, color:'#fff', lineHeight:1 }}>-{product.promo_percent}%</span>
-        </motion.div>
-
-        {oos && <div style={{ position:'absolute', inset:0, background:'rgba(5,5,13,0.65)', display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(2px)' }}>
-          <span style={{ fontSize:12, fontWeight:800, color:'rgba(240,240,248,0.6)', border:'1px solid rgba(240,240,248,0.15)', padding:'6px 16px', borderRadius:99 }}>Rupture</span>
-        </div>}
-      </div>
-
-      {/* Info */}
-      <div style={{ padding:'14px 18px 18px', flex:1, display:'flex', flexDirection:'column', gap:8 }}>
-        {product.category && (
-          <span style={{ fontSize:10, fontWeight:800, padding:'2px 8px', borderRadius:99, background:`${catColor(product.category)}18`, color:catColor(product.category), border:`1px solid ${catColor(product.category)}30`, alignSelf:'flex-start' }}>
-            {product.category}
-          </span>
-        )}
-        <div style={{ fontSize:14, fontWeight:700, color:T.text, lineHeight:1.35 }}>{product.name}</div>
-
-        {/* Prix */}
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
-          <span style={{ fontSize:20, fontWeight:900, color:'#f87171', letterSpacing:'-1px' }}>{Math.round(promoPrice).toLocaleString('fr-FR')}</span>
-          <span style={{ fontSize:11, color:T.textMuted }}>Ar</span>
-          <span style={{ fontSize:12, color:T.textDim, textDecoration:'line-through' }}>{Number(product.price).toLocaleString('fr-FR')} Ar</span>
-        </div>
-        <div style={{ fontSize:11, color:'#22c55e', fontWeight:700 }}>
-          Tu économises {saving.toLocaleString('fr-FR')} Ar
-        </div>
-
-        <motion.button
-          whileTap={{ scale:0.95 }} onClick={handleAdd} disabled={oos}
-          style={{ marginTop:'auto', padding:'11px', borderRadius:12, border:'none', cursor: oos?'not-allowed':'pointer', background: added?'rgba(34,197,94,0.15)':oos?'rgba(255,255,255,0.04)':'linear-gradient(135deg,#f87171,#dc2626)', color: added?'#22c55e':oos?T.textDim:'#fff', fontSize:13, fontWeight:800, transition:'all 0.2s' }}>
-          {added ? '✓ Ajouté !' : oos ? 'Indisponible' : '+ Ajouter au panier'}
-        </motion.button>
-      </div>
-    </motion.div>
-  )
-}
-
 function PromosView({ products, onAdd, onView }) {
   const promos = products.filter(p => Number(p.promo_active) === 1)
 
   if (promos.length === 0) return (
     <div style={{ textAlign:'center', padding:'100px 0' }}>
-      <div style={{ fontSize:48, marginBottom:16, opacity:0.2 }}>🏷</div>
+      <div style={{ fontSize:15, marginBottom:12, color:T.textDim }}>—</div>
       <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8 }}>Aucune promotion en cours</div>
       <div style={{ fontSize:13, color:T.textMuted }}>Les promotions actives apparaîtront ici</div>
     </div>
@@ -965,7 +755,7 @@ function PromosView({ products, onAdd, onView }) {
       {/* Header */}
       <div style={{ marginBottom:28 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
-          <div style={{ width:28, height:28, borderRadius:9, background:'linear-gradient(135deg,#f87171,#dc2626)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, boxShadow:'0 4px 12px rgba(248,113,113,0.4)' }}>🏷</div>
+          <div style={{ width:28, height:28, borderRadius:9, background:T.accent, color:'#17130a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:900 }}>%</div>
           <h2 style={{ margin:0, fontSize:22, fontWeight:900, color:T.text, letterSpacing:'-0.5px' }}>Promotions</h2>
         </div>
         <p style={{ margin:0, fontSize:13, color:T.textMuted }}>
@@ -976,7 +766,7 @@ function PromosView({ products, onAdd, onView }) {
       {/* Stats */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:28 }}>
         {[
-          { label:'Articles en promo', value: promos.length, color:'#f87171' },
+          { label:'Articles en promo', value: promos.length, color:T.accent },
           { label:'Réduction max',     value: `${Math.max(...promos.map(p=>p.promo_percent))}%`, color:T.accent },
           { label:'Économie totale',   value: `${totalSaving.toLocaleString('fr-FR')} Ar`, color:'#22c55e' },
         ].map(s => (
@@ -990,11 +780,11 @@ function PromosView({ products, onAdd, onView }) {
       </div>
 
       {/* Grid */}
-      <motion.div layout style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(230px, 1fr))', gap:18 }}>
+      <motion.div layout style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:18 }}>
         <AnimatePresence>
           {promos.map((p,i) => (
             <motion.div key={p.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.05 }}>
-              <PromoCard product={p} onAdd={onAdd} onView={onView} />
+              <ProductCard product={p} onAdd={onAdd} onView={onView} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -1009,16 +799,19 @@ function ShopInner() {
   const isMobile = useMobile()
   const [products, setProducts] = useState([])
   const [loading, setLoading]   = useState(true)
-  const [navTab, setNavTab]     = useState('catalogue')
-  const [active, setActive]     = useState(null)
+  /* Liens profonds depuis l'accueil : ?tab=nouveautes|promos, ?cat=<catégorie>, ?q=<recherche> */
+  const qs = new URLSearchParams(window.location.search)
+  const [navTab, setNavTab]     = useState(() => ['nouveautes', 'promos'].includes(qs.get('tab')) ? qs.get('tab') : 'catalogue')
+  const [active, setActive]     = useState(() => qs.get('cat') || null)
   const [price, setPrice]       = useState(200000)
   const [inStock, setInStock]   = useState(false)
   const [sort, setSort]         = useState('default')
   const [view, setView]         = useState('grid')
-  const [search, setSearch]     = useState('')
+  const [search, setSearch]     = useState(() => qs.get('q') || '')
   const [modal, setModal]       = useState(null)
   const [showCart, setShowCart] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
+  const [showAccount, setShowAccount] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
@@ -1076,10 +869,10 @@ function ShopInner() {
     <div style={{ minHeight:'100dvh', background:T.bg, color:T.text, fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}>
 
       {/* Ambient glow */}
-      <div style={{ position:'fixed', top:0, left:'50%', transform:'translateX(-50%)', width:800, height:400, background:'radial-gradient(ellipse, rgba(255,153,0,0.04) 0%, transparent 70%)', pointerEvents:'none', zIndex:0 }} />
+      <div style={{ position:'fixed', top:0, left:'50%', transform:'translateX(-50%)', width:800, height:400, background:'radial-gradient(ellipse, rgba(245,183,10,0.04) 0%, transparent 70%)', pointerEvents:'none', zIndex:0 }} />
 
       <div style={{ position:'relative', zIndex:1 }}>
-        <Header search={search} setSearch={setSearch} onOpenAuth={()=>!user&&setShowAuth(true)} onOpenCart={()=>setShowCart(true)} navTab={navTab} setNavTab={setNavTab} newCount={newCount} promoCount={promoCount} />
+        <Header search={search} setSearch={setSearch} onOpenAuth={()=> user ? setShowAccount(true) : setShowAuth(true)} onOpenCart={()=>setShowCart(true)} navTab={navTab} setNavTab={setNavTab} newCount={newCount} promoCount={promoCount} />
 
         {/* Breadcrumb */}
         <div style={{ padding: isMobile ? '8px 16px' : '10px 40px', borderBottom:`1px solid ${T.border}`, display:'flex', alignItems:'center', gap:6, fontSize:12, color:T.textDim }}>
@@ -1113,7 +906,7 @@ function ShopInner() {
                 {loading ? <Loader /> : filtered.length===0 ? (
                   <EmptyState onReset={()=>{ setActive(null); setSearch(''); setInStock(false); setPrice(200000) }} />
                 ) : view==='grid' ? (
-                  <motion.div layout style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: isMobile ? 10 : 18 }}>
+                  <motion.div layout style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: isMobile ? 12 : 18 }}>
                     <AnimatePresence>
                       {filtered.map((p,i) => (
                         <motion.div key={p.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}>
@@ -1130,7 +923,7 @@ function ShopInner() {
                         <motion.div key={p.id} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.03 }}
                           onClick={() => openProduct(p)}
                           style={{ display:'flex', gap:18, background:T.surface, backdropFilter:'blur(16px)', border:`1px solid ${T.border}`, borderRadius:18, overflow:'hidden', padding:16, cursor:'pointer', transition:'border-color 0.2s, box-shadow 0.2s' }}
-                          onMouseEnter={e=>{ e.currentTarget.style.borderColor=T.borderHi; e.currentTarget.style.boxShadow='0 8px 30px rgba(255,153,0,0.08)' }}
+                          onMouseEnter={e=>{ e.currentTarget.style.borderColor=T.borderHi; e.currentTarget.style.boxShadow='0 8px 30px rgba(245,183,10,0.08)' }}
                           onMouseLeave={e=>{ e.currentTarget.style.borderColor=T.border; e.currentTarget.style.boxShadow='none' }}>
                           <div style={{ width:88, height:88, borderRadius:14, background:'rgba(255,255,255,0.04)', overflow:'hidden', flexShrink:0 }}>
                             {img?<img src={img} alt={`${p.name} — ${p.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:<div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, opacity:0.1 }}>📦</div>}
@@ -1171,6 +964,7 @@ function ShopInner() {
 
       <CartPanel isOpen={showCart} onClose={()=>setShowCart(false)} onOpenAuth={()=>{ setShowCart(false); setShowAuth(true) }} />
       <AuthModal isOpen={showAuth} onClose={()=>setShowAuth(false)} onSuccess={()=>setShowAuth(false)} />
+      <AccountPanel isOpen={showAccount} onClose={()=>setShowAccount(false)} />
 
       {/* Filter drawer — mobile */}
       <FilterDrawer open={showFilters} onClose={()=>setShowFilters(false)} categories={cats} active={active} setActive={setActive} price={price} setPrice={setPrice} inStock={inStock} setInStock={setInStock} total={products.length} />
@@ -1189,7 +983,7 @@ const SC = {
 function ComingSoonGate({ children }) {
   const settings = useSettings()
   const loaded = Object.keys(settings).length > 0
-  if (!loaded) return <div style={{ height:'100dvh', background:'#05050d' }} />
+  if (!loaded) return <div style={{ height:'100dvh', background:'#0b0b10' }} />
   if (settings.coming_soon === '1') return <ComingSoon settings={settings} />
   return children
 }

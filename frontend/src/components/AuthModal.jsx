@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Phone, Lock, User, Eye, EyeOff, AlertCircle, Check, Loader2 } from 'lucide-react'
+import { Phone, Lock, User, Eye, EyeOff, AlertCircle, Check, Loader2, Mail, KeyRound, ArrowLeft, MailCheck } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { normalizeMgPhone, MG_PHONE_HINT } from '../lib/phone.js'
+import Drawer from './store/Drawer.jsx'
 
+/* Connexion (téléphone ou email) / inscription en 2 étapes avec code OTP par email */
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const [tab, setTab] = useState('login')
   const [showPwd, setShowPwd] = useState(false)
@@ -15,10 +17,51 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                   sessionStorage.getItem('vrg_ref') || ''
   if (refCode) sessionStorage.setItem('vrg_ref', refCode)
 
-  const [form, setForm] = useState({ name: '', phone: '', password: '' })
-  const { register, login } = useAuth()
+  const EMPTY = { name: '', phone: '', email: '', password: '' }
+  const [form, setForm] = useState(EMPTY)
+  const [emailStatus, setEmailStatus] = useState(null) // null | 'checking' | 'available' | 'taken' | 'invalid'
+  const [step, setStep] = useState('form')             // inscription : 'form' puis 'otp'
+  const [otp, setOtp] = useState('')
+  const [resendIn, setResendIn] = useState(0)
+  const [info, setInfo] = useState('')
+  const { register, sendRegisterOtp, login } = useAuth()
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+  const emailValid = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
+
+  /* Compte à rebours avant de pouvoir renvoyer le code */
+  useEffect(() => {
+    if (resendIn <= 0) return
+    const t = setTimeout(() => setResendIn(s => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendIn])
+
+  /* Vérification temps réel de l'email (inscription) : format puis disponibilité */
+  useEffect(() => {
+    if (tab !== 'register' || !form.email.trim()) { setEmailStatus(null); return }
+    if (!emailValid(form.email)) { setEmailStatus(form.email.includes('@') && form.email.includes('.') ? 'invalid' : null); return }
+    setEmailStatus('checking')
+    const t = setTimeout(() => {
+      fetch(`/api/auth/check-email?email=${encodeURIComponent(form.email.trim())}`)
+        .then(r => r.json())
+        .then(d => setEmailStatus(d.invalid ? 'invalid' : d.available ? 'available' : 'taken'))
+        .catch(() => setEmailStatus(null))
+    }, 500)
+    return () => clearTimeout(t)
+  }, [form.email, tab])
+
+  const requestOtp = async () => {
+    setError(''); setInfo('')
+    setBusy(true)
+    try {
+      const d = await sendRegisterOtp({ name: form.name.trim(), phone: normalizeMgPhone(form.phone), email: form.email.trim() })
+      setStep('otp'); setOtp('')
+      setResendIn(d.resendIn || 60)
+      setInfo(`Code envoyé à ${form.email.trim()}`)
+    } catch (err) {
+      setError(err.message)
+    } finally { setBusy(false) }
+  }
 
   /* Vérification temps réel du numéro (inscription) : format malgache puis disponibilité */
   useEffect(() => {
@@ -40,8 +83,18 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    if (tab === 'register' && step === 'otp') {
+      if (!/^\d{6}$/.test(otp)) { setError('Saisis le code à 6 chiffres reçu par email'); return }
+      setBusy(true)
+      try {
+        await register({ ...form, email: form.email.trim(), phone: normalizeMgPhone(form.phone), otp, referralCode: refCode || undefined })
+        onSuccess()
+      } catch (err) { setError(err.message) }
+      finally { setBusy(false) }
+      return
+    }
     if (tab === 'register') {
-      if (!form.name.trim() || !form.phone.trim() || !form.password) {
+      if (!form.name.trim() || !form.phone.trim() || !form.email.trim() || !form.password) {
         setError('Remplis tous les champs')
         return
       }
@@ -53,10 +106,19 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         setError('Ce numéro est déjà enregistré')
         return
       }
+      if (!emailValid(form.email)) {
+        setError('Adresse email invalide')
+        return
+      }
+      if (emailStatus === 'taken') {
+        setError('Cette adresse email est déjà utilisée')
+        return
+      }
       if (form.password.length < 8) {
         setError('Le mot de passe doit faire au moins 8 caractères')
         return
       }
+      return requestOtp()
     } else {
       if (!form.phone.trim() || !form.password) {
         setError('Remplis tous les champs')
@@ -65,8 +127,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     }
     setBusy(true)
     try {
-      if (tab === 'register') await register({ ...form, phone: normalizeMgPhone(form.phone), referralCode: refCode || undefined })
-      else await login({ phone: form.phone, password: form.password })
+      await login({ identifier: form.phone.trim(), password: form.password })
       onSuccess()
     } catch (err) {
       setError(err.message)
@@ -75,189 +136,172 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     }
   }
 
-  const switchTab = (t) => { setTab(t); setError(''); setPhoneStatus(null); setForm({ name: '', phone: '', password: '' }) }
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={onClose}
-            style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)' }}
-          />
-
-          {/* Side panel */}
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', stiffness: 320, damping: 38 }}
-            style={{
-              position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 201,
-              width: '100%', maxWidth: 420,
-              background: 'rgba(8,8,18,0.99)',
-              borderLeft: '1px solid rgba(255,255,255,0.08)',
-              boxShadow: '-40px 0 100px rgba(0,0,0,0.6)',
-              display: 'flex', flexDirection: 'column',
-            }}
-          >
-            {/* Top bar */}
-            <div style={{
-              padding: '20px 24px',
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              flexShrink: 0,
-            }}>
-              <img src="/images/logo/logo.svg" alt="VRG" style={{ height: 44, width: 'auto' }} />
-              <button onClick={onClose}
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 9, padding: '7px', cursor: 'pointer', display: 'flex', color: 'rgba(240,240,245,0.5)' }}>
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Scrollable content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '32px 24px' }}>
-
-              {/* Title */}
-              <div style={{ marginBottom: 28 }}>
-                <h2 style={{ fontSize: 22, fontWeight: 700, color: '#f0f0f5', marginBottom: 6 }}>
-                  {tab === 'login' ? 'Bon retour 👋' : 'Créer un compte'}
-                </h2>
-                <p style={{ fontSize: 14, color: 'rgba(240,240,245,0.4)', lineHeight: 1.5 }}>
-                  {tab === 'login'
-                    ? 'Connecte-toi pour passer tes commandes.'
-                    : 'Inscris-toi pour commander en quelques clics.'}
-                </p>
-              </div>
-
-              {/* Tabs */}
-              <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 11, padding: 4, marginBottom: 24 }}>
-                {[['login', 'Se connecter'], ['register', "S'inscrire"]].map(([key, label]) => (
-                  <button key={key} onClick={() => switchTab(key)} style={{
-                    flex: 1, padding: '10px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                    fontSize: 14, fontWeight: 600, transition: 'all 0.2s', fontFamily: 'inherit',
-                    background: tab === key ? 'rgba(202,138,4,0.18)' : 'transparent',
-                    color: tab === key ? '#fbbf24' : 'rgba(240,240,245,0.4)',
-                  }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Form */}
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <AnimatePresence>
-                  {tab === 'register' && (
-                    <motion.div
-                      key="name-field"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.22 }}
-                      style={{ overflow: 'hidden' }}
-                    >
-                      <Field icon={<User size={15} />} placeholder="Nom complet" value={form.name} onChange={v => set('name', v)} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <div>
-                  <Field
-                    icon={<Phone size={15} />}
-                    placeholder="Numéro de téléphone" type="tel"
-                    value={form.phone} onChange={v => set('phone', v)}
-                    suffix={tab === 'register' && phoneStatus && (
-                      phoneStatus === 'checking'
-                        ? <Loader2 size={15} color="rgba(240,240,245,0.4)" style={{ animation: 'spin 0.8s linear infinite' }} />
-                        : phoneStatus === 'available'
-                          ? <Check size={15} color="#22c55e" />
-                          : <AlertCircle size={15} color="#f87171" />
-                    )}
-                  />
-                  <AnimatePresence>
-                    {tab === 'register' && phoneStatus === 'taken' && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                        style={{ fontSize: 12, color: '#f87171', marginTop: 6, paddingLeft: 4, overflow: 'hidden' }}>
-                        Ce numéro est déjà enregistré — connecte-toi plutôt.
-                      </motion.div>
-                    )}
-                    {tab === 'register' && phoneStatus === 'invalid' && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                        style={{ fontSize: 12, color: '#f87171', marginTop: 6, paddingLeft: 4, overflow: 'hidden' }}>
-                        {MG_PHONE_HINT}
-                      </motion.div>
-                    )}
-                    {tab === 'register' && phoneStatus === 'available' && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                        style={{ fontSize: 12, color: '#22c55e', marginTop: 6, paddingLeft: 4, overflow: 'hidden' }}>
-                        Numéro disponible ✓
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <Field
-                  icon={<Lock size={15} />}
-                  placeholder="Mot de passe"
-                  type={showPwd ? 'text' : 'password'}
-                  value={form.password}
-                  onChange={v => set('password', v)}
-                  suffix={
-                    <button type="button" onClick={() => setShowPwd(s => !s)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,240,245,0.35)', display: 'flex', padding: 0 }}>
-                      {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  }
-                />
-
-                <AnimatePresence>
-                  {error && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 9, padding: '10px 14px', color: '#f87171', fontSize: 13 }}>
-                      <AlertCircle size={14} />
-                      {error}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {(() => {
-                  const blocked = busy || (tab === 'register' && (phoneStatus === 'taken' || phoneStatus === 'checking' || phoneStatus === 'invalid'))
-                  return (
-                    <motion.button
-                      whileHover={!blocked ? { scale: 1.02, boxShadow: '0 6px 28px rgba(202,138,4,0.4)' } : {}}
-                      whileTap={!blocked ? { scale: 0.97 } : {}}
-                      type="submit"
-                      disabled={blocked}
-                      style={{ marginTop: 8, padding: '15px', borderRadius: 12, border: 'none', cursor: blocked ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 700, fontFamily: 'inherit', background: blocked ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg, #ca8a04, #d97706)', color: blocked ? 'rgba(240,240,245,0.4)' : '#fff', boxShadow: blocked ? 'none' : '0 4px 20px rgba(202,138,4,0.28)', transition: 'all 0.2s' }}>
-                      {busy ? '...' : tab === 'register' ? 'Créer mon compte' : 'Se connecter'}
-                    </motion.button>
-                  )
-                })()}
-                <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-              </form>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  )
-}
-
-function Field({ icon, suffix, onChange, ...props }) {
-  const handleChange = e => {
-    const val = props.type === 'tel'
-      ? e.target.value.replace(/[^\d\s+]/g, '')
-      : e.target.value
-    onChange(val)
+  const switchTab = (t) => {
+    setTab(t); setError(''); setInfo(''); setPhoneStatus(null); setEmailStatus(null)
+    setStep('form'); setOtp(''); setForm(EMPTY)
   }
+
+  const isRegister = tab === 'register'
+  const isOtp = isRegister && step === 'otp'
+  const blocked = busy || (isRegister && (isOtp
+    ? otp.length !== 6
+    : (phoneStatus === 'taken' || phoneStatus === 'checking' || phoneStatus === 'invalid' ||
+       emailStatus === 'taken' || emailStatus === 'checking' || emailStatus === 'invalid')))
+
+  const statusIcon = (s) => s === 'checking'
+    ? <Loader2 size={18} className="vs-spin" aria-hidden="true" />
+    : s === 'available' ? <Check size={18} color="var(--color-success)" aria-hidden="true" />
+    : s ? <AlertCircle size={18} color="var(--color-danger)" aria-hidden="true" /> : null
+  const fieldState = (s) => s === 'available' ? ' vs-field--ok' : (s === 'taken' || s === 'invalid') ? ' vs-field--error' : ''
+
+  const pwdToggle = (
+    <button type="button" className="vs-icon-btn" onClick={() => setShowPwd(s => !s)}
+      aria-label={showPwd ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+      style={{ width: 36, height: 36, marginRight: -8, color: 'var(--color-subtle)' }}>
+      {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  )
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '13px 14px' }}>
-      <span style={{ color: 'rgba(240,240,245,0.3)', flexShrink: 0 }}>{icon}</span>
-      <input {...props} onChange={handleChange} inputMode={props.type === 'tel' ? 'tel' : undefined} style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit' }} />
-      {suffix}
-    </div>
+    <Drawer isOpen={isOpen} onClose={onClose} maxWidth={440}
+      title={isOtp ? 'Vérifie ton email' : isRegister ? 'Créer un compte' : 'Connexion'}>
+      <div className="vs-drawer__pad" style={{ paddingTop: 28 }}>
+        {!isOtp && (
+          <>
+            <p style={{ fontSize: 15, color: 'var(--color-muted)', marginBottom: 20, lineHeight: 1.55 }}>
+              {isRegister
+                ? 'Crée ton compte pour commander en quelques clics et cumuler des points fidélité.'
+                : 'Content de te revoir ! Connecte-toi pour suivre tes commandes.'}
+            </p>
+            <div className="vs-tabs" role="tablist" aria-label="Connexion ou inscription" style={{ marginBottom: 24 }}>
+              {[['login', 'Se connecter'], ['register', "S'inscrire"]].map(([key, label]) => (
+                <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => switchTab(key)}>{label}</button>
+              ))}
+            </div>
+          </>
+        )}
+
+        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {isOtp ? (
+            <>
+              <div style={{ textAlign: 'center', marginBottom: 4 }}>
+                <span aria-hidden="true" style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--color-gold-soft)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
+                  <MailCheck size={30} color="var(--color-gold)" />
+                </span>
+                <p style={{ fontSize: 15, color: 'var(--color-muted)', lineHeight: 1.6 }}>
+                  Nous avons envoyé un code à 6 chiffres à<br />
+                  <strong style={{ color: 'var(--color-text)' }}>{form.email.trim()}</strong>
+                </p>
+                <p style={{ fontSize: 13, color: 'var(--color-subtle)', marginTop: 6 }}>Pense à vérifier tes spams.</p>
+              </div>
+              <div>
+                <label className="vs-label" htmlFor="auth-otp">Code de vérification</label>
+                <input id="auth-otp" className="vs-input-box" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus
+                  value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••"
+                  style={{ textAlign: 'center', fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, letterSpacing: '0.5em', minHeight: 60, paddingLeft: '0.5em' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button type="button" className="vs-textbtn" onClick={() => { setStep('form'); setError(''); setInfo('') }}>
+                  <ArrowLeft size={16} /> Modifier
+                </button>
+                <button type="button" className={`vs-textbtn${resendIn > 0 ? '' : ' vs-textbtn--gold'}`} disabled={resendIn > 0 || busy} onClick={requestOtp}
+                  style={{ cursor: resendIn > 0 ? 'default' : 'pointer' }}>
+                  {resendIn > 0 ? `Renvoyer le code (${resendIn}s)` : 'Renvoyer le code'}
+                </button>
+              </div>
+              {info && !error && <div className="vs-alert vs-alert--ok" role="status"><Check size={16} style={{ flexShrink: 0, marginTop: 2 }} />{info}</div>}
+            </>
+          ) : (
+            <>
+              {isRegister && (
+                <div>
+                  <label className="vs-label" htmlFor="auth-name">Nom complet</label>
+                  <div className="vs-field">
+                    <User size={18} aria-hidden="true" />
+                    <input id="auth-name" value={form.name} onChange={e => set('name', e.target.value)} autoComplete="name" placeholder="Prénom Nom" />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="vs-label" htmlFor="auth-id">{isRegister ? 'Numéro de téléphone' : 'Téléphone ou email'}</label>
+                <div className={`vs-field${isRegister ? fieldState(phoneStatus) : ''}`}>
+                  {!isRegister && form.phone.includes('@') ? <Mail size={18} aria-hidden="true" /> : <Phone size={18} aria-hidden="true" />}
+                  <input id="auth-id" value={form.phone}
+                    onChange={e => set('phone', isRegister ? e.target.value.replace(/[^\d\s+]/g, '') : e.target.value)}
+                    type={isRegister ? 'tel' : 'text'} inputMode={isRegister ? 'tel' : undefined}
+                    autoComplete={isRegister ? 'tel' : 'username'}
+                    placeholder={isRegister ? '034 12 345 67' : '034 12 345 67 ou toi@email.com'}
+                    aria-describedby={isRegister ? 'auth-phone-hint' : undefined}
+                    aria-invalid={isRegister && (phoneStatus === 'taken' || phoneStatus === 'invalid')} />
+                  {isRegister && statusIcon(phoneStatus)}
+                </div>
+                {isRegister && (
+                  <p id="auth-phone-hint" className={`vs-hint${phoneStatus === 'taken' || phoneStatus === 'invalid' ? ' vs-hint--error' : phoneStatus === 'available' ? ' vs-hint--ok' : ''}`}
+                    style={{ color: phoneStatus ? undefined : 'var(--color-subtle)' }} aria-live="polite">
+                    {phoneStatus === 'taken' ? 'Ce numéro est déjà enregistré — connecte-toi plutôt.'
+                      : phoneStatus === 'invalid' ? MG_PHONE_HINT
+                      : phoneStatus === 'available' ? 'Numéro disponible'
+                      : 'Numéro malgache (032, 033, 034, 037 ou 038)'}
+                  </p>
+                )}
+              </div>
+
+              {isRegister && (
+                <div>
+                  <label className="vs-label" htmlFor="auth-email">Adresse email</label>
+                  <div className={`vs-field${fieldState(emailStatus)}`}>
+                    <Mail size={18} aria-hidden="true" />
+                    <input id="auth-email" type="email" autoComplete="email" value={form.email} onChange={e => set('email', e.target.value)}
+                      placeholder="toi@email.com" aria-describedby="auth-email-hint" aria-invalid={emailStatus === 'taken' || emailStatus === 'invalid'} />
+                    {statusIcon(emailStatus)}
+                  </div>
+                  <p id="auth-email-hint" className={`vs-hint${emailStatus === 'taken' || emailStatus === 'invalid' ? ' vs-hint--error' : ''}`}
+                    style={{ color: emailStatus === 'taken' || emailStatus === 'invalid' ? undefined : 'var(--color-subtle)' }} aria-live="polite">
+                    {emailStatus === 'taken' ? 'Cette adresse email est déjà utilisée.'
+                      : emailStatus === 'invalid' ? 'Adresse email invalide.'
+                      : 'Un code de vérification y sera envoyé.'}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="vs-label" htmlFor="auth-pwd">Mot de passe</label>
+                <div className="vs-field">
+                  <Lock size={18} aria-hidden="true" />
+                  <input id="auth-pwd" type={showPwd ? 'text' : 'password'} value={form.password} onChange={e => set('password', e.target.value)}
+                    autoComplete={isRegister ? 'new-password' : 'current-password'} placeholder={isRegister ? '8 caractères minimum' : '••••••••'} />
+                  {pwdToggle}
+                </div>
+              </div>
+            </>
+          )}
+
+          <AnimatePresence>
+            {error && (
+              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="vs-alert vs-alert--error" role="alert">
+                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2 }} /> {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button type="submit" className="vs-btn vs-btn--primary vs-btn--block" disabled={blocked} style={{ marginTop: 4 }}>
+            {busy && <Loader2 size={18} className="vs-spin" aria-hidden="true" />}
+            {isOtp ? 'Vérifier et créer mon compte' : isRegister ? 'Recevoir le code par email' : 'Se connecter'}
+          </button>
+
+          {!isOtp && (
+            <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--color-muted)' }}>
+              {isRegister ? 'Déjà un compte ? ' : 'Pas encore de compte ? '}
+              <button type="button" className="vs-textbtn vs-textbtn--gold" style={{ display: 'inline', minHeight: 0, padding: 0, fontWeight: 600 }}
+                onClick={() => switchTab(isRegister ? 'login' : 'register')}>
+                {isRegister ? 'Se connecter' : "Créer un compte"}
+              </button>
+            </p>
+          )}
+        </form>
+      </div>
+    </Drawer>
   )
 }

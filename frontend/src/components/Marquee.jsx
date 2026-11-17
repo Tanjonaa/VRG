@@ -1,101 +1,45 @@
 import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Zap, Shield, Truck, Star, Headphones, Cpu, Radio } from 'lucide-react'
-
-const ICONS = [Zap, Truck, Star, Cpu, Shield, Headphones]
+import { AnimatePresence, motion } from 'framer-motion'
+import { useSettings } from '../hooks/useSettings.js'
 
 const DEFAULT_ITEMS = [
-  'Finger Sleeves Gaming dispo maintenant',
   'Livraison 24h sur Antananarivo',
-  '+1 200 gamers équipés à Madagascar',
-  'Ventilateurs Turbo — stock limité',
+  'Paiement mobile money ou à la livraison',
   'Garantie 6 mois sur tous les produits',
-  'Support WhatsApp 7j/7 — réponse en 5 min',
+  'Support WhatsApp 7j/7',
 ]
 
-export default function Marquee() {
-  const [texts, setTexts] = useState(DEFAULT_ITEMS)
+/* Barre d'annonces en haut de page : un message à la fois, en rotation.
+   Les textes viennent de l'admin (setting marquee_items). */
+export default function AnnouncementBar() {
+  const settings = useSettings()
+  const [i, setI] = useState(0)
+
+  const texts = (() => {
+    try {
+      const parsed = JSON.parse(settings.marquee_items || '[]')
+      const list = Array.isArray(parsed) ? parsed.map(x => x.text).filter(Boolean) : []
+      return list.length ? list : DEFAULT_ITEMS
+    } catch { return DEFAULT_ITEMS }
+  })()
 
   useEffect(() => {
-    fetch('/api/settings')
-      .then(r => r.json())
-      .then(data => {
-        if (data.marquee_items) {
-          try {
-            const parsed = JSON.parse(data.marquee_items)
-            if (Array.isArray(parsed) && parsed.length > 0)
-              setTexts(parsed.map(i => i.text).filter(Boolean))
-          } catch {}
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  // Double la liste pour le défilement continu
-  const items = [...texts, ...texts]
+    if (texts.length < 2) return
+    const t = setInterval(() => setI(n => (n + 1) % texts.length), 4500)
+    return () => clearInterval(t)
+  }, [texts.length])
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      zIndex: 90,
-      height: 44,
-      display: 'flex',
-      alignItems: 'stretch',
-      background: 'rgba(8,8,16,0.92)',
-      backdropFilter: 'blur(20px)',
-      borderTop: '1px solid rgba(202,138,4,0.25)',
-      boxShadow: '0 -4px 32px rgba(202,138,4,0.08)',
-    }}>
-      <div style={{
-        position: 'absolute', top: -1, left: 0, right: 0, height: 1,
-        background: 'linear-gradient(90deg, transparent 0%, rgba(202,138,4,0.6) 30%, rgba(124,58,237,0.4) 70%, transparent 100%)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Label badge */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 7, padding: '0 18px',
-        background: 'linear-gradient(135deg, rgba(202,138,4,0.15), rgba(202,138,4,0.05))',
-        borderRight: '1px solid rgba(202,138,4,0.2)', flexShrink: 0, whiteSpace: 'nowrap',
-      }}>
-        <motion.div
-          animate={{ opacity: [1, 0.3, 1] }}
-          transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ width: 7, height: 7, borderRadius: '50%', background: '#ca8a04', flexShrink: 0 }}
-        />
-        <Radio size={13} color="#ca8a04" strokeWidth={2} />
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#ca8a04', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          Annonces
-        </span>
-      </div>
-
-      {/* Scrolling ticker */}
-      <div style={{ position: 'relative', flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 60, zIndex: 2, background: 'linear-gradient(90deg, rgba(8,8,16,0.9), transparent)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 60, zIndex: 2, background: 'linear-gradient(-90deg, rgba(8,8,16,0.9), transparent)', pointerEvents: 'none' }} />
-
-        <motion.div
-          key={texts.join(',')}
-          animate={{ x: ['0%', '-50%'] }}
-          transition={{ duration: Math.max(texts.length * 5, 28), repeat: Infinity, ease: 'linear' }}
-          style={{ display: 'flex', width: 'max-content', alignItems: 'center' }}
-        >
-          {items.map((text, i) => {
-            const Icon = ICONS[i % ICONS.length]
-            return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 32px', whiteSpace: 'nowrap', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
-                <Icon size={13} color="#ca8a04" strokeWidth={2} />
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(240,240,245,0.65)', letterSpacing: '0.01em' }}>
-                  {text}
-                </span>
-              </div>
-            )
-          })}
-        </motion.div>
-      </div>
+    <div role="region" aria-label="Annonces"
+      style={{ background: 'var(--color-gold)', color: 'var(--color-on-gold)', height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', zIndex: 101 }}>
+      <AnimatePresence mode="wait">
+        <motion.p key={i % texts.length} aria-live="polite"
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.3 }}
+          style={{ fontSize: 13, fontWeight: 600, padding: '0 16px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+          {texts[i % texts.length]}
+        </motion.p>
+      </AnimatePresence>
     </div>
   )
 }

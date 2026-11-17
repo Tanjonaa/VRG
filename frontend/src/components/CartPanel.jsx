@@ -1,15 +1,24 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Trash2, Plus, Minus, ShoppingCart, MapPin, CheckCircle, ChevronLeft, LogIn, Copy, Check, Phone, User, Hash, Navigation } from 'lucide-react'
+import { Trash2, Plus, Minus, ShoppingBag, MapPin, CheckCircle2, ChevronLeft, LogIn, Copy, Check, Phone, User, Hash, ArrowRight, Package, AlertCircle } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import Drawer from './store/Drawer.jsx'
 
 const PAYMENT_METHODS = [
-  { id: 'mvola',     name: 'MVola',          sub: 'Telma',         color: '#00A651', bg: 'rgba(0,166,81,0.1)',   border: 'rgba(0,166,81,0.3)',   emoji: '🟢', merchantNumber: '034 XX XXX XX' },
-  { id: 'airtel',    name: 'Airtel Money',   sub: 'Airtel',        color: '#E40032', bg: 'rgba(228,0,50,0.1)',   border: 'rgba(228,0,50,0.3)',   emoji: '🔴', merchantNumber: '033 XX XXX XX' },
-  { id: 'orange',    name: 'Orange Money',   sub: 'Orange',        color: '#FF6600', bg: 'rgba(255,102,0,0.1)', border: 'rgba(255,102,0,0.3)', emoji: '🟠', merchantNumber: '032 XX XXX XX' },
-  { id: 'livraison', name: 'À la livraison', sub: 'Payer en cash', color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)', emoji: '🚚', merchantNumber: null },
+  { id: 'mvola',     name: 'MVola',          sub: 'Telma',         color: '#00A651', merchantNumber: '034 XX XXX XX' },
+  { id: 'airtel',    name: 'Airtel Money',   sub: 'Airtel',        color: '#E40032', merchantNumber: '033 XX XXX XX' },
+  { id: 'orange',    name: 'Orange Money',   sub: 'Orange',        color: '#FF6600', merchantNumber: '032 XX XXX XX' },
+  { id: 'livraison', name: 'À la livraison', sub: 'Payer en cash', color: '#22c55e', merchantNumber: null },
 ]
+
+const ZONES = [
+  { id: 'tana',         label: 'Tana Ville',   fee: 5000,  desc: 'Antananarivo centre' },
+  { id: 'peripherique', label: 'Périphérique', fee: 10000, desc: 'Banlieue & communes' },
+]
+
+const ar = (n) => `${Number(n || 0).toLocaleString('fr-FR')} Ar`
+const fade = { initial: { opacity: 0, x: 16 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -16 }, transition: { duration: 0.2 } }
 
 export default function CartPanel({ isOpen, onClose, onOpenAuth }) {
   const { items, removeItem, updateQty, clearCart, total, count } = useCart()
@@ -30,9 +39,10 @@ export default function CartPanel({ isOpen, onClose, onOpenAuth }) {
   const isMobile = payment && payment !== 'livraison'
   const deliveryFee = zone === 'tana' ? 5000 : zone === 'peripherique' ? 10000 : 0
   const grandTotal  = total + deliveryFee
+  const canSubmit = payment && address.trim() && zone && hours.trim() && (!isMobile || (transferPhone.trim() && transferName.trim() && transferId.trim()))
 
   const handleCheckout = async (e) => {
-    e.preventDefault()
+    e?.preventDefault()
     if (!payment || !address.trim() || !zone || !hours.trim() || items.length === 0) return
     if (isMobile && (!transferPhone.trim() || !transferName.trim() || !transferId.trim())) return
     setSubmitting(true)
@@ -60,197 +70,147 @@ export default function CartPanel({ isOpen, onClose, onOpenAuth }) {
     setView('cart')
   }
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={onClose}
-            style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)' }}
-          />
-          <motion.div
-            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-            transition={{ type: 'spring', stiffness: 320, damping: 38 }}
-            style={{
-              position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 201,
-              width: '100%', maxWidth: 460,
-              background: 'rgba(8,8,18,0.99)',
-              borderLeft: '1px solid rgba(255,255,255,0.08)',
-              boxShadow: '-40px 0 100px rgba(0,0,0,0.6)',
-              display: 'flex', flexDirection: 'column',
-            }}>
+  const saving = items.reduce((s, i) => s + (i.original_price ? (i.original_price - i.price) * i.qty : 0), 0)
 
-            {/* Top bar */}
-            <div style={{
-              padding: '20px 24px',
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              flexShrink: 0,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <ShoppingCart size={20} color="#FF9900" />
-                <span style={{ fontWeight: 700, fontSize: 17, color: '#f0f0f5' }}>Mon panier</span>
-                {count > 0 && (
-                  <span style={{ background: '#FF9900', color: '#000', borderRadius: 99, fontSize: 12, fontWeight: 700, padding: '2px 8px' }}>
-                    {count}
-                  </span>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {items.length > 0 && view === 'cart' && (
-                  <button onClick={clearCart}
-                    style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', color: '#f87171', fontSize: 12, fontWeight: 600 }}>
-                    Vider
-                  </button>
-                )}
-                <button onClick={onClose}
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 9, padding: '7px', cursor: 'pointer', color: 'rgba(240,240,245,0.5)', display: 'flex' }}>
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              <AnimatePresence mode="wait">
-                {view === 'cart'     && <CartView     key="cart"     items={items} removeItem={removeItem} updateQty={updateQty} total={total} user={user} onCheckout={() => setView('checkout')} onOpenAuth={onOpenAuth} onClose={onClose} />}
-                {view === 'checkout' && <CheckoutView key="checkout" payment={payment} setPayment={setPayment} address={address} setAddress={setAddress} zone={zone} setZone={setZone} hours={hours} setHours={setHours} note={note} setNote={setNote} transferPhone={transferPhone} setTransferPhone={setTransferPhone} transferName={transferName} setTransferName={setTransferName} transferId={transferId} setTransferId={setTransferId} subtotal={total} deliveryFee={deliveryFee} grandTotal={grandTotal} onSubmit={handleCheckout} onBack={() => setView('cart')} submitting={submitting} checkoutError={checkoutError} />}
-                {view === 'success'  && <SuccessView  key="success"  order={lastOrder} onDone={() => { reset(); onClose() }} />}
-              </AnimatePresence>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  )
-}
-
-/* ─── Cart view ─── */
-function CartView({ items, removeItem, updateQty, total, user, onCheckout, onOpenAuth, onClose }) {
-  if (items.length === 0) {
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center', gap: 16 }}>
-        <ShoppingCart size={52} color="rgba(240,240,245,0.15)" />
-        <p style={{ fontSize: 16, fontWeight: 600, color: 'rgba(240,240,245,0.5)' }}>Votre panier est vide</p>
-        <p style={{ fontSize: 13, color: 'rgba(240,240,245,0.3)', lineHeight: 1.5 }}>Parcourez nos produits et ajoutez-les à votre panier</p>
-        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-          onClick={() => { onClose(); window.location.href = '/catalogue' }}
-          style={{ marginTop: 8, padding: '11px 24px', borderRadius: 10, border: '1px solid rgba(255,153,0,0.3)', background: 'rgba(255,153,0,0.1)', color: '#FF9900', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-          Voir les produits →
-        </motion.button>
-      </motion.div>
+  /* Pied de tiroir fixe : total + action principale selon l'étape */
+  let footer = null
+  if (view === 'cart' && items.length > 0) {
+    footer = (
+      <>
+        {saving > 0 && <div className="vs-row" style={{ marginBottom: 6 }}><span>Économies promo</span><span style={{ color: 'var(--color-success)', fontWeight: 600 }}>−{ar(saving)}</span></div>}
+        <div className="vs-row" style={{ marginBottom: 4 }}>
+          <span>Sous-total</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--color-text)', fontVariantNumeric: 'tabular-nums' }}>{ar(total)}</span>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--color-subtle)', marginBottom: 14 }}>Frais de livraison calculés à l'étape suivante.</p>
+        {user && user.role !== 'client' ? (
+          <div className="vs-alert vs-alert--info">Compte {user.role} — les achats sont réservés aux clients.</div>
+        ) : user ? (
+          <button type="button" className="vs-btn vs-btn--primary vs-btn--block" onClick={() => setView('checkout')}>
+            Passer la commande <ArrowRight size={18} aria-hidden="true" />
+          </button>
+        ) : (
+          <>
+            <button type="button" className="vs-btn vs-btn--primary vs-btn--block" onClick={onOpenAuth}>
+              <LogIn size={18} aria-hidden="true" /> Se connecter pour commander
+            </button>
+            <p style={{ fontSize: 13, color: 'var(--color-subtle)', textAlign: 'center', marginTop: 10 }}>Pas de compte ? L'inscription prend 1 minute.</p>
+          </>
+        )}
+      </>
+    )
+  } else if (view === 'checkout') {
+    footer = (
+      <>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+          <div className="vs-row"><span>Sous-total</span><span>{ar(total)}</span></div>
+          <div className="vs-row"><span>Livraison{zone ? ` · ${ZONES.find(z => z.id === zone)?.label}` : ''}</span><span>{zone ? ar(deliveryFee) : '—'}</span></div>
+          <div className="vs-row" style={{ marginTop: 4, paddingTop: 10, borderTop: '1px solid var(--color-border)' }}>
+            <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>Total à payer</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--color-gold)', fontVariantNumeric: 'tabular-nums' }}>{ar(grandTotal)}</span>
+          </div>
+        </div>
+        {checkoutError && <div className="vs-alert vs-alert--error" role="alert" style={{ marginBottom: 12 }}><AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2 }} />{checkoutError}</div>}
+        <button type="submit" form="vs-checkout" className="vs-btn vs-btn--primary vs-btn--block" disabled={!canSubmit || submitting}>
+          {submitting ? 'Enregistrement…' : 'Confirmer la commande'}
+        </button>
+        {!canSubmit && <p style={{ fontSize: 13, color: 'var(--color-subtle)', textAlign: 'center', marginTop: 10 }}>Complète l'adresse, la zone et le paiement.</p>}
+      </>
     )
   }
 
   return (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }}>
-      {/* Items */}
-      <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <AnimatePresence>
-          {items.map(item => (
-            <motion.div key={item.id}
-              initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-              transition={{ duration: 0.22 }}
-              style={{ overflow: 'hidden' }}>
-              <div style={{ display: 'flex', gap: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px' }}>
-                <img src={item.image} alt={item.name} style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', flexShrink: 0, background: 'rgba(255,255,255,0.05)' }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#f0f0f5', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: item.original_price ? '#f87171' : '#FF9900' }}>
-                      Ar {item.price.toLocaleString('fr-FR')}
-                    </span>
-                    {item.original_price && (
-                      <>
-                        <span style={{ fontSize: 11, color: 'rgba(240,240,245,0.3)', textDecoration: 'line-through' }}>
-                          Ar {item.original_price.toLocaleString('fr-FR')}
-                        </span>
-                        <span style={{ fontSize: 9, fontWeight: 900, padding: '1px 6px', borderRadius: 99, background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}>
-                          -{item.promo_percent}%
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '3px' }}>
-                      <button onClick={() => updateQty(item.id, item.qty - 1)}
-                        style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'rgba(255,255,255,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f0f0f5' }}>
-                        <Minus size={12} />
-                      </button>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#f0f0f5', minWidth: 24, textAlign: 'center' }}>{item.qty}</span>
-                      <button onClick={() => updateQty(item.id, item.qty + 1)}
-                        style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'rgba(255,255,255,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f0f0f5' }}>
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                    <button onClick={() => removeItem(item.id)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(239,68,68,0.6)', display: 'flex', padding: 4 }}>
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Bottom total + CTA */}
-      <div style={{ padding: '16px 24px 24px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        {/* Économies promo */}
-        {items.some(i => i.original_price) && (() => {
-          const saving = items.reduce((s, i) => s + (i.original_price ? (i.original_price - i.price) * i.qty : 0), 0)
-          return (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>Économies promo</span>
-              <span style={{ fontSize: 12, fontWeight: 800, color: '#22c55e' }}>-Ar {saving.toLocaleString('fr-FR')}</span>
-            </div>
-          )
-        })()}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <span style={{ fontSize: 15, color: 'rgba(240,240,245,0.6)' }}>Total</span>
-          <span style={{ fontSize: 22, fontWeight: 700, color: '#FF9900', letterSpacing: '-0.02em' }}>
-            Ar {total.toLocaleString('fr-FR')}
-          </span>
-        </div>
-
-        {user && user.role !== 'client' ? (
-          <div style={{ textAlign: 'center', padding: '14px', borderRadius: 12, background: 'rgba(255,153,0,0.06)', border: '1px solid rgba(255,153,0,0.15)' }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,153,0,0.7)', margin: 0 }}>Compte {user.role} — les achats sont réservés aux clients</p>
-          </div>
-        ) : user ? (
-          <motion.button whileHover={{ scale: 1.02, boxShadow: '0 6px 28px rgba(255,153,0,0.4)' }} whileTap={{ scale: 0.97 }}
-            onClick={onCheckout}
-            style={{ width: '100%', padding: '15px', borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700, background: 'linear-gradient(135deg, #FF9900, #CC5500)', color: '#fff', boxShadow: '0 4px 20px rgba(255,153,0,0.28)' }}>
-            Passer la commande →
-          </motion.button>
-        ) : (
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: 13, color: 'rgba(240,240,245,0.45)', marginBottom: 12 }}>Connecte-toi pour finaliser ta commande</p>
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={onOpenAuth}
-              style={{ width: '100%', padding: '14px', borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700, background: 'linear-gradient(135deg, #FF9900, #CC5500)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <LogIn size={17} /> Se connecter
-            </motion.button>
-          </div>
+    <Drawer isOpen={isOpen} onClose={onClose}
+      title={view === 'checkout' ? 'Finaliser la commande' : view === 'success' ? 'Commande envoyée' : 'Mon panier'}
+      icon={<ShoppingBag size={20} color="var(--color-gold)" aria-hidden="true" />}
+      actions={view === 'cart' && count > 0 && (
+        <button type="button" className="vs-textbtn vs-textbtn--danger" onClick={clearCart} style={{ marginRight: 4 }}>Vider</button>
+      )}
+      footer={footer}>
+      <AnimatePresence mode="wait">
+        {view === 'cart' && (
+          <motion.div key="cart" {...fade}>
+            {items.length === 0
+              ? <EmptyCart onClose={onClose} />
+              : <ul className="vs-drawer__pad" style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <AnimatePresence initial={false}>
+                    {items.map(item => <CartItem key={item.id} item={item} updateQty={updateQty} removeItem={removeItem} />)}
+                  </AnimatePresence>
+                </ul>}
+          </motion.div>
         )}
-      </div>
-    </motion.div>
+        {view === 'checkout' && (
+          <motion.div key="checkout" {...fade}>
+            <CheckoutForm {...{ payment, setPayment, address, setAddress, zone, setZone, setHours, note, setNote, transferPhone, setTransferPhone, transferName, setTransferName, transferId, setTransferId }}
+              onSubmit={handleCheckout} onBack={() => setView('cart')} />
+          </motion.div>
+        )}
+        {view === 'success' && (
+          <motion.div key="success" {...fade}>
+            <SuccessView order={lastOrder} onDone={() => { reset(); onClose() }} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Drawer>
   )
 }
 
-/* ─── Checkout view ─── */
-const ZONES = [
-  { id: 'tana',        label: 'Tana Ville',   fee: 5000,  desc: 'Antananarivo centre',  color: '#FF9900' },
-  { id: 'peripherique',label: 'Périphérique', fee: 10000, desc: 'Banlieue & communes',  color: '#fbbf24' },
-]
+function EmptyCart({ onClose }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '72px 24px', gap: 10 }}>
+      <span aria-hidden="true" style={{ width: 72, height: 72, borderRadius: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'grid', placeItems: 'center', marginBottom: 8 }}>
+        <ShoppingBag size={30} color="var(--color-subtle)" />
+      </span>
+      <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600 }}>Ton panier est vide</p>
+      <p style={{ fontSize: 14, color: 'var(--color-muted)', maxWidth: 280 }}>Parcours nos accessoires et ajoute ceux qui te plaisent.</p>
+      <a href="/catalogue" onClick={onClose} className="vs-btn vs-btn--primary" style={{ marginTop: 14 }}>
+        Voir les produits <ArrowRight size={18} aria-hidden="true" />
+      </a>
+    </div>
+  )
+}
 
-function CheckoutView({ payment, setPayment, address, setAddress, zone, setZone, hours, setHours, note, setNote, transferPhone, setTransferPhone, transferName, setTransferName, transferId, setTransferId, subtotal, deliveryFee, grandTotal, onSubmit, onBack, submitting, checkoutError }) {
+function CartItem({ item, updateQty, removeItem }) {
+  const [err, setErr] = useState(false)
+  return (
+    <motion.li layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.2 }} style={{ overflow: 'hidden' }}>
+      <div className="vs-box" style={{ display: 'flex', gap: 14, padding: 12 }}>
+        <div style={{ width: 76, height: 76, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: 'var(--color-surface-2)', display: 'grid', placeItems: 'center' }}>
+          {item.image && !err
+            ? <img src={item.image} alt="" onError={() => setErr(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <Package size={26} color="var(--color-subtle)" aria-hidden="true" />}
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+            <p style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.name}</p>
+            <button type="button" className="vs-icon-btn" onClick={() => removeItem(item.id)} aria-label={`Retirer ${item.name} du panier`}
+              style={{ width: 36, height: 36, marginTop: -6, marginRight: -6, color: 'var(--color-subtle)', flexShrink: 0 }}>
+              <Trash2 size={16} />
+            </button>
+          </div>
+          <div className="vs-price">
+            <span className={`vs-price__now${item.original_price ? ' vs-price__now--promo' : ''}`} style={{ fontSize: 16 }}>{ar(item.price)}</span>
+            {item.original_price && <span className="vs-price__old">{ar(item.original_price)}</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+            <div className="vs-qty" role="group" aria-label={`Quantité de ${item.name}`}>
+              <button type="button" onClick={() => updateQty(item.id, item.qty - 1)} aria-label="Diminuer la quantité"><Minus size={14} /></button>
+              <span aria-live="polite">{item.qty}</span>
+              <button type="button" onClick={() => updateQty(item.id, item.qty + 1)} aria-label="Augmenter la quantité"><Plus size={14} /></button>
+            </div>
+            {item.qty > 1 && <span style={{ fontSize: 14, color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums' }}>{ar(item.price * item.qty)}</span>}
+          </div>
+        </div>
+      </div>
+    </motion.li>
+  )
+}
+
+function CheckoutForm({ payment, setPayment, address, setAddress, zone, setZone, setHours, note, setNote, transferPhone, setTransferPhone, transferName, setTransferName, transferId, setTransferId, onSubmit, onBack }) {
   const [copied, setCopied] = useState(false)
-  const selectedMethod = PAYMENT_METHODS.find(m => m.id === payment)
+  const method = PAYMENT_METHODS.find(m => m.id === payment)
   const isMobile = payment && payment !== 'livraison'
-  const canSubmit = payment && address.trim() && zone && hours.trim() && (!isMobile || (transferPhone.trim() && transferName.trim() && transferId.trim()))
 
   const copyNumber = (num) => {
     navigator.clipboard?.writeText(num.replace(/\s/g, ''))
@@ -259,247 +219,162 @@ function CheckoutView({ payment, setPayment, address, setAddress, zone, setZone,
   }
 
   return (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }}>
-      <div style={{ padding: '20px 24px' }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,240,245,0.45)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24, padding: 0, fontFamily: 'inherit' }}>
-          <ChevronLeft size={16} /> Retour au panier
-        </button>
+    <form id="vs-checkout" onSubmit={onSubmit} className="vs-drawer__pad" style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+      <button type="button" className="vs-textbtn" onClick={onBack} style={{ alignSelf: 'flex-start', marginLeft: -4 }}>
+        <ChevronLeft size={18} /> Retour au panier
+      </button>
 
-        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <Step n={1} title="Adresse de livraison">
+        <label className="vs-label" htmlFor="co-address">Adresse</label>
+        <div className="vs-field">
+          <MapPin size={18} aria-hidden="true" />
+          <input id="co-address" value={address} onChange={e => setAddress(e.target.value)} placeholder="Quartier, rue, numéro…" autoComplete="street-address" required />
+        </div>
+        <label className="vs-label" htmlFor="co-note" style={{ marginTop: 14 }}>Instructions <small>(optionnel)</small></label>
+        <input id="co-note" className="vs-input-box" value={note} onChange={e => setNote(e.target.value)} placeholder="Ex : appeler avant de passer" />
+      </Step>
 
-          {/* Address */}
-          <div>
-            <Label>Adresse de livraison</Label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
-              <MapPin size={15} color="rgba(240,240,245,0.3)" />
-              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Quartier, rue, numéro..."
-                style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit' }} />
-            </div>
-            <input value={note} onChange={e => setNote(e.target.value)} placeholder="Note optionnelle (ex : appeler avant)"
-              style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: 'rgba(240,240,245,0.55)', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
-          </div>
+      <Step n={2} title="Zone de livraison">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }} role="group" aria-label="Zone de livraison">
+          {ZONES.map(z => (
+            <button key={z.id} type="button" className="vs-option" aria-pressed={zone === z.id} onClick={() => setZone(z.id)}>
+              <span style={{ fontSize: 15, fontWeight: 600 }}>{z.label}</span>
+              <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>{z.desc}</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-gold)', marginTop: 4 }}>{ar(z.fee)}</span>
+            </button>
+          ))}
+        </div>
+      </Step>
 
-          {/* Zone de livraison */}
-          <div>
-            <Label>Zone de livraison</Label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {ZONES.map(z => (
-                <button key={z.id} type="button" onClick={() => setZone(z.id)}
-                  style={{
-                    padding: '13px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
-                    border: `1px solid ${zone === z.id ? z.color + '55' : 'rgba(255,255,255,0.07)'}`,
-                    background: zone === z.id ? `${z.color}12` : 'rgba(255,255,255,0.02)',
-                    transition: 'all 0.18s',
-                  }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <Navigation size={13} color={zone === z.id ? z.color : 'rgba(240,240,245,0.35)'} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: zone === z.id ? z.color : '#f0f0f5' }}>{z.label}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.38)', marginBottom: 5 }}>{z.desc}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: zone === z.id ? z.color : 'rgba(240,240,245,0.5)' }}>
-                    Ar {z.fee.toLocaleString('fr-FR')}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+      <Step n={3} title="Date et créneau de disponibilité">
+        <DeliveryScheduler onChange={setHours} />
+      </Step>
 
-          {/* Date et heures de disponibilité */}
-          <div>
-            <Label>Date et heures de disponibilité</Label>
-            <DeliveryScheduler onChange={setHours} />
-          </div>
+      <Step n={4} title="Paiement">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }} role="group" aria-label="Méthode de paiement">
+          {PAYMENT_METHODS.map(m => (
+            <button key={m.id} type="button" className="vs-option" aria-pressed={payment === m.id} onClick={() => setPayment(m.id)}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600 }}>
+                <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 99, background: m.color, flexShrink: 0 }} />
+                {m.name}
+              </span>
+              <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>{m.sub}</span>
+            </button>
+          ))}
+        </div>
 
-          {/* Payment method selector */}
-          <div>
-            <Label>Méthode de paiement</Label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {PAYMENT_METHODS.map(m => (
-                <button key={m.id} type="button" onClick={() => setPayment(m.id)}
-                  style={{ padding: '13px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left', border: `1px solid ${payment === m.id ? m.border : 'rgba(255,255,255,0.07)'}`, background: payment === m.id ? m.bg : 'rgba(255,255,255,0.02)', transition: 'all 0.18s' }}>
-                  <div style={{ fontSize: 20, marginBottom: 5, lineHeight: 1 }}>{m.emoji}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: payment === m.id ? m.color : '#f0f0f5' }}>{m.name}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.38)', marginTop: 2 }}>{m.sub}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Transfer accordion — mobile money only */}
-          <AnimatePresence>
-            {isMobile && selectedMethod && (
-              <motion.div
-                key={payment}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                style={{ overflow: 'hidden' }}
-              >
-                <div style={{ background: `${selectedMethod.bg}`, border: `1px solid ${selectedMethod.border}`, borderRadius: 14, padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-                  {/* Merchant number */}
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-                      Envoie le montant à ce numéro
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', borderRadius: 10, padding: '12px 14px' }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.4)', marginBottom: 3 }}>{selectedMethod.name} VRG</div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: selectedMethod.color, letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>
-                          {selectedMethod.merchantNumber}
-                        </div>
-                      </div>
-                      <button type="button" onClick={() => copyNumber(selectedMethod.merchantNumber)}
-                        style={{ background: `${selectedMethod.color}20`, border: `1px solid ${selectedMethod.color}40`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', color: selectedMethod.color, display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600 }}>
-                        {copied ? <Check size={13} /> : <Copy size={13} />}
-                        {copied ? 'Copié !' : 'Copier'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div style={{ height: 1, background: `${selectedMethod.color}25` }} />
-
-                  {/* Transfer confirmation fields */}
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
-                      Confirme ton transfert
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <TransferField icon={<Phone size={14} />} placeholder="Ton numéro de téléphone utilisé" value={transferPhone} onChange={setTransferPhone} type="tel" color={selectedMethod.color} />
-                      <TransferField icon={<User size={14} />} placeholder="Nom inscrit sur ta puce" value={transferName} onChange={setTransferName} color={selectedMethod.color} />
-                      <TransferField icon={<Hash size={14} />} placeholder="ID du transfert (envoyé par l'opérateur)" value={transferId} onChange={setTransferId} color={selectedMethod.color} />
-                    </div>
+        <AnimatePresence>
+          {isMobile && method && (
+            <motion.div key={payment} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }} style={{ overflow: 'hidden' }}>
+              <div className="vs-box" style={{ marginTop: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <p style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 8 }}>1. Envoie <strong style={{ color: 'var(--color-text)' }}>le total à payer</strong> à ce numéro {method.name} :</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderRadius: 10, background: 'var(--color-surface-2)' }}>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, letterSpacing: '0.04em', fontVariantNumeric: 'tabular-nums' }}>{method.merchantNumber}</span>
+                    <button type="button" className={`vs-btn vs-btn--sm ${copied ? 'vs-btn--added' : 'vs-btn--secondary'}`} onClick={() => copyNumber(method.merchantNumber)}>
+                      {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? 'Copié' : 'Copier'}
+                    </button>
                   </div>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Total décomposé */}
-          <div style={{ background: 'rgba(255,153,0,0.07)', border: '1px solid rgba(255,153,0,0.18)', borderRadius: 12, padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'rgba(240,240,245,0.55)' }}>
-              <span>Sous-total</span>
-              <span>Ar {subtotal.toLocaleString('fr-FR')}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'rgba(240,240,245,0.55)' }}>
-              <span>Livraison {zone ? `(${ZONES.find(z => z.id === zone)?.label})` : ''}</span>
-              <span style={{ color: deliveryFee > 0 ? '#fbbf24' : 'rgba(240,240,245,0.55)' }}>
-                {zone ? `Ar ${deliveryFee.toLocaleString('fr-FR')}` : '—'}
-              </span>
-            </div>
-            <div style={{ height: 1, background: 'rgba(255,153,0,0.2)' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 14, color: 'rgba(240,240,245,0.7)', fontWeight: 600 }}>Total à payer</span>
-              <span style={{ fontSize: 22, fontWeight: 700, color: '#FF9900', letterSpacing: '-0.02em' }}>Ar {grandTotal.toLocaleString('fr-FR')}</span>
-            </div>
-          </div>
-
-          {checkoutError && (
-            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', color: '#f87171', fontSize: 13 }}>
-              {checkoutError}
-            </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <p style={{ fontSize: 13, color: 'var(--color-muted)' }}>2. Confirme ton transfert :</p>
+                  <TransferField id="tr-phone" label="Numéro utilisé pour le transfert" icon={<Phone size={18} />} value={transferPhone} onChange={setTransferPhone} type="tel" placeholder="034 XX XXX XX" />
+                  <TransferField id="tr-name" label="Nom inscrit sur la puce" icon={<User size={18} />} value={transferName} onChange={setTransferName} placeholder="Nom complet" />
+                  <TransferField id="tr-id" label="ID du transfert (SMS de l'opérateur)" icon={<Hash size={18} />} value={transferId} onChange={setTransferId} placeholder="Ex : PP231117.1234.A12345" />
+                </div>
+              </div>
+            </motion.div>
           )}
-
-          <motion.button whileHover={canSubmit && !submitting ? { scale: 1.02, boxShadow: '0 6px 28px rgba(255,153,0,0.4)' } : {}} whileTap={canSubmit && !submitting ? { scale: 0.97 } : {}}
-            type="submit" disabled={!canSubmit || submitting}
-            style={{ padding: '16px', borderRadius: 12, border: 'none', cursor: canSubmit && !submitting ? 'pointer' : 'not-allowed', fontSize: 15, fontWeight: 700, transition: 'all 0.2s', background: canSubmit && !submitting ? 'linear-gradient(135deg, #FF9900, #CC5500)' : 'rgba(255,255,255,0.06)', color: canSubmit && !submitting ? '#fff' : 'rgba(240,240,245,0.25)', boxShadow: canSubmit && !submitting ? '0 4px 20px rgba(255,153,0,0.28)' : 'none' }}>
-            {submitting ? 'Enregistrement...' : 'Confirmer la commande'}
-          </motion.button>
-        </form>
-      </div>
-    </motion.div>
+        </AnimatePresence>
+      </Step>
+    </form>
   )
 }
 
-function TransferField({ icon, placeholder, value, onChange, type = 'text', color }) {
+function Step({ n, title, children }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,0,0,0.25)', border: `1px solid ${color}30`, borderRadius: 10, padding: '11px 13px' }}>
-      <span style={{ color: `${color}90`, flexShrink: 0 }}>{icon}</span>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 13, color: '#f0f0f5', fontFamily: 'inherit' }} />
+    <fieldset style={{ border: 'none' }}>
+      <legend style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, fontSize: 16, fontWeight: 600 }}>
+        <span aria-hidden="true" style={{ width: 26, height: 26, borderRadius: 99, background: 'var(--color-surface-2)', border: '1px solid var(--color-border-strong)', display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 700 }}>{n}</span>
+        {title}
+      </legend>
+      {children}
+    </fieldset>
+  )
+}
+
+function TransferField({ id, label, icon, value, onChange, type = 'text', placeholder }) {
+  return (
+    <div>
+      <label className="vs-label" htmlFor={id} style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-muted)', marginBottom: 6 }}>{label}</label>
+      <div className="vs-field">
+        <span aria-hidden="true" style={{ display: 'flex' }}>{icon}</span>
+        <input id={id} type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required />
+      </div>
     </div>
   )
 }
 
-/* ─── Success view ─── */
 function SuccessView({ order, onDone }) {
   const pm = PAYMENT_METHODS.find(m => m.id === order?.payment)
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
-      style={{ padding: '40px 24px', textAlign: 'center' }}>
-      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.12, type: 'spring', stiffness: 280 }}
-        style={{ width: 76, height: 76, borderRadius: '50%', background: 'rgba(34,197,94,0.1)', border: '2px solid rgba(34,197,94,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-        <CheckCircle size={38} color="#22c55e" />
-      </motion.div>
-      <h3 style={{ fontSize: 22, fontWeight: 700, color: '#f0f0f5', marginBottom: 10 }}>Commande confirmée !</h3>
-      <p style={{ fontSize: 14, color: 'rgba(240,240,245,0.5)', marginBottom: 28, lineHeight: 1.65 }}>
-        On te contacte dans les <strong style={{ color: '#FF9900' }}>5 minutes</strong><br />pour confirmer ta livraison.
+    <div className="vs-drawer__pad" style={{ textAlign: 'center', paddingTop: 40 }}>
+      <motion.span initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.1, type: 'spring', stiffness: 260, damping: 18 }}
+        aria-hidden="true" style={{ width: 76, height: 76, borderRadius: 99, background: 'var(--color-success-soft)', display: 'grid', placeItems: 'center', margin: '0 auto 20px' }}>
+        <CheckCircle2 size={40} color="var(--color-success)" />
+      </motion.span>
+      <h3 className="vs-h2" style={{ fontSize: 24, marginBottom: 8 }}>Merci pour ta commande !</h3>
+      <p style={{ fontSize: 15, color: 'var(--color-muted)', marginBottom: 28, lineHeight: 1.6 }}>
+        On te contacte dans les <strong style={{ color: 'var(--color-gold)' }}>5 minutes</strong> pour confirmer la livraison.
       </p>
-      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '18px', marginBottom: 24, textAlign: 'left' }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Récapitulatif</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {order?.items?.map((item, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-              <span style={{ color: 'rgba(240,240,245,0.55)' }}>{item.name} ×{item.qty}</span>
-              <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Ar {(item.price * item.qty).toLocaleString('fr-FR')}</span>
-            </div>
-          ))}
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 0' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-            <span style={{ color: 'rgba(240,240,245,0.45)' }}>Total</span>
-            <span style={{ fontWeight: 700, color: '#FF9900' }}>Ar {order?.total?.toLocaleString('fr-FR')}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-            <span style={{ color: 'rgba(240,240,245,0.45)' }}>Paiement</span>
-            <span style={{ fontWeight: 600, color: '#f0f0f5' }}>{pm?.name}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-            <span style={{ color: 'rgba(240,240,245,0.45)' }}>Adresse</span>
-            <span style={{ fontWeight: 600, color: '#f0f0f5', textAlign: 'right', maxWidth: '60%' }}>{order?.address}</span>
-          </div>
-        </div>
+      <div className="vs-box" style={{ padding: 18, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+        <div className="vs-section-title" style={{ marginBottom: 2 }}>Récapitulatif</div>
+        {order?.items?.map((item, i) => (
+          <div key={i} className="vs-row"><span>{item.name} × {item.qty}</span><span>{ar(item.price * item.qty)}</span></div>
+        ))}
+        <div style={{ height: 1, background: 'var(--color-border)' }} />
+        <div className="vs-row"><span>Total</span><span style={{ fontWeight: 700, color: 'var(--color-gold)' }}>{ar(order?.total)}</span></div>
+        <div className="vs-row"><span>Paiement</span><span>{pm?.name}</span></div>
+        <div className="vs-row" style={{ alignItems: 'flex-start' }}><span>Adresse</span><span style={{ textAlign: 'right', maxWidth: '60%' }}>{order?.address}</span></div>
       </div>
-      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={onDone}
-        style={{ width: '100%', padding: '14px', borderRadius: 12, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #FF9900, #CC5500)', color: '#fff', fontSize: 15, fontWeight: 700 }}>
-        Fermer
-      </motion.button>
-    </motion.div>
+      <button type="button" className="vs-btn vs-btn--primary vs-btn--block" onClick={onDone}>Continuer mes achats</button>
+    </div>
   )
 }
 
-/* Dropdown sombre inline — sans portal pour éviter le décalage dans le cart scrollable */
-function HourPick({ value, options, onChange }) {
+/* Sélecteur d'heure sombre inline (pas de portal : reste aligné dans le tiroir qui défile) */
+function HourPick({ value, options, onChange, label }) {
   const [open, setOpen] = React.useState(false)
   const ref = React.useRef(null)
 
   React.useEffect(() => {
     if (!open) return
     const fn = e => { if (!ref.current?.contains(e.target)) setOpen(false) }
+    const key = e => e.key === 'Escape' && (e.stopPropagation(), setOpen(false))
     document.addEventListener('mousedown', fn)
-    return () => document.removeEventListener('mousedown', fn)
+    document.addEventListener('keydown', key, true)
+    return () => { document.removeEventListener('mousedown', fn); document.removeEventListener('keydown', key, true) }
   }, [open])
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button type="button" onClick={() => setOpen(o => !o)}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.04)', border: `1px solid ${open ? 'rgba(255,153,0,0.4)' : 'rgba(255,255,255,0.09)'}`, borderRadius: 10, padding: '11px 12px', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit', cursor: 'pointer', outline: 'none', transition: 'border-color 0.15s' }}>
+      <button type="button" onClick={() => setOpen(o => !o)} aria-haspopup="listbox" aria-expanded={open} aria-label={`${label} : ${value}h00`}
+        className="vs-field" style={{ width: '100%', justifyContent: 'space-between', cursor: 'pointer', color: 'var(--color-text)', fontSize: 16, fontFamily: 'inherit', borderColor: open ? 'var(--color-gold)' : undefined }}>
         <span>{value}h00</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(240,240,245,0.4)" strokeWidth="2" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}><polyline points="6 9 12 15 18 9"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ color: 'var(--color-subtle)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}><polyline points="6 9 12 15 18 9" /></svg>
       </button>
-
       {open && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#13131f', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, boxShadow: '0 12px 32px rgba(0,0,0,0.6)', zIndex: 50, maxHeight: 200, overflowY: 'auto' }}>
+        <ul role="listbox" aria-label={label} style={{ listStyle: 'none', position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 50, maxHeight: 220, overflowY: 'auto', background: 'var(--color-surface-2)', border: '1px solid var(--color-border-strong)', borderRadius: 12, boxShadow: 'var(--shadow-pop)', padding: 4 }}>
           {options.map(h => (
-            <button key={h} type="button"
-              onClick={() => { onChange(h); setOpen(false) }}
-              style={{ width: '100%', padding: '9px 12px', background: h === value ? 'rgba(255,153,0,0.1)' : 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: h === value ? '#FF9900' : '#f0f0f5', fontWeight: h === value ? 700 : 400, fontFamily: 'inherit', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              {h}h00
-              {h === value && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
-            </button>
+            <li key={h} role="option" aria-selected={h === value}>
+              <button type="button" onClick={() => { onChange(h); setOpen(false) }}
+                style={{ width: '100%', minHeight: 40, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: h === value ? 'var(--color-gold-soft)' : 'transparent', color: h === value ? 'var(--color-gold)' : 'var(--color-text)', fontWeight: h === value ? 700 : 400 }}>
+                {h}h00 {h === value && <Check size={15} aria-hidden="true" />}
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )
@@ -529,21 +404,21 @@ function DeliveryScheduler({ onChange }) {
   const safeEnd  = validEnd.includes(endH) ? endH : validEnd[0] || '17'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <input type="date" value={date} min={minStr}
-        onChange={e => { if (e.target.value && e.target.value >= minStr) setDate(e.target.value) }}
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '11px 12px', fontSize: 14, color: '#f0f0f5', fontFamily: 'inherit', outline: 'none', width: '100%', cursor: 'pointer' }} />
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8 }}>
-        <HourPick value={startH} options={HOURS.slice(0, -1)}
-          onChange={v => { setStartH(v); if (Number(v) >= Number(safeEnd)) setEndH(String(Number(v) + 1).padStart(2, '0')) }} />
-        <span style={{ color: 'rgba(240,240,245,0.35)', fontSize: 13, fontWeight: 700, userSelect: 'none' }}>→</span>
-        <HourPick value={safeEnd} options={validEnd} onChange={setEndH} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div>
+        <label className="vs-label" htmlFor="co-date">Date</label>
+        <input id="co-date" type="date" className="vs-input-box" value={date} min={minStr}
+          onChange={e => { if (e.target.value && e.target.value >= minStr) setDate(e.target.value) }} style={{ cursor: 'pointer' }} />
+      </div>
+      <div>
+        <span className="vs-label">Créneau <small>(entre 10h et 17h)</small></span>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 10 }}>
+          <HourPick label="Heure de début" value={startH} options={HOURS.slice(0, -1)}
+            onChange={v => { setStartH(v); if (Number(v) >= Number(safeEnd)) setEndH(String(Number(v) + 1).padStart(2, '0')) }} />
+          <span aria-hidden="true" style={{ color: 'var(--color-subtle)' }}>à</span>
+          <HourPick label="Heure de fin" value={safeEnd} options={validEnd} onChange={setEndH} />
+        </div>
       </div>
     </div>
   )
-}
-
-function Label({ children }) {
-  return <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>{children}</div>
 }

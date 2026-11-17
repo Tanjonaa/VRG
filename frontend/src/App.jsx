@@ -5,7 +5,8 @@ import { useSettings } from './hooks/useSettings.js'
 import CartPanel from './components/CartPanel.jsx'
 import Navbar from './components/Navbar.jsx'
 import Hero from './components/Hero.jsx'
-import Marquee from './components/Marquee.jsx'
+import AnnouncementBar from './components/Marquee.jsx'
+import Categories from './components/Categories.jsx'
 import Features from './components/Features.jsx'
 import Products from './components/Products.jsx'
 import Gallery from './components/Gallery.jsx'
@@ -13,7 +14,6 @@ import Pricing from './components/Pricing.jsx'
 import Team from './components/Team.jsx'
 import CTA from './components/CTA.jsx'
 import Footer from './components/Footer.jsx'
-import ScrollProgress from './components/ScrollProgress.jsx'
 import AuthModal from './components/AuthModal.jsx'
 import AccountPanel from './components/AccountPanel.jsx'
 import SupportChat from './components/SupportChat.jsx'
@@ -37,7 +37,7 @@ function AppInner() {
   const loaded = Object.keys(settings).length > 0
 
   if (!loaded) return (
-    <div style={{ height: '100dvh', background: '#07070f' }} />
+    <div style={{ height: '100dvh', background: 'var(--color-bg)' }} />
   )
 
   if (settings.coming_soon === '1') return <ComingSoon settings={settings} />
@@ -54,23 +54,24 @@ function AppInner() {
 
   return (
     <div style={{ position: 'relative', minHeight: '100dvh' }}>
-      <ScrollProgress />
+      <a href="#contenu" className="vs-skip">Aller au contenu</a>
+      <AnnouncementBar />
       <Navbar
         onOpenAuth={handleOpenAuth}
         onOpenAccount={() => setShowAccount(true)}
         onOpenCart={() => setShowCart(true)}
       />
-      <main>
+      <main id="contenu">
         <Hero />
-        <Features />
+        <Categories />
         <Products />
+        <Features />
         <Gallery />
         {settings.pricing_hidden !== '1' && <Pricing />}
         <Team />
         <CTA />
       </main>
       <Footer />
-      <Marquee />
 
       <AuthModal
         isOpen={showAuth}

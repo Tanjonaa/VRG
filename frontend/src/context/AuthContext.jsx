@@ -38,15 +38,21 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [loadOrders])
 
-  const register = async ({ name, phone, password, referralCode }) => {
-    const { user } = await api.post('/auth/register', { name, phone, password, referralCode })
+  /* Étape 1 : envoie le code OTP à l'adresse email */
+  const sendRegisterOtp = ({ name, phone, email }) =>
+    api.post('/auth/register/send-otp', { name, phone, email })
+
+  /* Étape 2 : crée le compte avec le code reçu */
+  const register = async ({ name, phone, email, otp, password, referralCode }) => {
+    const { user } = await api.post('/auth/register', { name, phone, email, otp, password, referralCode })
     sessionStorage.removeItem('vrg_ref')
     setUser(user)
     await loadOrders()
   }
 
-  const login = async ({ phone, password }) => {
-    const { user } = await api.post('/auth/login', { phone, password })
+  /* identifier : numéro de téléphone ou adresse email */
+  const login = async ({ identifier, password }) => {
+    const { user } = await api.post('/auth/login', { identifier, password })
     setUser(user)
     if (['admin', 'moderator'].includes(user?.role)) {
       window.location.href = '/admin'; return
@@ -75,7 +81,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, orders, loading, register, login, logout, addOrder, updateProfile }}>
+    <AuthContext.Provider value={{ user, orders, loading, register, sendRegisterOtp, login, logout, addOrder, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )

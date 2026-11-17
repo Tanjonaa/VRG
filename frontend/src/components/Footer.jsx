@@ -1,5 +1,4 @@
 import React from 'react'
-import { motion } from 'framer-motion'
 import { useSettings } from '../hooks/useSettings.js'
 
 function FacebookIcon() {
@@ -28,64 +27,82 @@ function WhatsAppIcon() {
   )
 }
 
+const COLUMNS = [
+  { title: 'Boutique', links: [
+    { label: 'Tous les produits', href: '/catalogue' },
+    { label: 'Nouveautés',        href: '/catalogue?tab=nouveautes' },
+    { label: 'Promotions',        href: '/catalogue?tab=promos' },
+  ] },
+  { title: 'Informations', links: [
+    { label: 'Pourquoi VaRyGasy',          href: '/#avantages' },
+    { label: 'Conditions générales (CGU)', href: '/cgu' },
+    { label: 'Confidentialité',            href: '/confidentialite' },
+  ] },
+]
+
 export default function Footer() {
   const settings = useSettings()
   const { whatsapp, facebook, instagram } = settings
+  const waHref = whatsapp ? `https://wa.me/${whatsapp.replace(/\D/g, '')}` : null
 
   const socials = [
-    whatsapp  && { href: `https://wa.me/${whatsapp.replace(/\D/g, '')}`, icon: <WhatsAppIcon />, color: '#22c55e', label: 'WhatsApp' },
-    facebook  && { href: facebook,  icon: <FacebookIcon />,  color: '#60a5fa', label: 'Facebook' },
-    instagram && { href: instagram, icon: <InstagramIcon />, color: '#f87171', label: 'Instagram' },
+    waHref    && { href: waHref,    icon: <WhatsAppIcon />,  label: 'WhatsApp' },
+    facebook  && { href: facebook,  icon: <FacebookIcon />,  label: 'Facebook' },
+    instagram && { href: instagram, icon: <InstagramIcon />, label: 'Instagram' },
   ].filter(Boolean)
 
   return (
-    <footer style={{ padding: '48px 24px 84px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
-
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/images/logo/logo.svg" alt="VRG" style={{ width: 30, height: 30, borderRadius: 8 }}
-            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg, #ca8a04, #CC5500)', display: 'none', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>V</span>
-          </div>
-          <span style={{ fontWeight: 700, fontSize: 17, color: 'rgba(240,240,245,0.8)' }}>
-            VaRy<span style={{ color: '#ca8a04' }}>Gasy</span>
-          </span>
-        </div>
-
-        <p style={{ fontSize: 13, color: 'rgba(240,240,245,0.3)', textAlign: 'center' }}>
-          © 2026 VaRyGasy · Accessoires mobile made in Madagascar
-        </p>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          {/* Réseaux sociaux */}
+    <footer style={{ background: 'var(--color-bg-alt)', borderTop: '1px solid var(--color-border)', paddingTop: 64 }}>
+      <div className="vs-container vs-footer-grid">
+        {/* Marque */}
+        <div>
+          <img src="/images/logo/logo.svg" alt="VaRyGasy" style={{ height: 48, width: 'auto', display: 'block', marginBottom: 16 }} />
+          <p style={{ fontSize: 14, color: 'var(--color-muted)', lineHeight: 1.7, maxWidth: 320 }}>
+            Accessoires gaming mobile à Madagascar : finger sleeves, ventilateurs et équipements pour PUBG Mobile, Free Fire et MLBB.
+          </p>
           {socials.length > 0 && (
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
               {socials.map(s => (
-                <motion.a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
-                  whileHover={{ scale: 1.15 }}
-                  style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color, textDecoration: 'none', transition: 'background 0.2s' }}>
+                <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label}
+                  className="vs-icon-btn" style={{ border: '1px solid var(--color-border)', color: 'var(--color-muted)' }}>
                   {s.icon}
-                </motion.a>
+                </a>
               ))}
             </div>
           )}
+        </div>
 
-          {/* Liens légaux */}
-          <div style={{ display: 'flex', gap: 20 }}>
-            {[
-              { label: 'Confidentialité', href: '/confidentialite' },
-              { label: 'CGU',             href: '/cgu' },
-              { label: 'Contact',         href: '#' },
-            ].map(({ label, href }) => (
-              <motion.a key={label} href={href} whileHover={{ color: 'rgba(240,240,245,0.8)' }}
-                style={{ fontSize: 13, color: 'rgba(240,240,245,0.35)', textDecoration: 'none', cursor: 'pointer' }}>
-                {label}
-              </motion.a>
+        {COLUMNS.map(col => (
+          <nav key={col.title} aria-label={col.title}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text)', marginBottom: 16 }}>{col.title}</h3>
+            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {col.links.map(l => (
+                <li key={l.href}><a href={l.href} className="vs-link" style={{ fontSize: 14 }}>{l.label}</a></li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+
+        {/* Contact & paiement */}
+        <div>
+          <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text)', marginBottom: 16 }}>Contact</h3>
+          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12, fontSize: 14, color: 'var(--color-muted)' }}>
+            {waHref && <li><a href={waHref} target="_blank" rel="noopener noreferrer" className="vs-link">WhatsApp : {whatsapp}</a></li>}
+            {settings.company_email && <li><a href={`mailto:${settings.company_email}`} className="vs-link">{settings.company_email}</a></li>}
+            <li>Antananarivo, Madagascar</li>
+          </ul>
+          <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text)', margin: '24px 0 12px' }}>Paiement</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {['MVola', 'Orange Money', 'Airtel Money', 'Cash à la livraison'].map(m => (
+              <span key={m} style={{ fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 6, background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-muted)' }}>{m}</span>
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="vs-container" style={{ marginTop: 56, padding: '24px 20px 32px', borderTop: '1px solid var(--color-border)', display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', fontSize: 13, color: 'var(--color-subtle)' }}>
+        <span>© {new Date().getFullYear()} VaRyGasy. Tous droits réservés.</span>
+        <span>Accessoires gaming mobile — Madagascar</span>
       </div>
     </footer>
   )
