@@ -239,7 +239,7 @@ function FidelitySection({ orders, referralPoints = 0 }) {
                 style={{ height: '100%', borderRadius: 99, background: tier.color }} />
             </div>
             <p style={{ fontSize: 13, color: 'var(--color-muted)', marginTop: 8 }}>
-              Encore <strong style={{ color: 'var(--color-text)' }}>{next.min - points} pts</strong> pour passer {next.name}
+              Plus que <strong style={{ color: 'var(--color-text)' }}>{next.min - points} pts</strong> pour passer {next.name}
             </p>
           </div>
         ) : (
@@ -297,14 +297,14 @@ function ReferralSection({ data }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <p style={{ fontSize: 14, color: 'var(--color-muted)', lineHeight: 1.6 }}>
-            Invite tes amis : tu gagnes <strong style={{ color: 'var(--color-text)' }}>10 points</strong> dès que ton filleul dépense 5 000 Ar.
+            Invitez vos amis : vous gagnez <strong style={{ color: 'var(--color-text)' }}>10 points</strong> dès que votre filleul dépense 5 000 Ar.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <Stat value={data?.count ?? 0} label="Filleuls validés" />
             <Stat value={`${data?.points ?? 0} pts`} label="Points gagnés" />
           </div>
           <div>
-            <label className="vs-label" htmlFor="ref-link">Ton lien de parrainage</label>
+            <label className="vs-label" htmlFor="ref-link">Votre lien de parrainage</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input id="ref-link" readOnly value={referralLink} className="vs-input-box" onFocus={e => e.target.select()}
                 style={{ fontSize: 14, color: 'var(--color-muted)' }} />
@@ -355,7 +355,7 @@ function OrdersSection({ orders, onClose }) {
           <Package size={28} color="var(--color-subtle)" />
         </span>
         <p style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600, marginBottom: 6 }}>Aucune commande pour l'instant</p>
-        <p style={{ fontSize: 14, color: 'var(--color-muted)', marginBottom: 18 }}>Tes commandes et leur suivi apparaîtront ici.</p>
+        <p style={{ fontSize: 14, color: 'var(--color-muted)', marginBottom: 18 }}>Vos commandes et leur suivi apparaîtront ici.</p>
         <a href="/catalogue" onClick={onClose} className="vs-btn vs-btn--primary">Découvrir la boutique</a>
       </div>
     )

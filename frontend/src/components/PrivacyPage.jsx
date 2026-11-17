@@ -104,46 +104,46 @@ export default function PrivacyPage() {
       <div style={S.wrap}>
         <h1 style={S.h1}>Politique de confidentialité</h1>
         <p style={S.lead}>
-          Chez VaRyGasy, ta vie privée est importante. Cette page explique quelles données
-          nous collectons, comment nous les utilisons, et tes droits.
+          Chez VaRyGasy, votre vie privée est importante. Cette page explique quelles données
+          nous collectons, comment nous les utilisons, et quels sont vos droits.
         </p>
 
         <Section title="Données collectées">
-          <p style={S.p}>Lors de ton inscription ou de ta commande, nous collectons :</p>
+          <p style={S.p}>Lors de votre inscription ou de votre commande, nous collectons :</p>
           <ul style={S.ul}>
-            <Li>Ton <strong style={{ color: '#f0f0f5' }}>nom complet</strong> et ton <strong style={{ color: '#f0f0f5' }}>numéro de téléphone</strong> (identifiant de compte)</Li>
-            <Li>Ton <strong style={{ color: '#f0f0f5' }}>adresse de livraison</strong></Li>
-            <Li>Ton <strong style={{ color: '#f0f0f5' }}>historique de commandes</strong> (articles, montants, statuts)</Li>
-            <Li>La <strong style={{ color: '#f0f0f5' }}>référence de transaction mobile money</strong> (MVola / Airtel / Orange) que tu fournis pour confirmer ton paiement — uniquement à titre de preuve</Li>
+            <Li>Votre <strong style={{ color: '#f0f0f5' }}>nom complet</strong> et votre <strong style={{ color: '#f0f0f5' }}>numéro de téléphone</strong> (identifiant de compte)</Li>
+            <Li>Votre <strong style={{ color: '#f0f0f5' }}>adresse de livraison</strong></Li>
+            <Li>Votre <strong style={{ color: '#f0f0f5' }}>historique de commandes</strong> (articles, montants, statuts)</Li>
+            <Li>La <strong style={{ color: '#f0f0f5' }}>référence de transaction mobile money</strong> (MVola / Airtel / Orange) que vous fournissez pour confirmer votre paiement — uniquement à titre de preuve</Li>
           </ul>
         </Section>
 
-        <Section title="Utilisation de tes données">
+        <Section title="Utilisation de vos données">
           <ul style={S.ul}>
-            <Li>Traitement et suivi de tes commandes</Li>
-            <Li>Livraison : ton nom, téléphone et adresse sont communiqués au livreur assigné</Li>
+            <Li>Traitement et suivi de vos commandes</Li>
+            <Li>Livraison : votre nom, votre téléphone et votre adresse sont communiqués au livreur assigné</Li>
             <Li>Support client via le chat ou WhatsApp</Li>
-            <Li>Calcul de tes points de fidélité et de ton programme de parrainage</Li>
+            <Li>Calcul de vos points de fidélité et de votre parrainage</Li>
             <Li>Amélioration de nos services (statistiques internes anonymisées)</Li>
           </ul>
         </Section>
 
         <Section title="Ce que nous ne faisons PAS">
           <ul style={S.ul}>
-            <Li>Aucune vente ni transmission de tes données à des tiers commerciaux</Li>
+            <Li>Aucune vente ni transmission de vos données à des tiers commerciaux</Li>
             <Li>Aucune publicité ciblée via des plateformes externes (Google Ads, Meta…)</Li>
             <Li>Aucun partage de données, sauf obligation légale imposée par le droit malgache</Li>
           </ul>
         </Section>
 
-        <Section title="Qui accède à tes données ?">
+        <Section title="Qui accède à vos données ?">
           <p style={S.p}>
             Uniquement l'équipe interne VaRyGasy :
           </p>
           <ul style={S.ul}>
             <Li><strong style={{ color: '#FF9900' }}>Administrateurs</strong> — accès complet pour la gestion de la boutique</Li>
             <Li><strong style={{ color: '#60a5fa' }}>Modérateurs</strong> — gestion des commandes et du stock</Li>
-            <Li><strong style={{ color: '#22c55e' }}>Livreurs</strong> — accès uniquement à ton nom, téléphone et adresse pour la livraison en cours</Li>
+            <Li><strong style={{ color: '#22c55e' }}>Livreurs</strong> — accès uniquement à votre nom, votre téléphone et votre adresse pour la livraison en cours</Li>
           </ul>
         </Section>
 
@@ -152,16 +152,16 @@ export default function PrivacyPage() {
             Nous n'utilisons <strong style={{ color: '#f0f0f5' }}>aucun cookie de tracking tiers</strong> (Google Analytics, Meta Pixel, etc.).
           </p>
           <p style={S.p}>
-            Un <strong style={{ color: '#f0f0f5' }}>token de session JWT</strong> est stocké dans ton navigateur (localStorage) uniquement pour maintenir ta connexion active pendant 30 jours. Il ne contient que ton identifiant, ton nom et ton rôle — aucune donnée sensible.
+            Un <strong style={{ color: '#f0f0f5' }}>token de session JWT</strong> est stocké dans votre navigateur (localStorage) uniquement pour maintenir votre connexion active pendant 30 jours. Il ne contient que votre identifiant, votre nom et votre rôle — aucune donnée sensible.
           </p>
         </Section>
 
-        <Section title="Tes droits">
-          <p style={S.p}>Tu peux à tout moment :</p>
+        <Section title="Vos droits">
+          <p style={S.p}>Vous pouvez à tout moment :</p>
           <ul style={S.ul}>
-            <Li>Consulter les données liées à ton compte depuis ton profil</Li>
-            <Li>Demander la <strong style={{ color: '#f0f0f5' }}>modification</strong> de ton nom ou numéro dans les paramètres</Li>
-            <Li>Demander la <strong style={{ color: '#f87171' }}>suppression complète</strong> de ton compte et de tes données — réponse sous 7 jours ouvrés</Li>
+            <Li>Consulter les données liées à votre compte depuis votre profil</Li>
+            <Li>Demander la <strong style={{ color: '#f0f0f5' }}>modification</strong> de votre nom ou de votre numéro dans les paramètres</Li>
+            <Li>Demander la <strong style={{ color: '#f87171' }}>suppression complète</strong> de votre compte et de vos données — réponse sous 7 jours ouvrés</Li>
           </ul>
           <div style={{ marginTop: 16 }}>
             <p style={{ ...S.p, marginBottom: 10 }}>Pour toute demande de suppression ou question :</p>
@@ -169,16 +169,16 @@ export default function PrivacyPage() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
               </svg>
-              Contacte-nous via le chat support ou WhatsApp
+              Contactez-nous via le chat support ou WhatsApp
             </span>
           </div>
         </Section>
 
         <Section title="Sécurité">
           <p style={S.p}>
-            Tes données sont stockées sur un serveur sécurisé. Les mots de passe sont chiffrés
-            avec <strong style={{ color: '#f0f0f5' }}>bcrypt</strong> — nous n'avons pas accès à ton mot de passe en clair.
-            Les communications entre ton navigateur et notre serveur sont protégées par HTTPS.
+            Vos données sont stockées sur un serveur sécurisé. Les mots de passe sont chiffrés
+            avec <strong style={{ color: '#f0f0f5' }}>bcrypt</strong> — nous n'avons pas accès à votre mot de passe en clair.
+            Les communications entre votre navigateur et notre serveur sont protégées par HTTPS.
           </p>
         </Section>
 

@@ -84,7 +84,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     e.preventDefault()
     setError('')
     if (tab === 'register' && step === 'otp') {
-      if (!/^\d{6}$/.test(otp)) { setError('Saisis le code à 6 chiffres reçu par email'); return }
+      if (!/^\d{6}$/.test(otp)) { setError('Saisissez le code à 6 chiffres reçu par email'); return }
       setBusy(true)
       try {
         await register({ ...form, email: form.email.trim(), phone: normalizeMgPhone(form.phone), otp, referralCode: refCode || undefined })
@@ -95,7 +95,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     }
     if (tab === 'register') {
       if (!form.name.trim() || !form.phone.trim() || !form.email.trim() || !form.password) {
-        setError('Remplis tous les champs')
+        setError('Veuillez remplir tous les champs')
         return
       }
       if (!normalizeMgPhone(form.phone)) {
@@ -121,7 +121,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       return requestOtp()
     } else {
       if (!form.phone.trim() || !form.password) {
-        setError('Remplis tous les champs')
+        setError('Veuillez remplir tous les champs')
         return
       }
     }
@@ -164,14 +164,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
   return (
     <Drawer isOpen={isOpen} onClose={onClose} maxWidth={440}
-      title={isOtp ? 'Vérifie ton email' : isRegister ? 'Créer un compte' : 'Connexion'}>
+      title={isOtp ? 'Vérifiez votre email' : isRegister ? 'Créer un compte' : 'Connexion'}>
       <div className="vs-drawer__pad" style={{ paddingTop: 28 }}>
         {!isOtp && (
           <>
             <p style={{ fontSize: 15, color: 'var(--color-muted)', marginBottom: 20, lineHeight: 1.55 }}>
               {isRegister
-                ? 'Crée ton compte pour commander en quelques clics et cumuler des points fidélité.'
-                : 'Content de te revoir ! Connecte-toi pour suivre tes commandes.'}
+                ? 'Créez votre compte en 1 minute : commandez en quelques clics, suivez vos livraisons et cumulez des points de fidélité.'
+                : 'Ravi de vous revoir ! Connectez-vous pour suivre vos commandes.'}
             </p>
             <div className="vs-tabs" role="tablist" aria-label="Connexion ou inscription" style={{ marginBottom: 24 }}>
               {[['login', 'Se connecter'], ['register', "S'inscrire"]].map(([key, label]) => (
@@ -192,7 +192,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                   Nous avons envoyé un code à 6 chiffres à<br />
                   <strong style={{ color: 'var(--color-text)' }}>{form.email.trim()}</strong>
                 </p>
-                <p style={{ fontSize: 13, color: 'var(--color-subtle)', marginTop: 6 }}>Pense à vérifier tes spams.</p>
+                <p style={{ fontSize: 13, color: 'var(--color-subtle)', marginTop: 6 }}>Pensez à vérifier vos spams.</p>
               </div>
               <div>
                 <label className="vs-label" htmlFor="auth-otp">Code de vérification</label>
@@ -231,7 +231,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                     onChange={e => set('phone', isRegister ? e.target.value.replace(/[^\d\s+]/g, '') : e.target.value)}
                     type={isRegister ? 'tel' : 'text'} inputMode={isRegister ? 'tel' : undefined}
                     autoComplete={isRegister ? 'tel' : 'username'}
-                    placeholder={isRegister ? '034 12 345 67' : '034 12 345 67 ou toi@email.com'}
+                    placeholder={isRegister ? '034 12 345 67' : '034 12 345 67 ou vous@email.com'}
                     aria-describedby={isRegister ? 'auth-phone-hint' : undefined}
                     aria-invalid={isRegister && (phoneStatus === 'taken' || phoneStatus === 'invalid')} />
                   {isRegister && statusIcon(phoneStatus)}
@@ -239,7 +239,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                 {isRegister && (
                   <p id="auth-phone-hint" className={`vs-hint${phoneStatus === 'taken' || phoneStatus === 'invalid' ? ' vs-hint--error' : phoneStatus === 'available' ? ' vs-hint--ok' : ''}`}
                     style={{ color: phoneStatus ? undefined : 'var(--color-subtle)' }} aria-live="polite">
-                    {phoneStatus === 'taken' ? 'Ce numéro est déjà enregistré — connecte-toi plutôt.'
+                    {phoneStatus === 'taken' ? 'Ce numéro est déjà enregistré — connectez-vous plutôt.'
                       : phoneStatus === 'invalid' ? MG_PHONE_HINT
                       : phoneStatus === 'available' ? 'Numéro disponible'
                       : 'Numéro malgache (032, 033, 034, 037 ou 038)'}
@@ -253,7 +253,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                   <div className={`vs-field${fieldState(emailStatus)}`}>
                     <Mail size={18} aria-hidden="true" />
                     <input id="auth-email" type="email" autoComplete="email" value={form.email} onChange={e => set('email', e.target.value)}
-                      placeholder="toi@email.com" aria-describedby="auth-email-hint" aria-invalid={emailStatus === 'taken' || emailStatus === 'invalid'} />
+                      placeholder="vous@email.com" aria-describedby="auth-email-hint" aria-invalid={emailStatus === 'taken' || emailStatus === 'invalid'} />
                     {statusIcon(emailStatus)}
                   </div>
                   <p id="auth-email-hint" className={`vs-hint${emailStatus === 'taken' || emailStatus === 'invalid' ? ' vs-hint--error' : ''}`}

@@ -47,13 +47,13 @@ app.use((req, res, next) => {
   next()
 })
 
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Trop de tentatives, réessaie dans 15 minutes' } })
-const apiLimiter   = rateLimit({ windowMs: 60 * 1000, max: 120, message: { error: 'Trop de requêtes, ralentis' },
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Trop de tentatives, réessayez dans 15 minutes' } })
+const apiLimiter   = rateLimit({ windowMs: 60 * 1000, max: 120, message: { error: 'Trop de requêtes, merci de patienter quelques instants' },
   /* En mode app-unique (o2switch), ne pas limiter le chargement des fichiers statiques */
   skip: req => !!process.env.FRONTEND_DIST && !req.isApi })
 app.use('/auth/login', loginLimiter)
 /* Envoi de codes OTP : limité par IP (anti-spam d'emails) */
-const otpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 6, message: { error: 'Trop de codes demandés, réessaie dans 15 minutes' } })
+const otpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 6, message: { error: 'Trop de codes demandés, réessayez dans 15 minutes' } })
 app.use('/auth/register/send-otp', otpLimiter)
 app.use('/auth/register', loginLimiter)
 app.use(apiLimiter)
@@ -289,8 +289,8 @@ if (!SECRET || SECRET === 'change_this_in_production' || SECRET.length < 16) {
     ['announcement_active','0'],['announcement_text',''],['announcement_color','#FF9900'],
     ['delivery_fee_tana','3000'],['delivery_fee_peripherique','5000'],
     ['whatsapp',''],['facebook',''],['instagram',''],['business_hours',''],
-    ['reassurance_text','La livraison sera disponible dans tous les lieux - Antananarivo · Paiement à la livraison · Retour sous 7 jours'],
-    ['marquee_items','[{"text":"Finger Sleeves Gaming dispo maintenant"},{"text":"Livraison 24h sur Antananarivo"},{"text":"+1 200 gamers équipés à Madagascar"},{"text":"Ventilateurs Turbo — stock limité"},{"text":"Garantie 6 mois sur tous les produits"},{"text":"Support WhatsApp 7j/7 — réponse en 5 min"}]'],
+    ['reassurance_text','Livraison sur Antananarivo · Paiement à la livraison · Retour sous 7 jours'],
+    ['marquee_items','[{"text":"Finger sleeves gaming disponibles maintenant"},{"text":"Livraison 24h sur Antananarivo"},{"text":"+1 200 gamers équipés à Madagascar"},{"text":"Ventilateurs Turbo — stock limité"},{"text":"Garantie 6 mois sur tous les produits"},{"text":"Support WhatsApp 7j/7 — réponse en 5 min"}]'],
     ['team_badge','Notre équipe'],['team_title','Les personnes derrière'],
     ['team_subtitle','Une équipe passionnée au service de vos commandes à Madagascar.'],
     ['coming_soon','0'],
@@ -306,6 +306,16 @@ if (!SECRET || SECRET === 'change_this_in_production' || SECRET.length < 16) {
   ]
   for (const [k, v] of seeds)
     await pool.execute('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)', [k, v])
+
+  /* Corrections orthographiques des anciens textes par défaut déjà en base :
+     on ne remplace que la phrase fautive exacte, jamais un texte réécrit par l'admin. */
+  const TEXT_FIXES = [
+    ['reassurance_text', 'La livraison sera disponible dans tous les lieux - Antananarivo · ', 'Livraison sur Antananarivo · '],
+    ['marquee_items',    'Finger Sleeves Gaming dispo maintenant', 'Finger sleeves gaming disponibles maintenant'],
+    ['hero_content',     'ce weekend', 'ce week-end'],
+  ]
+  for (const [k, from, to] of TEXT_FIXES)
+    await pool.execute('UPDATE settings SET `value` = REPLACE(`value`, ?, ?) WHERE `key` = ? AND INSTR(`value`, ?) > 0', [from, to, k, from]).catch(() => {})
 
   const [[r1]] = await pool.execute("SELECT id FROM chat_rooms WHERE type='admin_only' LIMIT 1")
   if (!r1) await pool.execute("INSERT INTO chat_rooms (type, name) VALUES ('admin_only', 'Admins')")
@@ -520,15 +530,15 @@ const mailer = process.env.SMTP_HOST ? nodemailer.createTransport({
 const hashOtp = (email, code) => crypto.createHmac('sha256', SECRET).update(`${email}:${code}`).digest('hex')
 
 async function sendOtpEmail(email, code, name) {
-  const subject = `${code} — ton code de vérification VaRyGasy`
-  const text = `Bonjour${name ? ' ' + name : ''},\n\nTon code de vérification VaRyGasy est : ${code}\n` +
-    `Il expire dans ${OTP_TTL_MIN} minutes.\n\nSi tu n'as pas demandé ce code, ignore cet email.`
+  const subject = `${code} — votre code de vérification VaRyGasy`
+  const text = `Bonjour${name ? ' ' + name : ''},\n\nVotre code de vérification VaRyGasy est : ${code}\n` +
+    `Il expire dans ${OTP_TTL_MIN} minutes.\n\nSi vous n'avez pas demandé ce code, ignorez simplement cet email.`
   const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px">
     <h2 style="color:#ca8a04;margin:0 0 16px">VaRyGasy</h2>
     <p>Bonjour${name ? ' ' + String(name).replace(/[<>&"]/g, '') : ''},</p>
-    <p>Ton code de vérification est :</p>
+    <p>Votre code de vérification est :</p>
     <p style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f5f5f5;padding:16px;text-align:center;border-radius:8px">${code}</p>
-    <p style="color:#666;font-size:13px">Il expire dans ${OTP_TTL_MIN} minutes. Si tu n'as pas demandé ce code, ignore cet email.</p>
+    <p style="color:#666;font-size:13px">Il expire dans ${OTP_TTL_MIN} minutes. Si vous n'avez pas demandé ce code, ignorez simplement cet email.</p>
   </div>`
   if (!mailer) {
     if (process.env.NODE_ENV === 'production') throw new Error('SMTP non configuré')
@@ -542,15 +552,15 @@ async function sendOtpEmail(email, code, name) {
    Le code est supprimé en cas de succès (usage unique). */
 async function verifyOtp(conn, email, code) {
   const [[row]] = await conn.execute('SELECT code_hash, expires_at, attempts FROM email_otps WHERE email = ?', [email])
-  if (!row) return 'Demande un code de vérification'
-  if (new Date(row.expires_at) < new Date()) return 'Code expiré, demandes-en un nouveau'
-  if (row.attempts >= OTP_MAX_ATTEMPTS) return 'Trop d\'essais, demande un nouveau code'
+  if (!row) return 'Demandez un code de vérification'
+  if (new Date(row.expires_at) < new Date()) return 'Code expiré, demandez-en un nouveau'
+  if (row.attempts >= OTP_MAX_ATTEMPTS) return 'Trop d\'essais, demandez un nouveau code'
   const expected = Buffer.from(row.code_hash, 'hex')
   const given    = Buffer.from(hashOtp(email, String(code || '').trim()), 'hex')
   if (!crypto.timingSafeEqual(expected, given)) {
     await conn.execute('UPDATE email_otps SET attempts = attempts + 1 WHERE email = ?', [email])
     const left = OTP_MAX_ATTEMPTS - row.attempts - 1
-    return left > 0 ? `Code incorrect (${left} essai${left > 1 ? 's' : ''} restant${left > 1 ? 's' : ''})` : 'Trop d\'essais, demande un nouveau code'
+    return left > 0 ? `Code incorrect (${left} essai${left > 1 ? 's' : ''} restant${left > 1 ? 's' : ''})` : 'Trop d\'essais, demandez un nouveau code'
   }
   await conn.execute('DELETE FROM email_otps WHERE email = ?', [email])
   return null
@@ -566,7 +576,7 @@ const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1]
   if (!token) return res.status(401).json({ error: 'Non authentifié' })
   try { req.user = jwt.verify(token, SECRET); next() }
-  catch { res.status(401).json({ error: 'Session expirée, reconnecte-toi' }) }
+  catch { res.status(401).json({ error: 'Session expirée, veuillez vous reconnecter' }) }
 }
 
 const adminAuth = (req, res, next) => {
@@ -629,7 +639,7 @@ app.post('/auth/register/send-otp', async (req, res) => {
     const [[prev]] = await pool.execute('SELECT sent_at FROM email_otps WHERE email = ?', [email])
     if (prev) {
       const wait = OTP_RESEND_SEC - Math.floor((Date.now() - new Date(prev.sent_at).getTime()) / 1000)
-      if (wait > 0) return res.status(429).json({ error: `Patiente ${wait}s avant de redemander un code`, retryIn: wait })
+      if (wait > 0) return res.status(429).json({ error: `Patientez ${wait} s avant de redemander un code`, retryIn: wait })
     }
 
     const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0')
@@ -643,7 +653,7 @@ app.post('/auth/register/send-otp', async (req, res) => {
     catch (e) {
       console.error('Envoi OTP:', e.message)
       await pool.execute('DELETE FROM email_otps WHERE email = ?', [email])
-      return res.status(502).json({ error: 'Impossible d\'envoyer l\'email, réessaie plus tard' })
+      return res.status(502).json({ error: 'Impossible d\'envoyer l\'email, réessayez plus tard' })
     }
     res.json({ ok: true, expiresIn: OTP_TTL_MIN * 60, resendIn: OTP_RESEND_SEC })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
@@ -656,7 +666,7 @@ app.post('/auth/register', async (req, res) => {
   const phone = normalizePhone(req.body.phone)
   const email = normalizeEmail(req.body.email)
   if (!name || !req.body.phone || !req.body.email || !password)
-    return res.status(400).json({ error: 'Remplis tous les champs' })
+    return res.status(400).json({ error: 'Veuillez remplir tous les champs' })
   if (!phone)
     return res.status(400).json({ error: PHONE_ERROR })
   if (!email)
@@ -664,7 +674,7 @@ app.post('/auth/register', async (req, res) => {
   if (String(password).length < 8)
     return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères' })
   if (!/^\d{6}$/.test(String(otp || '').trim()))
-    return res.status(400).json({ error: 'Saisis le code à 6 chiffres reçu par email' })
+    return res.status(400).json({ error: 'Saisissez le code à 6 chiffres reçu par email' })
 
   const conn = await pool.getConnection()
   try {
@@ -718,7 +728,7 @@ app.post('/auth/login', async (req, res) => {
   /* Identifiant : numéro de téléphone OU adresse email (champ unique côté client) */
   const { password } = req.body
   const identifier = String(req.body.identifier || req.body.phone || '').trim()
-  if (!identifier || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
+  if (!identifier || !password) return res.status(400).json({ error: 'Veuillez remplir tous les champs' })
   try {
     let rows
     if (identifier.includes('@')) {
@@ -866,7 +876,7 @@ app.post('/orders', auth, async (req, res) => {
     res.json({ id: orderId, payment, address, zone: zone || null, delivery_fee: delivery_fee || 0,
       hours: hours || null, note: note || '', total, status: 'En attente',
       date: new Date().toLocaleDateString('fr-FR'), items: items || [], transfer: transfer || null })
-  } catch { await conn.rollback(); res.status(500).json({ error: 'Erreur lors de la commande, réessaie' }) }
+  } catch { await conn.rollback(); res.status(500).json({ error: 'Erreur lors de la commande, veuillez réessayer' }) }
   finally { conn.release() }
 })
 
@@ -1574,12 +1584,12 @@ app.get('/admin/chat/rooms/:id/messages', adminAuth, async (req, res) => {
     const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [roomId])
     if (!room) return res.status(404).json({ error: 'Salon introuvable' })
     if (room.type === 'admin_only' && req.user.role !== 'admin')
-      return res.status(403).json({ error: 'Acces refuse' })
+      return res.status(403).json({ error: 'Accès refusé' })
     if (room.type === 'direct') {
       const [[m]] = await pool.execute(
         'SELECT 1 FROM chat_room_members WHERE room_id=? AND user_id=?', [roomId, req.user.id]
       )
-      if (!m) return res.status(403).json({ error: 'Acces refuse' })
+      if (!m) return res.status(403).json({ error: 'Accès refusé' })
     }
     let query = 'SELECT * FROM chat_messages WHERE room_id=?'
     const params = [roomId]
@@ -1612,7 +1622,7 @@ app.post('/admin/chat/rooms/:id/messages', adminAuth, async (req, res) => {
     const [[room]] = await pool.execute('SELECT * FROM chat_rooms WHERE id=?', [roomId])
     if (!room) return res.status(404).json({ error: 'Salon introuvable' })
     if (room.type === 'admin_only' && req.user.role !== 'admin')
-      return res.status(403).json({ error: 'Acces refuse' })
+      return res.status(403).json({ error: 'Accès refusé' })
     const [r] = await pool.execute(
       'INSERT INTO chat_messages (room_id, sender_id, sender_name, body) VALUES (?,?,?,?)',
       [roomId, req.user.id, req.user.name, body.trim()]

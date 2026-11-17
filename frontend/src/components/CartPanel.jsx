@@ -114,7 +114,7 @@ export default function CartPanel({ isOpen, onClose, onOpenAuth }) {
         <button type="submit" form="vs-checkout" className="vs-btn vs-btn--primary vs-btn--block" disabled={!canSubmit || submitting}>
           {submitting ? 'Enregistrement…' : 'Confirmer la commande'}
         </button>
-        {!canSubmit && <p style={{ fontSize: 13, color: 'var(--color-subtle)', textAlign: 'center', marginTop: 10 }}>Complète l'adresse, la zone et le paiement.</p>}
+        {!canSubmit && <p style={{ fontSize: 13, color: 'var(--color-subtle)', textAlign: 'center', marginTop: 10 }}>Complétez l'adresse, la zone et le paiement.</p>}
       </>
     )
   }
@@ -161,8 +161,8 @@ function EmptyCart({ onClose }) {
       <span aria-hidden="true" style={{ width: 72, height: 72, borderRadius: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'grid', placeItems: 'center', marginBottom: 8 }}>
         <ShoppingBag size={30} color="var(--color-subtle)" />
       </span>
-      <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600 }}>Ton panier est vide</p>
-      <p style={{ fontSize: 14, color: 'var(--color-muted)', maxWidth: 280 }}>Parcours nos accessoires et ajoute ceux qui te plaisent.</p>
+      <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600 }}>Votre panier est vide</p>
+      <p style={{ fontSize: 14, color: 'var(--color-muted)', maxWidth: 280 }}>Découvrez nos accessoires gaming et ajoutez vos favoris.</p>
       <a href="/catalogue" onClick={onClose} className="vs-btn vs-btn--primary" style={{ marginTop: 14 }}>
         Voir les produits <ArrowRight size={18} aria-hidden="true" />
       </a>
@@ -269,7 +269,7 @@ function CheckoutForm({ payment, setPayment, address, setAddress, zone, setZone,
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }} style={{ overflow: 'hidden' }}>
               <div className="vs-box" style={{ marginTop: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
-                  <p style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 8 }}>1. Envoie <strong style={{ color: 'var(--color-text)' }}>le total à payer</strong> à ce numéro {method.name} :</p>
+                  <p style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 8 }}>1. Envoyez <strong style={{ color: 'var(--color-text)' }}>le total à payer</strong> à ce numéro {method.name} :</p>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderRadius: 10, background: 'var(--color-surface-2)' }}>
                     <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, letterSpacing: '0.04em', fontVariantNumeric: 'tabular-nums' }}>{method.merchantNumber}</span>
                     <button type="button" className={`vs-btn vs-btn--sm ${copied ? 'vs-btn--added' : 'vs-btn--secondary'}`} onClick={() => copyNumber(method.merchantNumber)}>
@@ -278,7 +278,7 @@ function CheckoutForm({ payment, setPayment, address, setAddress, zone, setZone,
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <p style={{ fontSize: 13, color: 'var(--color-muted)' }}>2. Confirme ton transfert :</p>
+                  <p style={{ fontSize: 13, color: 'var(--color-muted)' }}>2. Confirmez votre transfert :</p>
                   <TransferField id="tr-phone" label="Numéro utilisé pour le transfert" icon={<Phone size={18} />} value={transferPhone} onChange={setTransferPhone} type="tel" placeholder="034 XX XXX XX" />
                   <TransferField id="tr-name" label="Nom inscrit sur la puce" icon={<User size={18} />} value={transferName} onChange={setTransferName} placeholder="Nom complet" />
                   <TransferField id="tr-id" label="ID du transfert (SMS de l'opérateur)" icon={<Hash size={18} />} value={transferId} onChange={setTransferId} placeholder="Ex : PP231117.1234.A12345" />
@@ -324,9 +324,9 @@ function SuccessView({ order, onDone }) {
         aria-hidden="true" style={{ width: 76, height: 76, borderRadius: 99, background: 'var(--color-success-soft)', display: 'grid', placeItems: 'center', margin: '0 auto 20px' }}>
         <CheckCircle2 size={40} color="var(--color-success)" />
       </motion.span>
-      <h3 className="vs-h2" style={{ fontSize: 24, marginBottom: 8 }}>Merci pour ta commande !</h3>
+      <h3 className="vs-h2" style={{ fontSize: 24, marginBottom: 8 }}>Merci pour votre commande !</h3>
       <p style={{ fontSize: 15, color: 'var(--color-muted)', marginBottom: 28, lineHeight: 1.6 }}>
-        On te contacte dans les <strong style={{ color: 'var(--color-gold)' }}>5 minutes</strong> pour confirmer la livraison.
+        Nous vous contactons dans les <strong style={{ color: 'var(--color-gold)' }}>5 minutes</strong> pour confirmer la livraison.
       </p>
       <div className="vs-box" style={{ padding: 18, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
         <div className="vs-section-title" style={{ marginBottom: 2 }}>Récapitulatif</div>

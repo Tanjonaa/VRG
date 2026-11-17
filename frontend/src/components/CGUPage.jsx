@@ -108,8 +108,8 @@ export default function CGUPage() {
       <div style={S.wrap}>
         <h1 style={S.h1}>Conditions Générales d'Utilisation</h1>
         <p style={S.lead}>
-          En utilisant le site VaRyGasy ou en passant une commande, tu acceptes les présentes
-          conditions. Lis-les attentivement — elles sont courtes et rédigées en langage simple.
+          En utilisant le site VaRyGasy ou en passant une commande, vous acceptez les présentes
+          conditions. Lisez-les attentivement — elles sont courtes et rédigées en langage simple.
         </p>
 
         <Section title="1. Qui sommes-nous ?">
@@ -122,9 +122,9 @@ export default function CGUPage() {
 
         <Section title="2. Compte utilisateur">
           <ul style={S.ul}>
-            <Li>Tu dois avoir au moins <span style={S.highlight}>18 ans</span> pour créer un compte, ou être autorisé par un parent/tuteur.</Li>
-            <Li>Ton <span style={S.highlight}>numéro de téléphone</span> est ton identifiant unique — il doit être valide et t'appartenir.</Li>
-            <Li>Tu es responsable de la <span style={S.highlight}>confidentialité de ton mot de passe</span>. En cas de compromission, contacte-nous immédiatement.</Li>
+            <Li>Vous devez avoir au moins <span style={S.highlight}>18 ans</span> pour créer un compte, ou être autorisé par un parent/tuteur.</Li>
+            <Li>Votre <span style={S.highlight}>numéro de téléphone</span> est votre identifiant unique — il doit être valide et vous appartenir.</Li>
+            <Li>Vous êtes responsable de la <span style={S.highlight}>confidentialité de votre mot de passe</span>. En cas de compromission, contactez-nous immédiatement.</Li>
             <Li>Nous nous réservons le droit de suspendre tout compte utilisé de manière frauduleuse ou abusive.</Li>
           </ul>
         </Section>
@@ -139,7 +139,7 @@ export default function CGUPage() {
               <span style={S.chip('228,0,50')}>Airtel Money</span>{' '}
               <span style={S.chip('255,102,0')}>Orange Money</span>{' '}
               <span style={S.chip('34,197,94')}>Paiement à la livraison</span></Li>
-            <Li>Pour les paiements mobile money, la référence de transaction que tu fournis est utilisée uniquement pour vérifier ton paiement.</Li>
+            <Li>Pour les paiements mobile money, la référence de transaction que vous fournissez est utilisée uniquement pour vérifier votre paiement.</Li>
             <Li>Une commande n'est confirmée qu'après validation du paiement par notre équipe.</Li>
           </ul>
         </Section>
@@ -148,8 +148,8 @@ export default function CGUPage() {
           <ul style={S.ul}>
             <Li>Nous livrons sur <span style={S.highlight}>Antananarivo ville</span> et la <span style={S.highlight}>périphérie</span>. Les frais de livraison sont indiqués au moment de la commande.</Li>
             <Li>Le délai de livraison habituel est de <span style={S.highlight}>24 à 48h</span> après confirmation de commande.</Li>
-            <Li>Tu recevras les <span style={S.highlight}>coordonnées de ton livreur</span> via le chat dès la prise en charge de ta commande.</Li>
-            <Li>En cas d'absence lors de la livraison, notre livreur te contactera directement par téléphone.</Li>
+            <Li>Vous recevrez les <span style={S.highlight}>coordonnées de votre livreur</span> via le chat dès la prise en charge de votre commande.</Li>
+            <Li>En cas d'absence lors de la livraison, notre livreur vous contactera directement par téléphone.</Li>
           </ul>
         </Section>
 
@@ -163,22 +163,22 @@ export default function CGUPage() {
           </ul>
           <hr style={S.divider} />
           <p style={{ ...S.p, marginBottom: 0 }}>
-            Pour initier un retour, contacte-nous via le chat support ou WhatsApp dans le délai imparti.
+            Pour demander un retour, contactez-nous via le chat support ou WhatsApp dans le délai imparti.
             Les frais de retour sont à la charge du client sauf en cas de produit défectueux.
           </p>
         </Section>
 
         <Section title="6. Disponibilité et stocks">
           <ul style={S.ul}>
-            <Li>Les stocks affichés sur le site sont mis à jour en temps réel. Un article peut néanmoins être épuisé entre le moment où tu l'ajoutes au panier et la finalisation de la commande.</Li>
-            <Li>En cas de rupture après validation, nous te contacterons pour proposer un remboursement ou un article de remplacement.</Li>
+            <Li>Les stocks affichés sur le site sont mis à jour en temps réel. Un article peut néanmoins être épuisé entre le moment où vous l'ajoutez au panier et la finalisation de la commande.</Li>
+            <Li>En cas de rupture après validation, nous vous contacterons pour vous proposer un remboursement ou un article de remplacement.</Li>
           </ul>
         </Section>
 
         <Section title="7. Programme de fidélité et parrainage">
           <ul style={S.ul}>
-            <Li><span style={S.highlight}>1 point</span> par tranche de 1 000 Ar dépensé sur les commandes non annulées.</Li>
-            <Li><span style={S.highlight}>10 points</span> offerts pour chaque filleul inscrit via ton lien de parrainage — crédités après que le filleul ait dépensé 5 000 Ar.</Li>
+            <Li><span style={S.highlight}>1 point</span> par tranche de 1 000 Ar dépensés sur les commandes non annulées.</Li>
+            <Li><span style={S.highlight}>10 points</span> offerts pour chaque filleul inscrit via votre lien de parrainage — crédités après que le filleul a dépensé 5 000 Ar.</Li>
             <Li>Les points sont informatifs, sans valeur monétaire directe à ce stade.</Li>
             <Li>VaRyGasy se réserve le droit de modifier les règles du programme avec un préavis de 15 jours.</Li>
           </ul>

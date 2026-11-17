@@ -117,7 +117,7 @@ function ChatView({ roomId, me, onBack, title }) {
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', color: 'rgba(240,240,245,0.25)', fontSize: 12, marginTop: 40 }}>
-            Aucun message — soyez le premier !
+            Aucun message — sois le premier !
           </div>
         )}
         {messages.map((msg, i) => {

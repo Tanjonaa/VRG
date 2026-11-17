@@ -8,13 +8,13 @@ import { parseJSONSetting } from '../lib/product.js'
 /* Textes et packs éditables depuis l'admin (setting pricing_content) */
 const DEFAULT_CONTENT = {
   badge:    'Nos packs',
-  title_1:  'Choisis ton pack,',
-  title_2:  'commande en 1 clic',
+  title_1:  'Choisissez votre pack,',
+  title_2:  'commandez en 1 clic',
   subtitle: 'Paiement unique à la livraison — pas d\'abonnement, pas de surprise.',
   plans: [
     { name: 'Pack Essentiel', price: 25000, description: 'L\'essentiel pour bien démarrer avec les accessoires gaming.', features: ['1 paire de finger sleeves', '1 ventilateur pour téléphone', 'Livraison gratuite Antananarivo', 'Garantie 3 mois', 'Support WhatsApp'] },
-    { name: 'Pack Gamer',     price: 55000, description: 'Le pack complet pour les vrais gamers mobiles.', badge: 'Le plus populaire', features: ['3 paires de finger sleeves', '1 ventilateur turbo refroidissement', '1 support téléphone réglable', '1 câble fast-charge 100W', 'Livraison 24h Antananarivo', 'Garantie 6 mois', 'Support prioritaire'] },
-    { name: 'Pack Premium',   price: 95000, description: 'L\'équipement ultime pour dominer sur mobile.', features: ['Tout le Pack Gamer', '5 paires de finger sleeves premium', '1 ventilateur semi-conducteur', '1 powerbank 20 000mAh', '1 écouteur gaming Bluetooth', 'Livraison express toute l\'île', 'Garantie 1 an', 'Support dédié 24/7'] },
+    { name: 'Pack Gamer',     price: 55000, description: 'Le pack complet pour les vrais gamers mobiles.', badge: 'Le plus populaire', features: ['3 paires de finger sleeves', '1 ventilateur turbo de refroidissement', '1 support téléphone réglable', '1 câble fast-charge 100W', 'Livraison 24h Antananarivo', 'Garantie 6 mois', 'Support prioritaire'] },
+    { name: 'Pack Premium',   price: 95000, description: 'L\'équipement ultime pour dominer sur mobile.', features: ['Tout le Pack Gamer', '5 paires de finger sleeves premium', '1 ventilateur semi-conducteur', '1 powerbank 20 000 mAh', '1 écouteur gaming Bluetooth', 'Livraison express toute l\'île', 'Garantie 1 an', 'Support dédié 24/7'] },
   ],
 }
 

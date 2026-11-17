@@ -6,12 +6,12 @@ import { fetchProducts, firstImage, finalPrice, fmtAr, isPromo, parseJSONSetting
 
 /* Textes éditables depuis l'admin (setting hero_content) */
 const DEFAULT_HERO = {
-  badge:         'Livraison gratuite ce weekend — Antananarivo',
-  title_1:       'Domine le jeu mobile.',
-  title_2:       'Équipe-toi maintenant.',
-  subtitle:      'Finger sleeves anti-transpiration, ventilateurs de refroidissement et accessoires gaming pour PUBG Mobile, Free Fire et MLBB — livrés chez toi à Madagascar.',
+  badge:         'Livraison gratuite ce week-end — Antananarivo',
+  title_1:       'Dominez vos parties.',
+  title_2:       'Équipez-vous comme un pro.',
+  subtitle:      'Finger sleeves anti-transpiration, ventilateurs de refroidissement et accessoires gaming pour PUBG Mobile, Free Fire et MLBB — livrés chez vous en 24h à Antananarivo, avec paiement à la livraison.',
   btn_primary:   'Commander via WhatsApp',
-  btn_secondary: 'Voir les produits',
+  btn_secondary: 'Découvrir la boutique',
   social_proof:  '+1 200 gamers équipés à Madagascar',
 }
 

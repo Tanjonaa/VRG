@@ -10,7 +10,7 @@ const GUARANTEE_ICONS = [Truck, ShieldCheck, RotateCcw, MessageCircle]
 const DEFAULT_CONTENT = {
   title_1:      'Prêt à passer au niveau',
   title_2:      'supérieur ?',
-  subtitle:     'Envoie-nous un message WhatsApp — on te répond en moins de 5 minutes et on gère ta livraison dans la journée.',
+  subtitle:     'Écrivez-nous sur WhatsApp : nous répondons en moins de 5 minutes et organisons votre livraison dans la journée.',
   btn_whatsapp: 'Commander sur WhatsApp',
   btn_products: 'Voir tous les produits',
   guarantees: [

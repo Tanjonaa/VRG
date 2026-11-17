@@ -17,9 +17,9 @@ const DEFAULT_CONTENT = {
   title_2:  'dominer sur mobile',
   subtitle: 'Des accessoires pensés pour les gamers mobiles malgaches — qualité pro, prix accessibles.',
   cards: [
-    { title: 'Finger Sleeves Pro', description: 'Ultra-fins 0.4mm en nylon argenté anti-transpiration. Précision maximale sur écran tactile pour PUBG Mobile, Free Fire et MLBB.', points: ['Anti-transpiration', 'Sensibilité 100%', 'Taille universelle', 'Lavables & durables'], metrics: [{ value: '0.4', label: 'mm d\'épaisseur' }, { value: '360', label: '° de sensibilité' }] },
-    { title: 'Ventilateur de Refroidissement', description: 'Élimine la surchauffe pendant les longues sessions. Clip universel compatible tous smartphones, silencieux ≤25dB.', points: ['−15°C en 2 min', 'USB-C & Jack', '≤25dB silencieux', 'Autonomie illimitée'], metrics: [{ value: '15', label: '°C de moins' }, { value: '25', label: 'dB max' }] },
-    { title: 'Livraison Rapide & Sûre', description: 'Commande le matin, reçois le soir. 24h sur Antananarivo, 3-5 jours dans toute l\'île. Paiement à la livraison disponible.', points: ['24h Antananarivo', '3-5j toute l\'île', 'Paiement à la livraison', 'Retour sous 7 jours'], metrics: [{ value: '24', label: 'h livraison Tana' }, { value: '7', label: 'j de retour' }] },
+    { title: 'Finger Sleeves Pro', description: 'Ultra-fins (0,4 mm) en nylon argenté anti-transpiration. Précision maximale sur écran tactile pour PUBG Mobile, Free Fire et MLBB : fini les doigts qui glissent.', points: ['Anti-transpiration', 'Sensibilité 100%', 'Taille universelle', 'Lavables & durables'], metrics: [{ value: '0,4', label: 'mm d\'épaisseur' }, { value: '360', label: '° de sensibilité' }] },
+    { title: 'Ventilateur de refroidissement', description: 'Votre téléphone reste frais pendant les longues sessions, sans perte de performance. Clip universel compatible avec tous les smartphones, silencieux (≤ 25 dB).', points: ['−15°C en 2 min', 'USB-C & Jack', '≤ 25 dB, silencieux', 'Autonomie illimitée'], metrics: [{ value: '15', label: '°C de moins' }, { value: '25', label: 'dB max' }] },
+    { title: 'Livraison rapide et sûre', description: 'Commandez le matin, recevez le soir. 24h sur Antananarivo, 3 à 5 jours dans toute l\'île. Vous payez à la livraison : aucun risque.', points: ['24h Antananarivo', '3 à 5 j dans toute l\'île', 'Paiement à la livraison', 'Retour sous 7 jours'], metrics: [{ value: '24', label: 'h livraison Tana' }, { value: '7', label: 'j de retour' }] },
   ],
 }
 

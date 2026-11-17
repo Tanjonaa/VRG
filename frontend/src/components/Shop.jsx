@@ -594,7 +594,7 @@ function EmptyState({ onReset }) {
     <div style={{ textAlign:'center', padding:'100px 0', color:T.textMuted }}>
       <div style={{ fontSize:48, marginBottom:16, opacity:0.2 }}>🔍</div>
       <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8 }}>Aucun produit trouvé</div>
-      <div style={{ fontSize:13, marginBottom:24 }}>Essaie d'ajuster tes filtres</div>
+      <div style={{ fontSize:13, marginBottom:24 }}>Essayez d'ajuster vos filtres</div>
       <Btn variant="ghost" onClick={onReset}>Réinitialiser les filtres</Btn>
     </div>
   )
@@ -684,7 +684,7 @@ function NouveautesView({ products, onAdd, onView, view, setView }) {
         <div style={{ textAlign:'center', padding:'80px 0', color:T.textMuted }}>
           <div style={{ fontSize:40, marginBottom:14, opacity:0.2 }}>📦</div>
           <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8 }}>Aucun article dans cette période</div>
-          <div style={{ fontSize:13, marginBottom:20 }}>Essaie "3 derniers mois" ou "Tout"</div>
+          <div style={{ fontSize:13, marginBottom:20 }}>Essayez « 3 derniers mois » ou « Tout »</div>
           <Btn variant="ghost" onClick={() => setDf('all')}>Voir tous les articles</Btn>
         </div>
       ) : view === 'grid' ? (
