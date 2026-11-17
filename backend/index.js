@@ -10,6 +10,7 @@ const path      = require('path')
 const crypto    = require('crypto')
 const fs        = require('fs')
 const rateLimit = require('express-rate-limit')
+const nodemailer = require('nodemailer')
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib')
 
 const app = express()
@@ -51,6 +52,10 @@ const apiLimiter   = rateLimit({ windowMs: 60 * 1000, max: 120, message: { error
   /* En mode app-unique (o2switch), ne pas limiter le chargement des fichiers statiques */
   skip: req => !!process.env.FRONTEND_DIST && !req.isApi })
 app.use('/auth/login', loginLimiter)
+/* Envoi de codes OTP : limité par IP (anti-spam d'emails) */
+const otpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 6, message: { error: 'Trop de codes demandés, réessaie dans 15 minutes' } })
+app.use('/auth/register/send-otp', otpLimiter)
+app.use('/auth/register', loginLimiter)
 app.use(apiLimiter)
 
 /* ── Multer : upload images ──────────────────────────────── */
@@ -159,6 +164,16 @@ if (!SECRET || SECRET === 'change_this_in_production' || SECRET.length < 16) {
   )`)
   await pool.execute(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS livreur_id INT NULL DEFAULT NULL`)
   await pool.execute(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen DATETIME NULL`)
+  await pool.execute(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(190) NULL UNIQUE`)
+  await pool.execute(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified TINYINT(1) NOT NULL DEFAULT 0`)
+  /* Codes OTP de vérification d'email (un code actif par adresse) */
+  await pool.execute(`CREATE TABLE IF NOT EXISTS email_otps (
+    email      VARCHAR(190) PRIMARY KEY,
+    code_hash  CHAR(64)     NOT NULL,
+    expires_at DATETIME     NOT NULL,
+    attempts   INT          NOT NULL DEFAULT 0,
+    sent_at    DATETIME     NOT NULL
+  )`)
   await pool.execute(`ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_percent INT NOT NULL DEFAULT 0`)
   await pool.execute(`ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_active TINYINT(1) NOT NULL DEFAULT 0`)
   await pool.execute(`CREATE TABLE IF NOT EXISTS order_items (
@@ -482,6 +497,65 @@ function normalizePhone(raw) {
 }
 const PHONE_ERROR = 'Numéro malgache attendu : 03X XX XXX XX (032, 033, 034, 037 ou 038)'
 
+/* ── Email : validation + envoi (SMTP) + codes OTP ───────── */
+function normalizeEmail(raw) {
+  if (!raw) return null
+  const e = String(raw).trim().toLowerCase()
+  return e.length <= 190 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) ? e : null
+}
+const EMAIL_ERROR = 'Adresse email invalide'
+
+const OTP_TTL_MIN      = 10   // durée de validité du code
+const OTP_MAX_ATTEMPTS = 5    // essais avant invalidation
+const OTP_RESEND_SEC   = 60   // délai minimum entre deux envois
+
+const mailer = process.env.SMTP_HOST ? nodemailer.createTransport({
+  host:   process.env.SMTP_HOST,
+  port:   Number(process.env.SMTP_PORT || 465),
+  secure: String(process.env.SMTP_SECURE || (Number(process.env.SMTP_PORT || 465) === 465)) === 'true',
+  auth:   process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+}) : null
+
+/* Hash HMAC du code : un dump de la table ne révèle pas les codes */
+const hashOtp = (email, code) => crypto.createHmac('sha256', SECRET).update(`${email}:${code}`).digest('hex')
+
+async function sendOtpEmail(email, code, name) {
+  const subject = `${code} — ton code de vérification VaRyGasy`
+  const text = `Bonjour${name ? ' ' + name : ''},\n\nTon code de vérification VaRyGasy est : ${code}\n` +
+    `Il expire dans ${OTP_TTL_MIN} minutes.\n\nSi tu n'as pas demandé ce code, ignore cet email.`
+  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px">
+    <h2 style="color:#ca8a04;margin:0 0 16px">VaRyGasy</h2>
+    <p>Bonjour${name ? ' ' + String(name).replace(/[<>&"]/g, '') : ''},</p>
+    <p>Ton code de vérification est :</p>
+    <p style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f5f5f5;padding:16px;text-align:center;border-radius:8px">${code}</p>
+    <p style="color:#666;font-size:13px">Il expire dans ${OTP_TTL_MIN} minutes. Si tu n'as pas demandé ce code, ignore cet email.</p>
+  </div>`
+  if (!mailer) {
+    if (process.env.NODE_ENV === 'production') throw new Error('SMTP non configuré')
+    console.warn(`[OTP] SMTP non configuré — code pour ${email} : ${code}`)
+    return
+  }
+  await mailer.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: email, subject, text, html })
+}
+
+/* Vérifie un code OTP. Retourne null si OK, sinon le message d'erreur.
+   Le code est supprimé en cas de succès (usage unique). */
+async function verifyOtp(conn, email, code) {
+  const [[row]] = await conn.execute('SELECT code_hash, expires_at, attempts FROM email_otps WHERE email = ?', [email])
+  if (!row) return 'Demande un code de vérification'
+  if (new Date(row.expires_at) < new Date()) return 'Code expiré, demandes-en un nouveau'
+  if (row.attempts >= OTP_MAX_ATTEMPTS) return 'Trop d\'essais, demande un nouveau code'
+  const expected = Buffer.from(row.code_hash, 'hex')
+  const given    = Buffer.from(hashOtp(email, String(code || '').trim()), 'hex')
+  if (!crypto.timingSafeEqual(expected, given)) {
+    await conn.execute('UPDATE email_otps SET attempts = attempts + 1 WHERE email = ?', [email])
+    const left = OTP_MAX_ATTEMPTS - row.attempts - 1
+    return left > 0 ? `Code incorrect (${left} essai${left > 1 ? 's' : ''} restant${left > 1 ? 's' : ''})` : 'Trop d\'essais, demande un nouveau code'
+  }
+  await conn.execute('DELETE FROM email_otps WHERE email = ?', [email])
+  return null
+}
+
 function makeReferralCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
@@ -529,26 +603,85 @@ app.get('/auth/check-phone', async (req, res) => {
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
 })
 
-/* ── POST /auth/register ─────────────────────────────── */
-app.post('/auth/register', async (req, res) => {
-  const { name, password, referralCode } = req.body
+/* ── GET /auth/check-email ───────────────────────────── */
+/* Vérifie en temps réel si une adresse email est disponible (inscription) */
+app.get('/auth/check-email', async (req, res) => {
+  const email = normalizeEmail(req.query.email)
+  if (!email) return res.json({ available: false, invalid: true })
+  try {
+    const [rows] = await pool.execute('SELECT id FROM users WHERE email = ?', [email])
+    res.json({ available: rows.length === 0 })
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── POST /auth/register/send-otp ────────────────────── */
+/* Étape 1 de l'inscription : valide les champs puis envoie un code à 6 chiffres par email */
+app.post('/auth/register/send-otp', async (req, res) => {
+  const email = normalizeEmail(req.body.email)
   const phone = normalizePhone(req.body.phone)
-  if (!name || !req.body.phone || !password)
+  if (!email) return res.status(400).json({ error: EMAIL_ERROR })
+  if (!phone) return res.status(400).json({ error: PHONE_ERROR })
+  try {
+    const [taken] = await pool.execute('SELECT phone, email FROM users WHERE phone = ? OR email = ?', [phone, email])
+    if (taken.some(u => u.phone === phone)) return res.status(409).json({ error: 'Ce numéro est déjà enregistré' })
+    if (taken.length) return res.status(409).json({ error: 'Cette adresse email est déjà utilisée' })
+
+    const [[prev]] = await pool.execute('SELECT sent_at FROM email_otps WHERE email = ?', [email])
+    if (prev) {
+      const wait = OTP_RESEND_SEC - Math.floor((Date.now() - new Date(prev.sent_at).getTime()) / 1000)
+      if (wait > 0) return res.status(429).json({ error: `Patiente ${wait}s avant de redemander un code`, retryIn: wait })
+    }
+
+    const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0')
+    await pool.execute(
+      `INSERT INTO email_otps (email, code_hash, expires_at, attempts, sent_at)
+       VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), 0, NOW())
+       ON DUPLICATE KEY UPDATE code_hash = VALUES(code_hash), expires_at = VALUES(expires_at), attempts = 0, sent_at = NOW()`,
+      [email, hashOtp(email, code), OTP_TTL_MIN]
+    )
+    try { await sendOtpEmail(email, code, req.body.name?.trim()) }
+    catch (e) {
+      console.error('Envoi OTP:', e.message)
+      await pool.execute('DELETE FROM email_otps WHERE email = ?', [email])
+      return res.status(502).json({ error: 'Impossible d\'envoyer l\'email, réessaie plus tard' })
+    }
+    res.json({ ok: true, expiresIn: OTP_TTL_MIN * 60, resendIn: OTP_RESEND_SEC })
+  } catch { res.status(500).json({ error: 'Erreur serveur' }) }
+})
+
+/* ── POST /auth/register ─────────────────────────────── */
+/* Étape 2 : crée le compte si le code OTP reçu par email est correct */
+app.post('/auth/register', async (req, res) => {
+  const { name, password, referralCode, otp } = req.body
+  const phone = normalizePhone(req.body.phone)
+  const email = normalizeEmail(req.body.email)
+  if (!name || !req.body.phone || !req.body.email || !password)
     return res.status(400).json({ error: 'Remplis tous les champs' })
   if (!phone)
     return res.status(400).json({ error: PHONE_ERROR })
+  if (!email)
+    return res.status(400).json({ error: EMAIL_ERROR })
   if (String(password).length < 8)
     return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères' })
+  if (!/^\d{6}$/.test(String(otp || '').trim()))
+    return res.status(400).json({ error: 'Saisis le code à 6 chiffres reçu par email' })
 
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
 
-    /* Vérifie d'abord que le numéro est disponible */
-    const [existing] = await conn.execute('SELECT id FROM users WHERE phone = ?', [phone])
+    /* Vérifie d'abord que le numéro et l'email sont disponibles */
+    const [existing] = await conn.execute('SELECT phone FROM users WHERE phone = ? OR email = ?', [phone, email])
     if (existing.length) {
       await conn.rollback()
-      return res.status(409).json({ error: 'Ce numéro est déjà enregistré' })
+      return res.status(409).json({ error: existing.some(u => u.phone === phone) ? 'Ce numéro est déjà enregistré' : 'Cette adresse email est déjà utilisée' })
+    }
+
+    /* Vérifie le code OTP (les essais ratés sont comptés même si on annule) */
+    const otpError = await verifyOtp(pool, email, otp)
+    if (otpError) {
+      await conn.rollback()
+      return res.status(400).json({ error: otpError })
     }
 
     const hash = await bcrypt.hash(password, 10)
@@ -561,38 +694,45 @@ app.post('/auth/register', async (req, res) => {
     }
 
     const [r] = await conn.execute(
-      'INSERT INTO users (name, phone, password, referral_code, referred_by) VALUES (?, ?, ?, ?, ?)',
-      [name.trim(), phone, hash, code, referrerId]
+      'INSERT INTO users (name, phone, email, email_verified, password, referral_code, referred_by) VALUES (?, ?, ?, 1, ?, ?, ?)',
+      [name.trim(), phone, email, hash, code, referrerId]
     )
     if (referrerId) {
       await conn.execute('INSERT INTO referrals (referrer_id, referred_id) VALUES (?, ?)', [referrerId, r.insertId])
     }
     await conn.commit()
 
-    const user = { id: r.insertId, name: name.trim(), phone, role: 'client' }
+    const user = { id: r.insertId, name: name.trim(), phone, email, role: 'client' }
     const token = jwt.sign(user, SECRET, { expiresIn: '30d' })
     res.json({ token, user })
   } catch (err) {
     await conn.rollback()
     if (err.code === 'ER_DUP_ENTRY')
-      return res.status(409).json({ error: 'Ce numéro est déjà enregistré' })
+      return res.status(409).json({ error: 'Ce numéro ou cet email est déjà enregistré' })
     res.status(500).json({ error: 'Erreur serveur' })
   } finally { conn.release() }
 })
 
 /* ── POST /auth/login ────────────────────────────────── */
 app.post('/auth/login', async (req, res) => {
-  const { phone, password } = req.body
-  if (!phone || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
+  /* Identifiant : numéro de téléphone OU adresse email (champ unique côté client) */
+  const { password } = req.body
+  const identifier = String(req.body.identifier || req.body.phone || '').trim()
+  if (!identifier || !password) return res.status(400).json({ error: 'Remplis tous les champs' })
   try {
-    /* Normalise si possible, sinon garde la saisie brute — ne jamais
-       verrouiller un compte historique au format non standard */
-    const lookup = normalizePhone(phone) || phone.trim()
-    const [rows] = await pool.execute('SELECT * FROM users WHERE phone = ?', [lookup])
+    let rows
+    if (identifier.includes('@')) {
+      [rows] = await pool.execute('SELECT * FROM users WHERE email = ?', [identifier.toLowerCase()])
+    } else {
+      /* Normalise si possible, sinon garde la saisie brute — ne jamais
+         verrouiller un compte historique au format non standard */
+      const lookup = normalizePhone(identifier) || identifier
+      ;[rows] = await pool.execute('SELECT * FROM users WHERE phone = ?', [lookup])
+    }
     const u = rows[0]
     if (!u || !(await bcrypt.compare(password, u.password)))
-      return res.status(401).json({ error: 'Numéro ou mot de passe incorrect' })
-    const user = { id: u.id, name: u.name, phone: u.phone, role: u.role || 'client' }
+      return res.status(401).json({ error: 'Identifiant ou mot de passe incorrect' })
+    const user = { id: u.id, name: u.name, phone: u.phone, email: u.email || null, role: u.role || 'client' }
     const token = jwt.sign(user, SECRET, { expiresIn: '30d' })
     res.json({ token, user })
   } catch { res.status(500).json({ error: 'Erreur serveur' }) }
@@ -625,7 +765,7 @@ app.put('/auth/profile', auth, async (req, res) => {
         [name?.trim() || null, newPhone, req.user.id]
       )
     }
-    const [rows] = await pool.execute('SELECT id, name, phone, role FROM users WHERE id = ?', [req.user.id])
+    const [rows] = await pool.execute('SELECT id, name, phone, email, role FROM users WHERE id = ?', [req.user.id])
     const user = rows[0]
     const token = jwt.sign(user, SECRET, { expiresIn: '30d' })
     res.json({ user, token })

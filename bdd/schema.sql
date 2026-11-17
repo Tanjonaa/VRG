@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
   id            INT AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(100)  NOT NULL,
   phone         VARCHAR(20)   NOT NULL UNIQUE,
+  email         VARCHAR(190)  NULL UNIQUE,         -- vérifié par code OTP à l'inscription
+  email_verified TINYINT(1)   NOT NULL DEFAULT 0,
   password      VARCHAR(255)  NOT NULL,            -- bcryptjs hash
   referral_code VARCHAR(12)   UNIQUE,              -- code parrainage unique (8 chars alphanum)
   referred_by   INT           NULL,                -- FK → users.id du parrain
@@ -15,6 +17,17 @@ CREATE TABLE IF NOT EXISTS users (
   last_seen     DATETIME      NULL,                -- présence staff (maj par le polling /admin/notifications)
   created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- ── email_otps ───────────────────────────────────────────────
+-- Codes de vérification email (inscription) : 1 code actif par adresse,
+-- stocké en HMAC-SHA256, expire après 10 min, 5 essais max.
+CREATE TABLE IF NOT EXISTS email_otps (
+  email      VARCHAR(190) PRIMARY KEY,
+  code_hash  CHAR(64)     NOT NULL,
+  expires_at DATETIME     NOT NULL,
+  attempts   INT          NOT NULL DEFAULT 0,
+  sent_at    DATETIME     NOT NULL
 );
 
 -- ── products ─────────────────────────────────────────────────
