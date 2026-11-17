@@ -7,11 +7,11 @@ const h = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${
 
 const STATUSES = ['En attente', 'Confirmé', 'En livraison', 'Livré', 'Annulé']
 const STATUS_STYLE = {
-  'En attente':    { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.25)' },
-  'Confirmé':      { color: '#22c55e', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.25)'  },
-  'En livraison':  { color: '#60a5fa', bg: 'rgba(96,165,250,0.1)',  border: 'rgba(96,165,250,0.25)' },
-  'Livré':         { color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.25)'},
-  'Annulé':        { color: '#f87171', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.25)'  },
+  'En attente':    { color: 'var(--color-warning)', bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.25)' },
+  'Confirmé':      { color: 'var(--color-success)', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.25)'  },
+  'En livraison':  { color: 'var(--color-info)', bg: 'rgba(96,165,250,0.1)',  border: 'rgba(96,165,250,0.25)' },
+  'Livré':         { color: 'var(--color-violet)', bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.25)'},
+  'Annulé':        { color: 'var(--color-danger-text)', bg: 'rgba(240,82,82,0.1)',   border: 'rgba(240,82,82,0.25)'  },
 }
 const PAYMENT = { mvola: 'MVola', airtel: 'Airtel Money', orange: 'Orange Money', livraison: 'À la livraison' }
 
@@ -56,9 +56,9 @@ export default function Orders() {
           return (
             <button key={s} onClick={() => setFilter(s)}
               style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid', cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
-                background: active ? (st ? st.bg : 'rgba(255,153,0,0.12)') : 'rgba(255,255,255,0.03)',
-                borderColor: active ? (st ? st.border : 'rgba(255,153,0,0.3)') : 'rgba(255,255,255,0.08)',
-                color: active ? (st ? st.color : '#FF9900') : 'rgba(240,240,245,0.45)' }}>
+                background: active ? (st ? st.bg : 'rgba(245,183,10,0.12)') : 'rgba(255,255,255,0.03)',
+                borderColor: active ? (st ? st.border : 'rgba(245,183,10,0.3)') : 'rgba(255,255,255,0.08)',
+                color: active ? (st ? st.color : 'var(--color-gold)') : 'var(--color-muted)' }}>
               {s === 'all' ? `Toutes (${orders.length})` : `${s} (${orders.filter(o => o.status === s).length})`}
             </button>
           )
@@ -70,17 +70,17 @@ export default function Orders() {
           const st = STATUS_STYLE[o.status] || STATUS_STYLE['En attente']
           const isOpen = expanded === o.id
           return (
-            <div key={o.id} style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden' }}>
+            <div key={o.id} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, overflow: 'hidden' }}>
               {/* Summary */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
                 onClick={() => setExpanded(isOpen ? null : o.id)}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5' }}>{o.user_name}</span>
-                    <span style={{ fontSize: 11, color: 'rgba(240,240,245,0.3)' }}>{o.user_phone}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{o.user_name}</span>
+                    <span style={{ fontSize: 11, color: 'var(--color-subtle)' }}>{o.user_phone}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)' }}>
-                    #{o.id} · {o.date} · <strong style={{ color: '#fbbf24' }}>Ar {Number(o.total).toLocaleString('fr-FR')}</strong>
+                  <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>
+                    #{o.id} · {o.date} · <strong style={{ color: 'var(--color-warning)' }}>Ar {Number(o.total).toLocaleString('fr-FR')}</strong>
                   </div>
                 </div>
 
@@ -91,18 +91,18 @@ export default function Orders() {
                   onChange={val => updateStatus(o.id, val)}
                 />
 
-                <span style={{ color: 'rgba(240,240,245,0.3)', display: 'flex' }}>
+                <span style={{ color: 'var(--color-subtle)', display: 'flex' }}>
                   {isOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                 </span>
               </div>
 
               {/* Detail */}
               {isOpen && (
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ borderTop: '1px solid var(--color-border)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {/* Items */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {o.items?.map((item, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'rgba(240,240,245,0.55)' }}>
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--color-muted)' }}>
                         <span>{item.name} × {item.qty}</span>
                         <span>Ar {(item.price * item.qty).toLocaleString('fr-FR')}</span>
                       </div>
@@ -115,13 +115,13 @@ export default function Orders() {
                     {o.hours && <Detail icon={<Clock size={11} />} label={o.hours} />}
                     <Detail icon={<CreditCard size={11} />} label={PAYMENT[o.payment] || o.payment} />
                     {o.transfer_phone && (
-                      <div style={{ marginTop: 4, padding: '10px 12px', borderRadius: 9, background: o.payment_confirmed == 1 ? 'rgba(34,197,94,0.07)' : 'rgba(245,158,11,0.07)', border: `1px solid ${o.payment_confirmed == 1 ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.18)'}`, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ marginTop: 4, padding: '10px 12px', borderRadius: 9, background: o.payment_confirmed == 1 ? 'rgba(34,197,94,0.07)' : 'rgba(251,191,36,0.07)', border: `1px solid ${o.payment_confirmed == 1 ? 'rgba(34,197,94,0.2)' : 'rgba(251,191,36,0.18)'}`, display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: o.payment_confirmed == 1 ? '#22c55e' : '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: o.payment_confirmed == 1 ? 'var(--color-success)' : 'var(--color-warning)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                             {o.payment_confirmed == 1 ? '✓ Paiement confirmé' : 'Confirmation de transfert'}
                           </div>
                           {o.payment_confirmed == 1 && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#22c55e' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: 'var(--color-success)' }}>
                               <CheckCircle2 size={13} /> Confirmé
                             </span>
                           )}
@@ -133,8 +133,8 @@ export default function Orders() {
                     )}
                     {o.note && <Detail icon={<span style={{ fontSize: 11 }}>📝</span>} label={o.note} />}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#f0f0f5', paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span>Total</span><span style={{ color: '#fbbf24' }}>Ar {Number(o.total).toLocaleString('fr-FR')}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: 'var(--color-text)', paddingTop: 6, borderTop: '1px solid var(--color-border)' }}>
+                    <span>Total</span><span style={{ color: 'var(--color-warning)' }}>Ar {Number(o.total).toLocaleString('fr-FR')}</span>
                   </div>
                 </div>
               )}
@@ -142,7 +142,7 @@ export default function Orders() {
           )
         })}
         {filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '48px', color: 'rgba(240,240,245,0.3)', fontSize: 13 }}>
+          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--color-subtle)', fontSize: 13 }}>
             Aucune commande dans cette catégorie
           </div>
         )}
@@ -168,7 +168,7 @@ function StatusSelect({ value, disabled, onChange }) {
 
 function Detail({ icon, label }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12, color: 'rgba(240,240,245,0.4)' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12, color: 'var(--color-muted)' }}>
       <span style={{ flexShrink: 0, marginTop: 1 }}>{icon}</span>
       <span>{label}</span>
     </div>
@@ -178,8 +178,8 @@ function Detail({ icon, label }) {
 function TransferRow({ label, value, highlight }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-      <span style={{ color: 'rgba(240,240,245,0.4)', minWidth: 80 }}>{label}</span>
-      <span style={{ color: highlight ? '#fbbf24' : 'rgba(240,240,245,0.75)', fontWeight: highlight ? 700 : 500, fontFamily: highlight ? 'monospace' : 'inherit' }}>
+      <span style={{ color: 'var(--color-muted)', minWidth: 80 }}>{label}</span>
+      <span style={{ color: highlight ? 'var(--color-warning)' : 'var(--color-text)', fontWeight: highlight ? 700 : 500, fontFamily: highlight ? 'monospace' : 'inherit' }}>
         {value}
       </span>
     </div>

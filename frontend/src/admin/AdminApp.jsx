@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell, MessageSquare, Shield, Lock, Receipt } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, BarChart3, Settings2, UserSquare2, Scroll, LogOut, Menu, X, Bell, MessageSquare, Shield, Lock, Receipt, PanelLeftClose, PanelLeftOpen, ExternalLink } from 'lucide-react'
 import PasswordModal from './components/PasswordModal.jsx'
 import Dashboard    from './pages/Dashboard.jsx'
 import Products     from './pages/Products.jsx'
@@ -14,22 +14,17 @@ import Accounting   from './pages/Accounting.jsx'
 import AdminLogin   from './AdminLogin.jsx'
 
 const NAV = [
-  /* Pilotage quotidien */
-  { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-  { id: 'orders',    label: 'Commandes',        icon: ShoppingBag },
-  { id: 'msgs',      label: 'Messages',         icon: MessageSquare },
-  /* Catalogue */
-  { id: 'products',  label: 'Articles',         icon: Package },
-  { id: 'stocks',    label: 'Stocks',           icon: BarChart3 },
-  /* Finance */
-  { id: 'accounting', label: 'Comptabilité',    icon: Receipt,    adminOnly: true },
-  /* Comptes */
-  { id: 'users',      label: 'Clients',         icon: Users,      adminOnly: true },
-  { id: 'staff',      label: 'Staff',           icon: Shield,     adminOnly: true },
-  /* Contenu & configuration */
-  { id: 'team',       label: 'Équipe',          icon: UserSquare2 },
-  { id: 'settings',   label: 'Paramètres',      icon: Settings2,  adminOnly: true },
-  { id: 'logs',       label: 'Historique',      icon: Scroll,     adminOnly: true },
+  { id: 'dashboard',  label: 'Tableau de bord', icon: LayoutDashboard, group: 'Pilotage' },
+  { id: 'orders',     label: 'Commandes',       icon: ShoppingBag,     group: 'Pilotage' },
+  { id: 'msgs',       label: 'Messages',        icon: MessageSquare,   group: 'Pilotage' },
+  { id: 'products',   label: 'Articles',        icon: Package,         group: 'Catalogue' },
+  { id: 'stocks',     label: 'Stocks',          icon: BarChart3,       group: 'Catalogue' },
+  { id: 'accounting', label: 'Comptabilité',    icon: Receipt,         group: 'Finance', adminOnly: true },
+  { id: 'users',      label: 'Clients',         icon: Users,           group: 'Comptes',  adminOnly: true },
+  { id: 'staff',      label: 'Staff',           icon: Shield,          group: 'Comptes',  adminOnly: true },
+  { id: 'team',       label: 'Équipe',          icon: UserSquare2,     group: 'Configuration' },
+  { id: 'settings',   label: 'Paramètres',      icon: Settings2,       group: 'Configuration', adminOnly: true },
+  { id: 'logs',       label: 'Historique',      icon: Scroll,          group: 'Configuration', adminOnly: true },
 ]
 
 /* Deux vues de la même page Users — définies au niveau module pour
@@ -54,11 +49,12 @@ function useAdminAuth() {
       .finally(() => setLoading(false))
   }, [])
 
-  const login = async (phone, password) => {
+  /* Identifiant : email ou téléphone (le backend accepte les deux) */
+  const login = async (identifier, password) => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, password }),
+      body: JSON.stringify({ identifier, password }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error)
@@ -150,13 +146,13 @@ function useNotifications(user) {
         if (p) {
           if (data.pending_orders > p.orders) {
             const n = data.pending_orders - p.orders
-            addToast(`🛍 ${n} nouvelle${n > 1 ? 's' : ''} commande${n > 1 ? 's' : ''} en attente`, '#FF9900')
+            addToast(`${n} nouvelle${n > 1 ? 's' : ''} commande${n > 1 ? 's' : ''} en attente`, 'var(--color-gold)')
             sendBrowserNotif('VaRyGasy Admin — Nouvelle commande',
               `${n} commande${n > 1 ? 's' : ''} en attente`)
           }
           if (data.unread_msgs > p.msgs) {
             const n = data.unread_msgs - p.msgs
-            addToast(`💬 ${n} nouveau${n > 1 ? 'x' : ''} message${n > 1 ? 's' : ''}`, '#a78bfa')
+            addToast(`${n} nouveau${n > 1 ? 'x' : ''} message${n > 1 ? 's' : ''}`, 'var(--color-violet)')
             sendBrowserNotif('VaRyGasy Admin — Nouveau message',
               `${n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}`)
           }
@@ -216,7 +212,7 @@ function useOnlineStaff(user, addToast) {
             const isFresh  = (r.ago ?? 999) < 60
             const cooledDown = !lastToastAt.current[r.id] || Date.now() - lastToastAt.current[r.id] > TOAST_COOLDOWN
             if (isNew && isFresh && cooledDown) {
-              addToast(`🟢 ${r.name} (${r.role === 'admin' ? 'admin' : 'modérateur'}) est en ligne`, '#22c55e')
+              addToast(`${r.name} (${r.role === 'admin' ? 'admin' : 'modérateur'}) est en ligne`, 'var(--color-success)')
               lastToastAt.current[r.id] = Date.now()
             }
           })
@@ -234,55 +230,41 @@ function useOnlineStaff(user, addToast) {
 
 /* Modale de changement de mot de passe : voir components/PasswordModal.jsx */
 
-/* ── Toast container ── */
+/* ── Toasts ── */
 function ToastStack({ toasts }) {
   return (
-    <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
+    <div className="adm-toasts" role="status" aria-live="polite">
       {toasts.map(t => (
-        <div key={t.id}
-          style={{
-            background: '#0c0c1a', border: `1px solid ${t.color}40`,
-            borderLeft: `3px solid ${t.color}`,
-            borderRadius: 12, padding: '10px 16px',
-            fontSize: 13, fontWeight: 600, color: '#f0f0f5',
-            boxShadow: `0 4px 24px rgba(0,0,0,0.5), 0 0 0 1px ${t.color}15`,
-            animation: 'slideIn 0.25s ease',
-            display: 'flex', alignItems: 'center', gap: 8,
-            minWidth: 240,
-          }}>
+        <div key={t.id} className="adm-toast">
+          <span className="adm-toast__bar" style={{ background: t.color }} aria-hidden="true" />
           {t.text}
         </div>
       ))}
-      <style>{`@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}`}</style>
     </div>
   )
 }
 
-/* ── Badge ── */
-function Badge({ count, color = '#ef4444' }) {
-  if (!count) return null
-  return (
-    <span style={{
-      marginLeft: 'auto', background: color, color: color === '#a78bfa' ? '#000' : '#fff',
-      fontSize: 10, fontWeight: 800, borderRadius: 99,
-      padding: '1px 6px', flexShrink: 0, minWidth: 18, textAlign: 'center',
-    }}>
-      {count > 99 ? '99+' : count}
-    </span>
-  )
-}
+const initials = (name = '') =>
+  name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?'
+
+const isMobile = () => window.matchMedia('(max-width: 768px)').matches
 
 export default function AdminApp() {
   const { user, loading, login, logout } = useAdminAuth()
   useIdleLogout(user, logout)
-  const [page, setPage]         = useState('dashboard')
-  const [sideOpen, setSideOpen] = useState(() => window.innerWidth > 768)
-  const [alerts, setAlerts]     = useState(0)
-  const [showPwd, setShowPwd]   = useState(false)
+  const [page, setPage]           = useState('dashboard')
+  /* Desktop : sidebar dépliée / réduite. Mobile : tiroir ouvert / fermé. */
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('vrg_adm_side') === 'collapsed' } catch { return false }
+  })
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [alerts, setAlerts]       = useState(0)
+  const [showPwd, setShowPwd]     = useState(false)
   const { notifs, toasts, addToast, clearMsgs, clearOrders } = useNotifications(user)
   const online = useOnlineStaff(user, addToast)
 
   useEffect(() => {
+    if (!user) return
     fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${localStorage.getItem('vrg_token')}` } })
       .then(r => r.json()).then(d => setAlerts(d?.alerts?.low_stock || 0)).catch(() => {})
   }, [user])
@@ -296,15 +278,32 @@ export default function AdminApp() {
     if (!allowed.includes(page)) setPage('dashboard')
   }, [user?.role])
 
+  /* Échap ferme le tiroir mobile */
+  useEffect(() => {
+    if (!drawerOpen) return
+    const onKey = e => { if (e.key === 'Escape') setDrawerOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [drawerOpen])
+
   const navigate = (id) => {
     setPage(id)
+    setDrawerOpen(false)
     if (id === 'msgs')   clearMsgs()
     if (id === 'orders') clearOrders()
   }
 
+  const toggleSide = () => {
+    if (isMobile()) { setDrawerOpen(o => !o); return }
+    setCollapsed(c => {
+      try { localStorage.setItem('vrg_adm_side', c ? 'open' : 'collapsed') } catch {}
+      return !c
+    })
+  }
+
   if (loading) return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#07070f', color: '#fff', fontSize: 14 }}>
-      Chargement…
+    <div className="adm-login" aria-busy="true">
+      <img src="/images/logo/logo.svg" alt="" width="44" height="44" style={{ borderRadius: 12, animation: 'pulse 1.4s infinite' }} />
     </div>
   )
 
@@ -312,155 +311,145 @@ export default function AdminApp() {
 
   const safePage = visibleNav.some(n => n.id === page) ? page : 'dashboard'
   const PageComponent = { dashboard: Dashboard, products: Products, orders: Orders, users: ClientsSection, staff: StaffSection, stocks: Stocks, team: TeamAdmin, settings: SettingsPage, logs: LogsPage, msgs: MsgsPage, accounting: Accounting }[safePage]
+  const activeOnline = online.filter(o => (o.ago ?? 0) < 60).length
 
-  const totalNotifs = notifs.orders + notifs.msgs
+  const badgeFor = id => id === 'orders' ? { n: notifs.orders, cls: '' }
+                       : id === 'msgs'   ? { n: notifs.msgs, cls: 'adm-count--violet' }
+                       : id === 'stocks' ? { n: alerts, cls: '' }
+                       : { n: 0 }
+
+  /* Regroupe la navigation par section (titres visibles quand la sidebar est dépliée) */
+  let lastGroup = null
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#07070f', color: '#f0f0f5', fontFamily: 'system-ui, sans-serif' }}>
-
+    <div className="adm-shell">
+      <a href="#adm-main" className="vs-skip">Aller au contenu</a>
       <ToastStack toasts={toasts} />
 
-      {/* Sidebar */}
-      <aside style={{
-        width: sideOpen ? 230 : 64, flexShrink: 0, transition: 'width 0.2s',
-        background: '#0c0c1a', borderRight: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      }}>
-        {/* Logo */}
-        <div style={{ padding: '18px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ position: 'relative', flexShrink: 0 }}>
-            <img src="/images/logo/logo.svg" alt="VRG" style={{ width: 32, height: 32, borderRadius: 8 }} />
-            {totalNotifs > 0 && (
-              <span style={{ position: 'absolute', top: -4, right: -4, width: 10, height: 10, borderRadius: '50%', background: '#ef4444', border: '2px solid #0c0c1a', animation: 'pulse 2s infinite' }} />
-            )}
+      {/* ── Sidebar ── */}
+      <aside className={`adm-side${collapsed ? ' adm-side--collapsed' : ''}${drawerOpen ? ' adm-side--open' : ''}`} aria-label="Navigation admin">
+        <div className="adm-side__brand">
+          <img src="/images/logo/logo.svg" alt="" />
+          <div className="adm-hide-collapsed" style={{ minWidth: 0, flex: 1 }}>
+            <div className="adm-side__name">VaRyGasy</div>
+            <div className="adm-side__tag">Back-office</div>
           </div>
-          {sideOpen && <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#FF9900', letterSpacing: '-0.3px' }}>VaRyGasy</div>
-            <div style={{ fontSize: 10, color: 'rgba(240,240,245,0.3)', fontWeight: 500 }}>Admin</div>
-          </div>}
+          <button type="button" className="adm-icon-btn adm-only-mobile" onClick={() => setDrawerOpen(false)} aria-label="Fermer le menu">
+            <X size={18} />
+          </button>
         </div>
 
-        {/* Nav */}
-        <nav style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {visibleNav.map(({ id, label, icon: Icon }) => {
+        <nav className="adm-side__nav">
+          {visibleNav.map(({ id, label, icon: Icon, group }) => {
+            const showGroup = group !== lastGroup
+            lastGroup = group
+            const { n, cls } = badgeFor(id)
             const active = safePage === id
-            const badge = id === 'orders' ? notifs.orders
-                        : id === 'msgs'   ? notifs.msgs
-                        : id === 'stocks' ? alerts
-                        : 0
-            const badgeColor = id === 'msgs' ? '#a78bfa' : '#ef4444'
             return (
-              <button key={id} onClick={() => navigate(id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 10px', borderRadius: 10, border: 'none', cursor: 'pointer', width: '100%',
-                  background: active ? 'rgba(255,153,0,0.12)' : 'none',
-                  color: active ? '#FF9900' : 'rgba(240,240,245,0.45)',
-                  textAlign: 'left', fontSize: 13, fontWeight: active ? 700 : 500,
-                  whiteSpace: 'nowrap', overflow: 'hidden', position: 'relative',
-                }}>
-                <span style={{ position: 'relative', flexShrink: 0 }}>
-                  <Icon size={16} />
-                  {badge > 0 && !sideOpen && (
-                    <span style={{ position: 'absolute', top: -4, right: -4, width: 8, height: 8, borderRadius: '50%', background: badgeColor, border: '1.5px solid #0c0c1a' }} />
-                  )}
-                </span>
-                {sideOpen && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{label}</span>}
-                {sideOpen && badge > 0 && <Badge count={badge} color={badgeColor} />}
-              </button>
+              <React.Fragment key={id}>
+                {showGroup && <div className="adm-side__group">{group}</div>}
+                <button type="button" className="adm-nav-item" onClick={() => navigate(id)}
+                  aria-current={active ? 'page' : undefined} title={collapsed ? label : undefined}>
+                  <span className="adm-nav-item__icon">
+                    <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+                    {n > 0 && <span className="adm-nav-item__dot" style={{ background: cls ? 'var(--color-violet)' : 'var(--color-danger)' }} />}
+                  </span>
+                  <span className="adm-nav-item__label">{label}</span>
+                  {n > 0 && <span className={`adm-count ${cls}`}>{n > 99 ? '99+' : n}</span>}
+                </button>
+              </React.Fragment>
             )
           })}
         </nav>
 
-        {/* User + logout */}
-        <div style={{ padding: '12px 8px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-          {sideOpen && online.length > 0 && (
-            <div style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
-                En ligne ({online.filter(o => (o.ago ?? 0) < 60).length})
-              </div>
-              <div style={{ maxHeight: 96, overflowY: 'auto' }}>
+        <div className="adm-side__foot">
+          {online.length > 0 && (
+            <div className="adm-presence adm-hide-collapsed">
+              <div className="adm-presence__title">En ligne · {activeOnline}</div>
+              <div style={{ maxHeight: 92, overflowY: 'auto' }}>
                 {online.map(o => {
                   const active = (o.ago ?? 0) < 60
                   return (
-                    <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '2px 0', color: 'rgba(240,240,245,0.6)', opacity: active ? 1 : 0.55 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: active ? '#22c55e' : '#ef4444', flexShrink: 0, boxShadow: `0 0 6px ${active ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)'}` }} />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}{o.id === user.id ? ' (toi)' : ''}</span>
-                      <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 800, color: o.role === 'admin' ? '#FF9900' : '#60a5fa', flexShrink: 0 }}>
-                        {o.role === 'admin' ? 'ADMIN' : 'MOD'}
+                    <div key={o.id} className="adm-presence__row" style={{ opacity: active ? 1 : 0.6 }}>
+                      <span className={`adm-dot${active ? '' : ' adm-dot--idle'}`} />
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {o.name}{o.id === user.id ? ' (toi)' : ''}
                       </span>
+                      <span className={`adm-role adm-role--${o.role === 'admin' ? 'admin' : 'moderator'}`}>{o.role === 'admin' ? 'Admin' : 'Mod'}</span>
                     </div>
                   )
                 })}
               </div>
             </div>
           )}
-          {sideOpen && (
-            <div style={{ padding: '8px 10px', marginBottom: 6, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#f0f0f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
-              <div style={{ fontSize: 10, color: user.role === 'admin' ? '#FF9900' : '#60a5fa', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>{user.role}</div>
-              <button onClick={() => setShowPwd(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', width: '100%', background: 'rgba(255,255,255,0.03)', color: 'rgba(240,240,245,0.55)', fontSize: 11, fontWeight: 600, fontFamily: 'inherit' }}>
-                <Lock size={12} /> Changer mot de passe
-              </button>
+
+          {/* Compte + actions : icônes à droite (sidebar dépliée) ou empilées (réduite) */}
+          <div className={collapsed ? '' : 'adm-user'} style={collapsed ? { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 } : { padding: '8px 6px 8px 10px' }}>
+            <span className="adm-avatar" title={collapsed ? user.name : undefined} aria-hidden="true">{initials(user.name)}</span>
+            <div className="adm-hide-collapsed" style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
+              <span className={`adm-role adm-role--${user.role === 'admin' ? 'admin' : 'moderator'}`}>{user.role === 'admin' ? 'Admin' : 'Modérateur'}</span>
             </div>
-          )}
-          <button onClick={logout}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 10, border: 'none', cursor: 'pointer', width: '100%', background: 'rgba(239,68,68,0.07)', color: '#f87171', fontSize: 13, fontWeight: 600 }}>
-            <LogOut size={15} style={{ flexShrink: 0 }} />
-            {sideOpen && 'Déconnexion'}
-          </button>
+            <button type="button" className="adm-icon-btn" onClick={() => setShowPwd(true)}
+              title="Changer mon mot de passe" aria-label="Changer mon mot de passe" style={{ width: 36, height: 36 }}>
+              <Lock size={16} />
+            </button>
+            <button type="button" className="adm-icon-btn" onClick={logout}
+              title="Se déconnecter" aria-label="Se déconnecter" style={{ width: 36, height: 36, color: 'var(--color-danger-text)' }}>
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
+      <div className="adm-side-scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
 
-      {/* Main */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Top bar */}
-        <header style={{ height: 56, borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', padding: '0 20px', gap: 14, background: '#0c0c1a', flexShrink: 0 }}>
-          <button onClick={() => setSideOpen(s => !s)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,240,245,0.5)', display: 'flex', padding: 4, borderRadius: 8 }}>
-            {sideOpen ? <X size={18} /> : <Menu size={18} />}
+      {/* ── Colonne principale ── */}
+      <div className="adm-main-col">
+        <header className="adm-top">
+          <button type="button" className="adm-icon-btn" onClick={toggleSide}
+            aria-label={collapsed ? 'Déplier le menu' : 'Menu'} aria-expanded={drawerOpen || undefined}>
+            <span className="adm-only-mobile" style={{ display: 'inline-flex' }}><Menu size={20} /></span>
+            <span className="adm-hide-mobile" style={{ display: 'inline-flex' }}>
+              {collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
+            </span>
           </button>
-          <div style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#f0f0f5' }}>
-            {NAV.find(n => n.id === safePage)?.label}
-          </div>
+          <h1 className="adm-top__title">{NAV.find(n => n.id === safePage)?.label}</h1>
 
-          {/* Notification chips */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="adm-top__actions">
             {notifs.orders > 0 && (
-              <button onClick={() => navigate('orders')}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,153,0,0.1)', border: '1px solid rgba(255,153,0,0.25)', borderRadius: 8, padding: '5px 12px', fontSize: 12, color: '#FF9900', fontWeight: 600, cursor: 'pointer' }}>
-                <ShoppingBag size={13} /> {notifs.orders} commande{notifs.orders > 1 ? 's' : ''} en attente
+              <button type="button" className="adm-pill adm-pill--gold" onClick={() => navigate('orders')}>
+                <ShoppingBag size={15} /> {notifs.orders}<span className="adm-pill__txt">&nbsp;en attente</span>
               </button>
             )}
             {notifs.msgs > 0 && (
-              <button onClick={() => navigate('msgs')}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', borderRadius: 8, padding: '5px 12px', fontSize: 12, color: '#a78bfa', fontWeight: 600, cursor: 'pointer' }}>
-                <MessageSquare size={13} /> {notifs.msgs} message{notifs.msgs > 1 ? 's' : ''}
+              <button type="button" className="adm-pill adm-pill--violet" onClick={() => navigate('msgs')}>
+                <MessageSquare size={15} /> {notifs.msgs}<span className="adm-pill__txt">&nbsp;message{notifs.msgs > 1 ? 's' : ''}</span>
               </button>
             )}
             {alerts > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '5px 12px', fontSize: 12, color: '#f87171', fontWeight: 600 }}>
-                <Bell size={13} /> {alerts} en rupture
-              </div>
+              <button type="button" className="adm-pill adm-pill--danger" onClick={() => navigate('stocks')}>
+                <Bell size={15} /> {alerts}<span className="adm-pill__txt">&nbsp;en rupture</span>
+              </button>
             )}
+            <a href="/" target="_blank" rel="noopener" className="adm-icon-btn adm-hide-mobile" title="Voir la boutique" aria-label="Voir la boutique">
+              <ExternalLink size={17} />
+            </a>
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="adm-main" style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-          <PageComponent user={user} onAlertsChange={setAlerts} />
+        <main id="adm-main" className="adm-main" tabIndex={-1}>
+          <div className="adm-page">
+            <PageComponent user={user} onAlertsChange={setAlerts} />
+          </div>
         </main>
       </div>
 
       {showPwd && (
         <PasswordModal
           onClose={() => setShowPwd(false)}
-          onDone={() => { setShowPwd(false); addToast('🔒 Mot de passe mis à jour', '#22c55e') }}
+          onDone={() => { setShowPwd(false); addToast('Mot de passe mis à jour', 'var(--color-success)') }}
         />
       )}
-
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
     </div>
   )
 }

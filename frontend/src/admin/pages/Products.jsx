@@ -162,7 +162,7 @@ export default function Products() {
 
       {/* Top bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.4)' }}>
+        <div style={{ fontSize: 13, color: 'var(--color-muted)' }}>
           {active.length} actifs · {archived.length} archivés · {filtered.length} affichés
         </div>
         <button onClick={openAdd} style={btnPrimary}>
@@ -179,20 +179,20 @@ export default function Products() {
             <button key={c} onClick={() => setCatFilter(c)}
               style={{
                 padding: '6px 14px', borderRadius: 8, border: '1px solid', cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
-                background:  active ? (s ? s.bg   : 'rgba(255,153,0,0.12)') : 'rgba(255,255,255,0.03)',
-                borderColor: active ? (s ? s.border : 'rgba(255,153,0,0.3)') : 'rgba(255,255,255,0.08)',
-                color:       active ? (s ? s.color  : '#FF9900')             : 'rgba(240,240,245,0.45)',
+                background:  active ? (s ? s.bg   : 'rgba(245,183,10,0.12)') : 'rgba(255,255,255,0.03)',
+                borderColor: active ? (s ? s.border : 'rgba(245,183,10,0.3)') : 'rgba(255,255,255,0.08)',
+                color:       active ? (s ? s.color  : 'var(--color-gold)')             : 'var(--color-muted)',
               }}>
               {c === 'all' ? `Tous (${products.length})` : `${c} (${products.filter(p => p.category === c).length})`}
             </button>
           )
         })}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, padding: '7px 12px' }}>
-          <Search size={13} color="rgba(240,240,245,0.3)" />
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', borderRadius: 9, padding: '7px 12px' }}>
+          <Search size={13} color="var(--color-subtle)" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…"
-            style={{ background: 'none', border: 'none', outline: 'none', fontSize: 13, color: '#f0f0f5', width: 150, fontFamily: 'inherit' }} />
+            style={{ background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--color-text)', width: 150, fontFamily: 'inherit' }} />
           {search && (
-            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,240,245,0.3)', display: 'flex', padding: 0 }}>
+            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-subtle)', display: 'flex', padding: 0 }}>
               <X size={13} />
             </button>
           )}
@@ -200,7 +200,7 @@ export default function Products() {
       </div>
 
       {/* Table */}
-      <div className="adm-table-scroll" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
+      <div className="adm-table-scroll" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '32%' }} />
@@ -211,9 +211,9 @@ export default function Products() {
             <col style={{ width: '16%' }} />
           </colgroup>
           <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+            <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
               {['Article', 'Catégorie', 'Prix', 'Stock', 'Statut', 'Actions'].map(col => (
-                <th key={col} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{col}</th>
+                <th key={col} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{col}</th>
               ))}
             </tr>
           </thead>
@@ -231,41 +231,41 @@ export default function Products() {
             <tbody>
               {filtered.map((p, i) => (
                 <tr key={p.id}
-                  style={{ borderBottom: i < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', opacity: p.active ? 1 : 0.45, animation: 'rowIn 0.3s ease both', animationDelay: `${Math.min(i * 30, 300)}ms`, transition: 'background 0.15s' }}
+                  style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--color-border)' : 'none', opacity: p.active ? 1 : 0.45, animation: 'rowIn 0.3s ease both', animationDelay: `${Math.min(i * 30, 300)}ms`, transition: 'background 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <td style={{ padding: '13px 16px', fontWeight: 600, color: '#f0f0f5', width: '30%' }}>
+                  <td style={{ padding: '13px 16px', fontWeight: 600, color: 'var(--color-text)', width: '30%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <ThumbImg images={p.images} name={p.name} category={p.category} />
                       {p.name}
                     </div>
                   </td>
-                  <td style={{ padding: '13px 16px', color: 'rgba(240,240,245,0.5)' }}>{p.category || '—'}</td>
+                  <td style={{ padding: '13px 16px', color: 'var(--color-muted)' }}>{p.category || '—'}</td>
                   <td style={{ padding: '13px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ color: p.promo_active ? 'rgba(240,240,245,0.35)' : '#fbbf24', fontWeight: 700, textDecoration: p.promo_active ? 'line-through' : 'none', fontSize: p.promo_active ? 11 : 13 }}>
+                      <span style={{ color: p.promo_active ? 'var(--color-muted)' : 'var(--color-warning)', fontWeight: 700, textDecoration: p.promo_active ? 'line-through' : 'none', fontSize: p.promo_active ? 11 : 13 }}>
                         Ar {Number(p.price).toLocaleString('fr-FR')}
                       </span>
                       {p.promo_active ? (
-                        <span style={{ color: '#f87171', fontWeight: 800, fontSize: 13 }}>
+                        <span style={{ color: 'var(--color-danger-text)', fontWeight: 800, fontSize: 13 }}>
                           Ar {Math.round(p.price * (1 - p.promo_percent / 100)).toLocaleString('fr-FR')}
                         </span>
                       ) : null}
                     </div>
                     {/* !! obligatoire : promo_active est un TINYINT — 0 && <jsx> rend le 0 */}
                     {!!p.promo_active && (
-                      <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 99, background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' }}>
+                      <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 99, background: 'rgba(240,82,82,0.15)', color: 'var(--color-danger-text)', border: '1px solid rgba(240,82,82,0.25)' }}>
                         -{p.promo_percent}%
                       </span>
                     )}
                   </td>
                   <td style={{ padding: '13px 16px' }}>
-                    <span style={{ fontWeight: 700, color: p.stock <= 5 ? '#ef4444' : p.stock <= 15 ? '#f59e0b' : '#22c55e' }}>{p.stock}</span>
-                    {p.stock <= 5 && <span style={{ marginLeft: 6, fontSize: 10, color: '#ef4444', fontWeight: 700 }}>RUPTURE</span>}
+                    <span style={{ fontWeight: 700, color: p.stock <= 5 ? 'var(--color-danger)' : p.stock <= 15 ? 'var(--color-warning)' : 'var(--color-success)' }}>{p.stock}</span>
+                    {p.stock <= 5 && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--color-danger)', fontWeight: 700 }}>RUPTURE</span>}
                   </td>
                   <td style={{ padding: '13px 16px' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: p.active ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)', color: p.active ? '#22c55e' : 'rgba(240,240,245,0.3)', border: `1px solid ${p.active ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)'}` }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: p.active ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)', color: p.active ? 'var(--color-success)' : 'var(--color-subtle)', border: `1px solid ${p.active ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)'}` }}>
                       {p.active ? 'Actif' : 'Archivé'}
                     </span>
                   </td>
@@ -273,11 +273,11 @@ export default function Products() {
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => openEdit(p)} style={btnIcon} title="Modifier"><Pencil size={13} /></button>
                       <button onClick={() => openPromo(p)}
-                        style={{ ...btnIcon, color: p.promo_active ? '#f87171' : 'rgba(240,240,245,0.5)', background: p.promo_active ? 'rgba(248,113,113,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${p.promo_active ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.08)'}` }}
+                        style={{ ...btnIcon, color: p.promo_active ? 'var(--color-danger-text)' : 'var(--color-muted)', background: p.promo_active ? 'rgba(240,82,82,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${p.promo_active ? 'rgba(240,82,82,0.3)' : 'rgba(255,255,255,0.08)'}` }}
                         title="Gérer la promotion">
                         <span style={{ fontSize: 11, fontWeight: 900, lineHeight: 1 }}>%</span>
                       </button>
-                      {p.active && <button onClick={() => archive(p.id)} style={{ ...btnIcon, color: '#f87171' }} title="Archiver"><Trash2 size={13} /></button>}
+                      {p.active && <button onClick={() => archive(p.id)} style={{ ...btnIcon, color: 'var(--color-danger-text)' }} title="Archiver"><Trash2 size={13} /></button>}
                     </div>
                   </td>
                 </tr>
@@ -285,7 +285,7 @@ export default function Products() {
             </tbody>
           </table>
           {filtered.length === 0 && (
-            <div style={{ padding: '48px', textAlign: 'center', color: 'rgba(240,240,245,0.3)', fontSize: 13 }}>
+            <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-subtle)', fontSize: 13 }}>
               <Package size={32} style={{ marginBottom: 12, opacity: 0.3 }} />
               <div>{search ? `Aucun article pour « ${search} »` : products.length === 0 ? 'Aucun article — clique sur "Ajouter un article"' : 'Aucun article dans cette catégorie'}</div>
             </div>
@@ -297,29 +297,29 @@ export default function Products() {
       {promoModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={e => e.target === e.currentTarget && setPromoModal(null)}>
-          <div style={{ background: '#0f0f1f', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, width: '100%', maxWidth: 380, padding: 24, display: 'flex', flexDirection: 'column', gap: 18, animation: 'rowIn 0.2s ease' }}>
+          <div style={{ background: 'var(--color-bg-alt)', border: '1px solid var(--color-border-strong)', borderRadius: 18, width: '100%', maxWidth: 380, padding: 24, display: 'flex', flexDirection: 'column', gap: 18, animation: 'rowIn 0.2s ease' }}>
 
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#f0f0f5' }}>Promotion</div>
-                <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.4)', marginTop: 2 }}>{promoModal.name}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>Promotion</div>
+                <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>{promoModal.name}</div>
               </div>
-              <button onClick={() => setPromoModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,240,245,0.4)', display: 'flex' }}>
+              <button onClick={() => setPromoModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex' }}>
                 <X size={18} />
               </button>
             </div>
 
             {/* Toggle */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: 12, background: promoForm.promo_active ? 'rgba(248,113,113,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${promoForm.promo_active ? 'rgba(248,113,113,0.25)' : 'rgba(255,255,255,0.08)'}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: 12, background: promoForm.promo_active ? 'rgba(240,82,82,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${promoForm.promo_active ? 'rgba(240,82,82,0.25)' : 'rgba(255,255,255,0.08)'}` }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5' }}>Promotion active</div>
-                <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.4)', marginTop: 2 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>Promotion active</div>
+                <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>
                   {promoForm.promo_active ? 'Visible dans l\'onglet Promotions' : 'Désactivée'}
                 </div>
               </div>
               <button onClick={() => setPromoForm(f => ({ ...f, promo_active: !f.promo_active }))}
-                style={{ width: 48, height: 26, borderRadius: 99, border: 'none', cursor: 'pointer', background: promoForm.promo_active ? '#f87171' : 'rgba(255,255,255,0.1)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                style={{ width: 48, height: 26, borderRadius: 99, border: 'none', cursor: 'pointer', background: promoForm.promo_active ? 'var(--color-danger-text)' : 'rgba(255,255,255,0.1)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
                 <span style={{ position: 'absolute', top: 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', left: promoForm.promo_active ? 25 : 3, transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
               </button>
             </div>
@@ -332,25 +332,25 @@ export default function Products() {
                   type="range" min={5} max={90} step={5}
                   value={promoForm.promo_percent}
                   onChange={e => setPromoForm(f => ({ ...f, promo_percent: Number(e.target.value) }))}
-                  style={{ flex: 1, accentColor: '#f87171', cursor: 'pointer' }}
+                  style={{ flex: 1, accentColor: 'var(--color-danger-text)', cursor: 'pointer' }}
                 />
-                <div style={{ width: 52, height: 36, borderRadius: 9, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, color: '#f87171', flexShrink: 0 }}>
+                <div style={{ width: 52, height: 36, borderRadius: 9, background: 'rgba(240,82,82,0.12)', border: '1px solid rgba(240,82,82,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, color: 'var(--color-danger-text)', flexShrink: 0 }}>
                   -{promoForm.promo_percent}%
                 </div>
               </div>
             </div>
 
             {/* Prix résultant */}
-            <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)', marginBottom: 3 }}>Prix après réduction</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#f87171', letterSpacing: '-0.5px' }}>
+                <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 3 }}>Prix après réduction</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-danger-text)', letterSpacing: '-0.5px' }}>
                   Ar {Math.round(promoModal.price * (1 - promoForm.promo_percent / 100)).toLocaleString('fr-FR')}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)', marginBottom: 3 }}>Économie</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#22c55e' }}>
+                <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 3 }}>Économie</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-success)' }}>
                   Ar {Math.round(promoModal.price * promoForm.promo_percent / 100).toLocaleString('fr-FR')}
                 </div>
               </div>
@@ -359,11 +359,11 @@ export default function Products() {
             {/* Boutons */}
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setPromoModal(null)}
-                style={{ flex: 1, padding: 11, borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: 'rgba(240,240,245,0.5)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                style={{ flex: 1, padding: 11, borderRadius: 10, border: '1px solid var(--color-border-strong)', background: 'none', color: 'var(--color-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
                 Annuler
               </button>
               <button onClick={savePromo} disabled={promoBusy}
-                style={{ flex: 1, padding: 11, borderRadius: 10, border: 'none', background: promoForm.promo_active ? 'linear-gradient(135deg,#f87171,#dc2626)' : 'rgba(255,255,255,0.07)', color: promoForm.promo_active ? '#fff' : 'rgba(240,240,245,0.6)', cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: promoBusy ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: 11, borderRadius: 10, border: 'none', background: promoForm.promo_active ? 'var(--color-danger)' : 'rgba(255,255,255,0.07)', color: promoForm.promo_active ? '#fff' : 'var(--color-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 700, opacity: promoBusy ? 0.6 : 1 }}>
                 {promoBusy ? '…' : promoForm.promo_active ? '🏷 Activer' : 'Désactiver'}
               </button>
             </div>
@@ -375,14 +375,14 @@ export default function Products() {
       {modal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={e => e.target === e.currentTarget && closeModal()}>
-          <div style={{ background: '#0f0f1f', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, width: '100%', maxWidth: 520, maxHeight: '92vh', overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16, animation: 'rowIn 0.2s ease' }}>
+          <div style={{ background: 'var(--color-bg-alt)', border: '1px solid var(--color-border-strong)', borderRadius: 18, width: '100%', maxWidth: 520, maxHeight: '92vh', overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16, animation: 'rowIn 0.2s ease' }}>
 
             {/* Header modal */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#f0f0f5' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>
                 {modal === 'add' ? 'Nouvel article' : `Modifier · ${modal.name}`}
               </div>
-              <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,240,245,0.4)', display: 'flex' }}>
+              <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex' }}>
                 <X size={18} />
               </button>
             </div>
@@ -396,22 +396,22 @@ export default function Products() {
 
                 {imagePreview ? (
                   /* Prévisualisation */
-                  <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', aspectRatio: '16/9', background: '#0a0a18' }}>
+                  <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--color-border-strong)', aspectRatio: '16/9', background: 'var(--color-bg-alt)' }}>
                     <img src={imagePreview} alt="aperçu"
                       style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     {/* Boutons toujours visibles (pas de hover requis — indispensable sur mobile) */}
                     <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 8 }}>
                       <label htmlFor="prod-image-input"
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(255,153,0,0.95)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(245,183,10,0.95)', border: 'none', color: 'var(--color-on-gold)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                         <Upload size={13} /> Changer
                       </label>
                       <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(239,68,68,0.9)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(240,82,82,0.9)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                         <X size={13} /> Supprimer
                       </button>
                     </div>
                     {/* Badge source */}
-                    <div style={{ position: 'absolute', bottom: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: imageFile ? 'rgba(255,153,0,0.85)' : 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                    <div style={{ position: 'absolute', bottom: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: imageFile ? 'rgba(245,183,10,0.85)' : 'rgba(255,255,255,0.15)', color: 'var(--color-on-gold)' }}>
                       {imageFile ? 'Nouveau fichier' : 'Image actuelle'}
                     </div>
                   </div>
@@ -425,20 +425,20 @@ export default function Products() {
                     onDrop={onDrop}
                     style={{
                       display: 'block',
-                      border: `2px dashed ${dragOver ? 'rgba(255,153,0,0.6)' : 'rgba(255,255,255,0.12)'}`,
+                      border: `2px dashed ${dragOver ? 'rgba(245,183,10,0.6)' : 'rgba(255,255,255,0.12)'}`,
                       borderRadius: 12, padding: '32px 20px', textAlign: 'center', cursor: 'pointer',
-                      background: dragOver ? 'rgba(255,153,0,0.05)' : 'rgba(255,255,255,0.02)',
+                      background: dragOver ? 'rgba(245,183,10,0.05)' : 'rgba(255,255,255,0.02)',
                       transition: 'all 0.2s',
                     }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,153,0,0.1)', border: '1px solid rgba(255,153,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Image size={20} color="#FF9900" />
+                      <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(245,183,10,0.1)', border: '1px solid rgba(245,183,10,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Image size={20} color="var(--color-gold)" />
                       </div>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#f0f0f5', marginBottom: 4 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 4 }}>
                           Toucher pour ajouter une photo
                         </div>
-                        <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>
                           ou glisser une image — JPG, PNG, WebP, AVIF · max 5 Mo
                         </div>
                       </div>
@@ -470,7 +470,7 @@ export default function Products() {
 
               {/* Message */}
               {msg && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: msg.type === 'ok' ? '#22c55e' : '#f87171', background: msg.type === 'ok' ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${msg.type === 'ok' ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: 9, padding: '8px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: msg.type === 'ok' ? 'var(--color-success)' : 'var(--color-danger-text)', background: msg.type === 'ok' ? 'rgba(34,197,94,0.08)' : 'rgba(240,82,82,0.08)', border: `1px solid ${msg.type === 'ok' ? 'rgba(34,197,94,0.2)' : 'rgba(240,82,82,0.2)'}`, borderRadius: 9, padding: '8px 12px' }}>
                   {msg.type === 'ok' ? <Check size={12} /> : <AlertCircle size={12} />} {msg.text}
                 </div>
               )}
@@ -478,7 +478,7 @@ export default function Products() {
               {/* Actions */}
               <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
                 <button type="button" onClick={closeModal}
-                  style={{ flex: 1, padding: 11, borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: 'rgba(240,240,245,0.5)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                  style={{ flex: 1, padding: 11, borderRadius: 10, border: '1px solid var(--color-border-strong)', background: 'none', color: 'var(--color-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
                   Annuler
                 </button>
                 <button type="submit" disabled={busy}
@@ -520,7 +520,7 @@ function FRow({ label, children }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
-      <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '10px 12px' }}>{children}</div>
+      <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border-strong)', borderRadius: 10, padding: '10px 12px' }}>{children}</div>
     </div>
   )
 }
@@ -548,19 +548,19 @@ function CategoryPicker({ value, categories, onChange }) {
         <input autoFocus value={newCat} onChange={e => setNewCat(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirm() } if (e.key === 'Escape') setShowNew(false) }}
           placeholder="Nom de la catégorie…"
-          style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,153,0,0.3)', borderRadius: 8, padding: '7px 10px', fontSize: 13, color: '#f0f0f5', outline: 'none', fontFamily: 'inherit' }} />
+          style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(245,183,10,0.3)', borderRadius: 8, padding: '7px 10px', fontSize: 13, color: 'var(--color-text)', outline: 'none', fontFamily: 'inherit' }} />
         <button type="button" onClick={confirm}
-          style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,153,0,0.15)', border: '1px solid rgba(255,153,0,0.3)', color: '#FF9900', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+          style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(245,183,10,0.15)', border: '1px solid rgba(245,183,10,0.3)', color: 'var(--color-gold)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
           <Check size={13} />
         </button>
         <button type="button" onClick={() => { setShowNew(false); setNewCat('') }}
-          style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(240,240,245,0.4)', cursor: 'pointer' }}>
+          style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', color: 'var(--color-muted)', cursor: 'pointer' }}>
           <X size={13} />
         </button>
       </div>
     ) : (
       <button type="button" onClick={() => setShowNew(true)}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'none', border: 'none', cursor: 'pointer', color: '#FF9900', fontSize: 12, fontWeight: 600 }}>
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-gold)', fontSize: 12, fontWeight: 600 }}>
         <Plus size={13} /> Nouvelle catégorie…
       </button>
     )
@@ -579,7 +579,7 @@ function CategoryPicker({ value, categories, onChange }) {
   )
 }
 
-const labelStyle = { fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }
-const inp        = { width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: 13, color: '#f0f0f5', fontFamily: 'inherit', boxSizing: 'border-box' }
-const btnPrimary = { display: 'flex', alignItems: 'center', gap: 7, background: 'linear-gradient(135deg, #FF9900, #CC5500)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }
-const btnIcon    = { display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, padding: '6px', cursor: 'pointer', color: 'rgba(240,240,245,0.6)', transition: 'all 0.15s' }
+const labelStyle = { fontSize: 11, fontWeight: 700, color: 'var(--color-muted)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }
+const inp        = { width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--color-text)', fontFamily: 'inherit', boxSizing: 'border-box' }
+const btnPrimary = { display: 'flex', alignItems: 'center', gap: 7, background: 'var(--color-gold)', color: 'var(--color-on-gold)', border: 'none', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }
+const btnIcon    = { display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-border)', borderRadius: 7, padding: '6px', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.15s' }

@@ -2,15 +2,6 @@ import React, { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, Check } from 'lucide-react'
 
-let _injected = false
-function injectAnim() {
-  if (_injected || typeof document === 'undefined') return
-  const s = document.createElement('style')
-  s.textContent = '@keyframes _dropIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}'
-  document.head.appendChild(s)
-  _injected = true
-}
-
 /**
  * AdminDropdown — dropdown sombre réutilisable.
  *
@@ -45,8 +36,6 @@ export default function AdminDropdown({
   const [pos,  setPos]    = useState(null)
   const triggerRef        = useRef(null)
   const panelRef          = useRef(null)
-
-  useEffect(injectAnim, [])
 
   /* Fermer sur clic extérieur */
   useEffect(() => {
@@ -93,57 +82,29 @@ export default function AdminDropdown({
     close()
   }
 
-  /* ── Trigger ─────────────────────────────────────────────── */
-  const triggerSt = compact ? {
-    display: 'flex', alignItems: 'center', gap: 5,
-    fontSize: 11, fontWeight: 700, padding: '5px 10px', borderRadius: 8,
-    border:     `1px solid ${selected?.border ?? 'rgba(255,255,255,0.12)'}`,
-    background: selected?.bg    ?? 'rgba(255,255,255,0.05)',
-    color:      selected?.color ?? '#f0f0f5',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.5 : 1,
-    outline: 'none', whiteSpace: 'nowrap',
-  } : {
-    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    background: 'rgba(255,255,255,0.04)',
-    border: `1px solid ${open ? 'rgba(255,153,0,0.4)' : 'rgba(255,255,255,0.09)'}`,
-    borderRadius: 10, padding: '10px 12px',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    color: value !== '' && value != null ? '#f0f0f5' : 'rgba(240,240,245,0.3)',
-    fontSize: 13, fontFamily: 'inherit', transition: 'border-color 0.15s',
-    opacity: disabled ? 0.5 : 1, outline: 'none',
-  }
+  /* ── Trigger : compact = puce colorée (statuts, rôles) ── */
+  const compactSt = compact ? {
+    borderColor: selected?.border,
+    background:  selected?.bg,
+    color:       selected?.color,
+  } : undefined
 
   /* ── Panel (portal à document.body) ─────────────────────── */
   const panel = open && pos ? createPortal(
-    <div ref={panelRef} style={{
-      position: 'fixed',
-      top:    pos.top,
-      bottom: pos.bottom,
-      left:  pos.left,
-      right: pos.right,
-      width: pos.width,
-      minWidth: compact ? 150 : undefined,
-      maxHeight: pos.maxHeight,
-      zIndex: 9999,
-      backgroundColor: '#13131f',
-      border: '1px solid rgba(255,255,255,0.12)',
-      borderRadius: 12,
-      boxShadow: '0 20px 48px rgba(0,0,0,0.7)',
-      overflow: 'hidden',
-      display: 'flex', flexDirection: 'column',
-      animation: '_dropIn 0.15s ease',
+    <div ref={panelRef} className="adm-drop-panel" role="listbox" style={{
+      top: pos.top, bottom: pos.bottom, left: pos.left, right: pos.right, width: pos.width,
+      minWidth: compact ? 170 : undefined, maxHeight: pos.maxHeight,
     }}>
       {/* Liste défilable — le footer (ex: "Nouvelle catégorie") reste visible */}
-      <div style={{ overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+      <div className="adm-drop-panel__list">
         {options.map((opt, i) =>
           opt.separator
-            ? <hr key={i} style={{ margin: '4px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.07)' }} />
-            : <DropOption key={i} opt={opt} active={opt.value === value} compact={compact} onPick={e => pick(e, opt)} />
+            ? <hr key={i} style={{ margin: '4px 6px', border: 'none', borderTop: '1px solid var(--color-border)' }} />
+            : <DropOption key={i} opt={opt} active={opt.value === value} onPick={e => pick(e, opt)} />
         )}
       </div>
       {footer && (
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+        <div style={{ borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
           {typeof footer === 'function' ? footer(close) : footer}
         </div>
       )}
@@ -156,17 +117,17 @@ export default function AdminDropdown({
       onClick={stopProp ? e => e.stopPropagation() : undefined}>
 
       {label && (
-        <span style={{ display: 'block', marginBottom: 6, fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-          {label}
-        </span>
+        <span className="adm-label">{label}</span>
       )}
 
-      <button ref={triggerRef} type="button" disabled={disabled} onClick={toggle} style={triggerSt}>
-        <span>{selected?.label ?? placeholder}</span>
-        <ChevronDown size={compact ? 11 : 14} style={{
+      <button ref={triggerRef} type="button" disabled={disabled} onClick={toggle} style={compactSt}
+        aria-haspopup="listbox" aria-expanded={open}
+        className={compact ? 'adm-drop-chip' : `adm-drop-trigger${value !== '' && value != null ? '' : ' adm-drop-trigger--empty'}`}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected?.label ?? placeholder}</span>
+        <ChevronDown size={compact ? 13 : 16} style={{
           flexShrink: 0, transition: 'transform 0.2s',
           transform: open ? 'rotate(180deg)' : 'none',
-          color: compact ? 'currentColor' : 'rgba(240,240,245,0.4)',
+          color: compact ? 'currentColor' : 'var(--color-subtle)',
         }} />
       </button>
 
@@ -175,30 +136,19 @@ export default function AdminDropdown({
   )
 }
 
-function DropOption({ opt, active, compact, onPick }) {
-  const [hover, setHover] = useState(false)
-  const hasColor = !!opt.color
+function DropOption({ opt, active, onPick }) {
   return (
-    <button type="button" onClick={onPick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+    <button type="button" role="option" aria-selected={active} onClick={onPick}
+      className={`adm-drop-opt${active ? ' adm-drop-opt--active' : ''}${opt.dim ? ' adm-drop-opt--dim' : ''}`}
       style={{
-        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: compact ? '8px 12px' : '9px 12px',
-        background: active
-          ? (hasColor ? opt.bg : 'rgba(255,153,0,0.1)')
-          : hover ? 'rgba(255,255,255,0.05)' : 'transparent',
-        border: 'none', outline: 'none', cursor: 'pointer',
-        fontSize: compact ? 12 : 13, textAlign: 'left', transition: 'background 0.1s',
-        color: active
-          ? (hasColor ? opt.color : '#FF9900')
-          : hasColor ? opt.color
-          : opt.dim ? 'rgba(240,240,245,0.3)' : '#f0f0f5',
-        fontWeight: active ? 700 : compact ? 500 : 400,
-        fontFamily: 'system-ui, sans-serif',
+        color: opt.color || (active ? 'var(--color-gold)' : undefined),
+        background: active ? (opt.bg || 'var(--color-gold-soft)') : undefined,
       }}>
-      {opt.label}
-      {active && <Check size={compact ? 11 : 13} />}
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        {opt.color && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: opt.color, flexShrink: 0 }} />}
+        {opt.label}
+      </span>
+      {active && <Check size={15} style={{ flexShrink: 0 }} />}
     </button>
   )
 }

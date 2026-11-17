@@ -42,7 +42,7 @@ function UnreadBadge({ count }) {
   if (!count) return null
   return (
     <span style={{ minWidth: 17, height: 17, padding: '0 5px', borderRadius: 9,
-      background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 800,
+      background: 'var(--color-danger)', color: '#fff', fontSize: 10, fontWeight: 800,
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       {count > 99 ? '99+' : count}
     </span>
@@ -50,11 +50,11 @@ function UnreadBadge({ count }) {
 }
 
 function Avatar({ name, role, size = 32 }) {
-  const color = role === 'admin' ? '#FF9900' : role === 'moderator' ? '#60a5fa' : '#94a3b8'
-  const bg    = role === 'admin' ? 'rgba(255,153,0,0.15)' : role === 'moderator' ? 'rgba(96,165,250,0.15)' : 'rgba(148,163,184,0.15)'
+  const color = role === 'admin' ? 'var(--color-gold)' : role === 'moderator' ? 'var(--color-info)' : '#94a3b8'
+  const bg    = role === 'admin' ? 'rgba(245,183,10,0.15)' : role === 'moderator' ? 'rgba(96,165,250,0.15)' : 'rgba(148,163,184,0.15)'
   return (
     <div style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0,
-      background: bg, border: `1.5px solid ${color}33`,
+      background: bg, border: `1.5px solid color-mix(in srgb, ${color} 20%, transparent)`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: size * 0.38, fontWeight: 800, color }}>
       {name?.[0]?.toUpperCase() || '?'}
@@ -140,7 +140,7 @@ function ChatArea({ roomId, me }) {
   }
 
   if (!roomId) return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: 'rgba(240,240,245,0.2)' }}>
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: 'var(--color-subtle)' }}>
       <MessageSquare size={36} />
       <span style={{ fontSize: 13 }}>Sélectionne une conversation</span>
     </div>
@@ -151,8 +151,8 @@ function ChatArea({ roomId, me }) {
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {messages.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'rgba(240,240,245,0.2)', fontSize: 12, marginTop: 40 }}>
-            Aucun message — soyez le premier !
+          <div style={{ textAlign: 'center', color: 'var(--color-subtle)', fontSize: 12, marginTop: 40 }}>
+            Aucun message — sois le premier !
           </div>
         )}
         {messages.map((msg, i) => {
@@ -167,25 +167,25 @@ function ChatArea({ roomId, me }) {
               <div style={{ maxWidth: '65%', display: 'flex', flexDirection: 'column',
                 alignItems: isMe ? 'flex-end' : 'flex-start', gap: 2 }}>
                 {!isMe && !prevSame && (
-                  <span style={{ fontSize: 10, color: 'rgba(240,240,245,0.35)', fontWeight: 600, marginLeft: 2 }}>
+                  <span style={{ fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, marginLeft: 2 }}>
                     {msg.sender_name}
                   </span>
                 )}
                 <div style={{
                   padding: '8px 12px', borderRadius: isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                  background: isMe ? 'rgba(255,153,0,0.18)' : 'rgba(255,255,255,0.07)',
-                  border: `1px solid ${isMe ? 'rgba(255,153,0,0.3)' : 'rgba(255,255,255,0.08)'}`,
-                  color: isMe ? '#ffd080' : '#e0e0ea',
+                  background: isMe ? 'rgba(245,183,10,0.18)' : 'rgba(255,255,255,0.07)',
+                  border: `1px solid ${isMe ? 'rgba(245,183,10,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                  color: isMe ? 'var(--color-gold-hover)' : 'var(--color-text)',
                   fontSize: 13, lineHeight: 1.45, wordBreak: 'break-word',
                 }}>
                   {msg.body}
                 </div>
-                <span style={{ fontSize: 10, color: 'rgba(240,240,245,0.25)', marginTop: 1 }}>
+                <span style={{ fontSize: 10, color: 'var(--color-subtle)', marginTop: 1 }}>
                   {fmtTime(msg.created_at)}
                   {lastMine && (
                     msg.id <= othersRead
-                      ? <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 700 }}>✓✓ Vu</span>
-                      : <span style={{ marginLeft: 6, color: 'rgba(240,240,245,0.3)', fontWeight: 600 }}>✓ Envoyé</span>
+                      ? <span style={{ marginLeft: 6, color: 'var(--color-success)', fontWeight: 700 }}>✓✓ Vu</span>
+                      : <span style={{ marginLeft: 6, color: 'var(--color-subtle)', fontWeight: 600 }}>✓ Envoyé</span>
                   )}
                 </span>
               </div>
@@ -197,7 +197,7 @@ function ChatArea({ roomId, me }) {
 
       {/* Input */}
       <form onSubmit={send} style={{
-        padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.06)',
+        padding: '12px 16px', borderTop: '1px solid var(--color-border)',
         display: 'flex', gap: 10, alignItems: 'center', background: 'rgba(255,255,255,0.01)',
       }}>
         <input
@@ -205,19 +205,19 @@ function ChatArea({ roomId, me }) {
           onChange={e => setText(e.target.value)}
           placeholder="Écrire un message…"
           style={{
-            flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 20, padding: '9px 16px', color: '#f0f0f5', fontSize: 13, outline: 'none',
+            flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--color-border-strong)',
+            borderRadius: 20, padding: '9px 16px', color: 'var(--color-text)', fontSize: 13, outline: 'none',
           }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(e) } }}
         />
         <button type="submit" disabled={!text.trim() || sending}
           style={{
             width: 38, height: 38, borderRadius: '50%', border: 'none', cursor: text.trim() ? 'pointer' : 'default',
-            background: text.trim() ? 'linear-gradient(135deg,#FF9900,#e67e00)' : 'rgba(255,255,255,0.06)',
+            background: text.trim() ? 'var(--color-gold)' : 'rgba(255,255,255,0.06)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             transition: 'background 0.15s',
           }}>
-          <Send size={15} color={text.trim() ? '#fff' : 'rgba(240,240,245,0.25)'} />
+          <Send size={15} color={text.trim() ? '#fff' : 'var(--color-subtle)'} />
         </button>
       </form>
     </div>
@@ -241,26 +241,26 @@ function StaffList({ me, onSelect, activeId, unreadByUser }) {
   }
 
   return (
-    <div className="adm-chat-list" style={{ width: 220, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.06)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '12px 14px', fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className="adm-chat-list" style={{ width: 220, flexShrink: 0, borderRight: '1px solid var(--color-border)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '12px 14px', fontSize: 10, fontWeight: 700, color: 'var(--color-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid var(--color-border)' }}>
         Staff ({staff.length})
       </div>
       {staff.map(u => (
         <button key={u.id} onClick={() => open(u)}
           style={{
             display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', border: 'none', cursor: 'pointer',
-            background: activeId === u.id ? 'rgba(255,153,0,0.07)' : 'none',
-            borderLeft: activeId === u.id ? '2px solid #FF9900' : '2px solid transparent',
+            background: activeId === u.id ? 'rgba(245,183,10,0.07)' : 'none',
+            borderLeft: activeId === u.id ? '2px solid var(--color-gold)' : '2px solid transparent',
             textAlign: 'left', width: '100%',
           }}>
           <Avatar name={u.name} role={u.role} size={30} />
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#f0f0f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
-            <div style={{ fontSize: 10, color: u.role === 'admin' ? '#FF9900' : '#60a5fa', fontWeight: 700, textTransform: 'uppercase' }}>{u.role}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
+            <div style={{ fontSize: 10, color: u.role === 'admin' ? 'var(--color-gold)' : 'var(--color-info)', fontWeight: 700, textTransform: 'uppercase' }}>{u.role}</div>
           </div>
           <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <UnreadBadge count={unreadByUser?.[u.id] || 0} />
-            <ChevronRight size={12} color="rgba(240,240,245,0.2)" />
+            <ChevronRight size={12} color="var(--color-subtle)" />
           </span>
         </button>
       ))}
@@ -270,12 +270,12 @@ function StaffList({ me, onSelect, activeId, unreadByUser }) {
 
 function ClientList({ supports, onSelect, activeId }) {
   return (
-    <div className="adm-chat-list" style={{ width: 220, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.06)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '12px 14px', fontSize: 10, fontWeight: 700, color: 'rgba(240,240,245,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className="adm-chat-list" style={{ width: 220, flexShrink: 0, borderRight: '1px solid var(--color-border)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '12px 14px', fontSize: 10, fontWeight: 700, color: 'var(--color-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid var(--color-border)' }}>
         Clients ({supports.length})
       </div>
       {supports.length === 0 && (
-        <div style={{ padding: 20, fontSize: 12, color: 'rgba(240,240,245,0.25)', textAlign: 'center' }}>
+        <div style={{ padding: 20, fontSize: 12, color: 'var(--color-subtle)', textAlign: 'center' }}>
           Aucun message client
         </div>
       )}
@@ -283,20 +283,20 @@ function ClientList({ supports, onSelect, activeId }) {
         <button key={s.id} onClick={() => onSelect(s.id, s)}
           style={{
             display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 14px', border: 'none', cursor: 'pointer',
-            background: activeId === s.id ? 'rgba(255,153,0,0.07)' : 'none',
-            borderLeft: activeId === s.id ? '2px solid #FF9900' : '2px solid transparent',
+            background: activeId === s.id ? 'rgba(245,183,10,0.07)' : 'none',
+            borderLeft: activeId === s.id ? '2px solid var(--color-gold)' : '2px solid transparent',
             textAlign: 'left', width: '100%',
           }}>
           <Avatar name={s.name} role="client" size={30} />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#f0f0f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
             {s.last_msg && (
-              <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: 'var(--color-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
                 {s.last_msg.length > 28 ? s.last_msg.slice(0, 26) + '…' : s.last_msg}
               </div>
             )}
             {s.last_staff && (
-              <div style={{ fontSize: 10, color: 'rgba(255,153,0,0.7)', fontWeight: 600, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 10, color: 'rgba(245,183,10,0.7)', fontWeight: 600, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 ↳ répondu par {s.last_staff}
               </div>
             )}
@@ -375,9 +375,9 @@ export default function Msgs({ user: me }) {
               style={{
                 display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', borderRadius: 10, border: '1px solid',
                 fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
-                background:   active ? 'rgba(255,153,0,0.12)' : 'rgba(255,255,255,0.03)',
-                color:        active ? '#FF9900' : 'rgba(240,240,245,0.5)',
-                borderColor:  active ? 'rgba(255,153,0,0.3)' : 'rgba(255,255,255,0.07)',
+                background:   active ? 'rgba(245,183,10,0.12)' : 'rgba(255,255,255,0.03)',
+                color:        active ? 'var(--color-gold)' : 'var(--color-muted)',
+                borderColor:  active ? 'rgba(245,183,10,0.3)' : 'rgba(255,255,255,0.07)',
               }}>
               <Icon size={13} />
               {label}
@@ -388,7 +388,7 @@ export default function Msgs({ user: me }) {
       </div>
 
       {/* Chat container */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, overflow: 'hidden' }}>
 
         {/* Fixed group rooms */}
         {['admin_only', 'admin_mod', 'livreur_group'].includes(tab) && (
@@ -413,16 +413,16 @@ export default function Msgs({ user: me }) {
             {(!isMobile || activeRoom) && (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {activeContact && (
-                  <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--color-surface)' }}>
                     {isMobile && (
-                      <button onClick={backToList} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF9900', display: 'flex', padding: 2 }}>
+                      <button onClick={backToList} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-gold)', display: 'flex', padding: 2 }}>
                         <ChevronLeft size={20} />
                       </button>
                     )}
                     <Avatar name={activeContact.name} role={activeContact.role} size={30} />
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5' }}>{activeContact.name}</div>
-                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: activeContact.role === 'admin' ? '#FF9900' : '#60a5fa' }}>{activeContact.role}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{activeContact.name}</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: activeContact.role === 'admin' ? 'var(--color-gold)' : 'var(--color-info)' }}>{activeContact.role}</div>
                     </div>
                   </div>
                 )}
@@ -448,16 +448,16 @@ export default function Msgs({ user: me }) {
             {(!isMobile || activeRoom) && (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {activeContact && (
-                  <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--color-surface)' }}>
                     {isMobile && (
-                      <button onClick={backToList} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF9900', display: 'flex', padding: 2 }}>
+                      <button onClick={backToList} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-gold)', display: 'flex', padding: 2 }}>
                         <ChevronLeft size={20} />
                       </button>
                     )}
                     <Avatar name={activeContact.name} role="client" size={30} />
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5' }}>{activeContact.name}</div>
-                      <div style={{ fontSize: 10, color: 'rgba(240,240,245,0.4)', fontWeight: 600 }}>Client · support</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{activeContact.name}</div>
+                      <div style={{ fontSize: 10, color: 'var(--color-muted)', fontWeight: 600 }}>Client · support</div>
                     </div>
                   </div>
                 )}

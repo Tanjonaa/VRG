@@ -7,15 +7,15 @@ const h     = () => ({ Authorization: `Bearer ${localStorage.getItem('vrg_token'
 const LIMIT = 25
 
 const ACTION_META = {
-  role_change:     { label: 'Changement de rôle',   color: '#a78bfa', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.2)', Icon: Shield    },
-  team_add:        { label: 'Membre équipe ajouté',  color: '#22c55e', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.2)',   Icon: UserPlus  },
-  team_edit:       { label: 'Membre équipe modifié', color: '#60a5fa', bg: 'rgba(96,165,250,0.08)',  border: 'rgba(96,165,250,0.2)',  Icon: Pencil    },
-  team_archive:    { label: 'Membre équipe archivé', color: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)', Icon: Archive   },
+  role_change:     { label: 'Changement de rôle',   color: 'var(--color-violet)', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.2)', Icon: Shield    },
+  team_add:        { label: 'Membre équipe ajouté',  color: 'var(--color-success)', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.2)',   Icon: UserPlus  },
+  team_edit:       { label: 'Membre équipe modifié', color: 'var(--color-info)', bg: 'rgba(96,165,250,0.08)',  border: 'rgba(96,165,250,0.2)',  Icon: Pencil    },
+  team_archive:    { label: 'Membre équipe archivé', color: 'var(--color-danger-text)', bg: 'rgba(240,82,82,0.08)', border: 'rgba(240,82,82,0.2)', Icon: Archive   },
   product_add:     { label: 'Article ajouté',        color: '#34d399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.2)',  Icon: Package   },
-  product_edit:    { label: 'Article modifié',       color: '#60a5fa', bg: 'rgba(96,165,250,0.08)',  border: 'rgba(96,165,250,0.2)',  Icon: Pencil    },
-  product_archive: { label: 'Article archivé',       color: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)', Icon: Archive   },
-  order_status:    { label: 'Statut commande',       color: '#fbbf24', bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.2)',  Icon: ShoppingBag },
-  order_payment:   { label: 'Paiement commande',     color: '#FF9900', bg: 'rgba(255,153,0,0.08)',   border: 'rgba(255,153,0,0.2)',   Icon: CreditCard  },
+  product_edit:    { label: 'Article modifié',       color: 'var(--color-info)', bg: 'rgba(96,165,250,0.08)',  border: 'rgba(96,165,250,0.2)',  Icon: Pencil    },
+  product_archive: { label: 'Article archivé',       color: 'var(--color-danger-text)', bg: 'rgba(240,82,82,0.08)', border: 'rgba(240,82,82,0.2)', Icon: Archive   },
+  order_status:    { label: 'Statut commande',       color: 'var(--color-warning)', bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.2)',  Icon: ShoppingBag },
+  order_payment:   { label: 'Paiement commande',     color: 'var(--color-gold)', bg: 'rgba(245,183,10,0.08)',   border: 'rgba(245,183,10,0.2)',   Icon: CreditCard  },
   stock_update:    { label: 'Mise à jour stock',     color: '#06b6d4', bg: 'rgba(6,182,212,0.08)',   border: 'rgba(6,182,212,0.2)',   Icon: BarChart3 },
   settings_update: { label: 'Paramètre modifié',     color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.2)', Icon: Settings2 },
 }
@@ -47,7 +47,7 @@ function fmtDate(ts) {
 }
 
 function ValueChip({ value }) {
-  if (value == null || value === '') return <span style={{ color: 'rgba(240,240,245,0.25)', fontSize: 11 }}>—</span>
+  if (value == null || value === '') return <span style={{ color: 'var(--color-subtle)', fontSize: 11 }}>—</span>
   const rgb = VALUE_COLOR[value] || '148,163,184'
   const display = String(value).length > 30 ? String(value).slice(0, 28) + '…' : value
   return (
@@ -88,7 +88,7 @@ export default function Logs() {
     <div>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.4)', flex: 1 }}>
+        <div style={{ fontSize: 13, color: 'var(--color-muted)', flex: 1 }}>
           {total} entrée{total !== 1 ? 's' : ''}
         </div>
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -96,9 +96,9 @@ export default function Logs() {
             <button key={f.value} onClick={() => changeFilter(f.value)}
               style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid', fontSize: 11, fontWeight: 600,
                 cursor: 'pointer', transition: 'all 0.15s',
-                background:   filter === f.value ? 'rgba(255,153,0,0.12)' : 'none',
-                color:        filter === f.value ? '#FF9900' : 'rgba(240,240,245,0.45)',
-                borderColor:  filter === f.value ? 'rgba(255,153,0,0.3)' : 'rgba(255,255,255,0.08)',
+                background:   filter === f.value ? 'rgba(245,183,10,0.12)' : 'none',
+                color:        filter === f.value ? 'var(--color-gold)' : 'var(--color-muted)',
+                borderColor:  filter === f.value ? 'rgba(245,183,10,0.3)' : 'rgba(255,255,255,0.08)',
               }}>
               {f.label}
             </button>
@@ -106,20 +106,20 @@ export default function Logs() {
         </div>
         <button onClick={load}
           style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '6px 12px',
-            color: 'rgba(240,240,245,0.5)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+            border: '1px solid var(--color-border)', borderRadius: 8, padding: '6px 12px',
+            color: 'var(--color-muted)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
           <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           Actualiser
         </button>
       </div>
 
       {/* Table */}
-      <div className="adm-table-scroll adm-logs" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
+      <div className="adm-table-scroll adm-logs" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, overflow: 'hidden' }}>
         {/* Header */}
-        <div className="adm-logs-grid" style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px 130px 145px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+        <div className="adm-logs-grid" style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px 130px 145px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
           {['Action', 'Cible', 'Avant → Après', 'Effectué par', 'Date'].map(col => (
             <div key={col} style={{ padding: '11px 16px', fontSize: 11, fontWeight: 700,
-              color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               {col}
             </div>
           ))}
@@ -128,12 +128,12 @@ export default function Logs() {
         {/* Body */}
         <div style={{ maxHeight: '65vh', overflowY: 'auto' }}>
           {loading && (
-            <div style={{ padding: 40, textAlign: 'center', color: 'rgba(240,240,245,0.3)', fontSize: 13 }}>
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-subtle)', fontSize: 13 }}>
               Chargement…
             </div>
           )}
           {!loading && rows.length === 0 && (
-            <div style={{ padding: 56, textAlign: 'center', color: 'rgba(240,240,245,0.3)', fontSize: 13 }}>
+            <div style={{ padding: 56, textAlign: 'center', color: 'var(--color-subtle)', fontSize: 13 }}>
               <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>📋</div>
               Aucun historique pour ce filtre
             </div>
@@ -144,7 +144,7 @@ export default function Logs() {
             return (
               <div key={row.id} className="adm-logs-grid"
                 style={{ display: 'grid', gridTemplateColumns: '180px 1fr 260px 130px 145px',
-                  borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                  borderBottom: i < rows.length - 1 ? '1px solid var(--color-border)' : 'none',
                   transition: 'background 0.15s', fontSize: 13 }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -161,10 +161,10 @@ export default function Logs() {
 
                 {/* Cible */}
                 <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <div style={{ fontWeight: 600, color: '#f0f0f5', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--color-text)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {row.target_name}
                   </div>
-                  <div style={{ fontSize: 10, color: 'rgba(240,240,245,0.3)', marginTop: 2 }}>
+                  <div style={{ fontSize: 10, color: 'var(--color-subtle)', marginTop: 2 }}>
                     {row.target_type === 'user' ? 'utilisateur' : row.target_type === 'order' ? 'commande' : row.target_type === 'setting' ? 'paramètre' : 'produit / équipe'}
                     {row.target_id > 0 ? ` · #${row.target_id}` : ''}
                   </div>
@@ -174,7 +174,7 @@ export default function Logs() {
                 <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', overflow: 'hidden' }}>
                   <ValueChip value={row.old_value} />
                   {(row.old_value != null || row.new_value != null) && (
-                    <span style={{ color: 'rgba(240,240,245,0.2)', fontSize: 12, flexShrink: 0 }}>→</span>
+                    <span style={{ color: 'var(--color-subtle)', fontSize: 12, flexShrink: 0 }}>→</span>
                   )}
                   <ValueChip value={row.new_value} />
                 </div>
@@ -182,19 +182,19 @@ export default function Logs() {
                 {/* Admin */}
                 <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 7 }}>
                   <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
-                    background: 'rgba(255,153,0,0.12)', border: '1px solid rgba(255,153,0,0.2)',
+                    background: 'rgba(245,183,10,0.12)', border: '1px solid rgba(245,183,10,0.2)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, fontWeight: 800, color: '#FF9900' }}>
+                    fontSize: 10, fontWeight: 800, color: 'var(--color-gold)' }}>
                     {row.admin_name?.[0]?.toUpperCase()}
                   </div>
-                  <span style={{ color: 'rgba(240,240,245,0.7)', fontWeight: 600, fontSize: 12,
+                  <span style={{ color: 'var(--color-text)', fontWeight: 600, fontSize: 12,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {row.admin_name}
                   </span>
                 </div>
 
                 {/* Date */}
-                <div style={{ padding: '12px 16px', color: 'rgba(240,240,245,0.35)', fontSize: 11, display: 'flex', alignItems: 'center' }}>
+                <div style={{ padding: '12px 16px', color: 'var(--color-muted)', fontSize: 11, display: 'flex', alignItems: 'center' }}>
                   {fmtDate(row.created_at)}
                 </div>
               </div>
@@ -208,20 +208,20 @@ export default function Logs() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 16 }}>
           <button onClick={() => setOffset(o => Math.max(0, o - LIMIT))} disabled={offset === 0}
             style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 12px', borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.1)', background: 'none',
+              border: '1px solid var(--color-border-strong)', background: 'none',
               cursor: offset === 0 ? 'default' : 'pointer',
-              color: offset === 0 ? 'rgba(240,240,245,0.2)' : 'rgba(240,240,245,0.6)',
+              color: offset === 0 ? 'var(--color-subtle)' : 'var(--color-muted)',
               fontSize: 12, fontWeight: 600 }}>
             <ChevronLeft size={14} /> Précédent
           </button>
-          <span style={{ fontSize: 12, color: 'rgba(240,240,245,0.35)' }}>
+          <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
             Page {curPage} / {pages}
           </span>
           <button onClick={() => setOffset(o => o + LIMIT)} disabled={curPage >= pages}
             style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 12px', borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.1)', background: 'none',
+              border: '1px solid var(--color-border-strong)', background: 'none',
               cursor: curPage >= pages ? 'default' : 'pointer',
-              color: curPage >= pages ? 'rgba(240,240,245,0.2)' : 'rgba(240,240,245,0.6)',
+              color: curPage >= pages ? 'var(--color-subtle)' : 'var(--color-muted)',
               fontSize: 12, fontWeight: 600 }}>
             Suivant <ChevronRight size={14} />
           </button>

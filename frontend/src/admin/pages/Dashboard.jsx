@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { TrendingUp, ShoppingBag, Users, Eye, Clock, CheckCircle, Package, AlertTriangle } from 'lucide-react'
+import { TrendingUp, ShoppingBag, Users, Eye, Clock, CheckCircle, Package, AlertTriangle, Wallet } from 'lucide-react'
 
 function adminFetch(path) {
   return fetch(`/api${path}`, { headers: { Authorization: `Bearer ${localStorage.getItem('vrg_token')}` } }).then(r => r.json())
@@ -14,103 +14,105 @@ export default function Dashboard() {
 
   if (!stats) return <Skeleton />
 
-  const maxSales = Math.max(...(stats.charts.monthly_sales.map(s => s.total)), 1)
-  const maxUsers = Math.max(...(stats.charts.monthly_users.map(s => s.count)), 1)
+  const fmt = n => Number(n || 0).toLocaleString('fr-FR')
+  const nowMonth = new Date().getMonth() + 1
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* Alert */}
       {stats.alerts.low_stock > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '13px 16px', color: '#f87171', fontSize: 13, fontWeight: 600 }}>
+        <div className="adm-alert adm-alert--error" role="status">
           <AlertTriangle size={16} />
-          {stats.alerts.low_stock} article{stats.alerts.low_stock > 1 ? 's' : ''} en rupture de stock — vérifier l'onglet Stocks
+          <span>{stats.alerts.low_stock} article{stats.alerts.low_stock > 1 ? 's' : ''} en rupture de stock — à réapprovisionner depuis l'onglet Stocks.</span>
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
-        <KPICard icon={<TrendingUp size={18} />} label="Ventes ce mois" value={`Ar ${stats.sales.month.toLocaleString('fr-FR')}`} sub={`Total : Ar ${stats.sales.total.toLocaleString('fr-FR')}`} color="#FF9900" />
-        <KPICard icon={<TrendingUp size={18} />} label="Ventes aujourd'hui" value={`Ar ${stats.sales.today.toLocaleString('fr-FR')}`} color="#fbbf24" />
-        <KPICard icon={<ShoppingBag size={18} />} label="Commandes total" value={stats.orders.total} sub={`${stats.orders.pending} en attente`} color="#60a5fa" />
-        <KPICard icon={<Users size={18} />} label="Clients ce mois" value={stats.users.month} sub={`Total : ${stats.users.total}`} color="#a78bfa" />
-        <KPICard icon={<Eye size={18} />} label="Visiteurs ce mois"
-          value={Number(stats.visits.month_uniques ?? stats.visits.month).toLocaleString('fr-FR')}
-          sub={`Aujourd'hui : ${stats.visits.today_uniques ?? stats.visits.today} · ${Number(stats.visits.month).toLocaleString('fr-FR')} sessions`}
-          color="#34d399" />
+      {/* KPI */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 14 }}>
+        <KPICard icon={<TrendingUp size={17} />}  tone="gold"    label="Ventes ce mois"     value={`Ar ${fmt(stats.sales.month)}`} sub={`Cumul : Ar ${fmt(stats.sales.total)}`} />
+        <KPICard icon={<Wallet size={17} />}      tone="warning" label="Ventes aujourd'hui" value={`Ar ${fmt(stats.sales.today)}`} />
+        <KPICard icon={<ShoppingBag size={17} />} tone="info"    label="Commandes"          value={fmt(stats.orders.total)} sub={`${stats.orders.pending} en attente`} />
+        <KPICard icon={<Users size={17} />}       tone="violet"  label="Nouveaux clients"   value={fmt(stats.users.month)} sub={`Ce mois · ${fmt(stats.users.total)} au total`} />
+        <KPICard icon={<Eye size={17} />}         tone="success" label="Visiteurs ce mois"
+          value={fmt(stats.visits.month_uniques ?? stats.visits.month)}
+          sub={`Aujourd'hui : ${stats.visits.today_uniques ?? stats.visits.today} · ${fmt(stats.visits.month)} sessions`} />
       </div>
 
-      {/* Order status */}
-      <div className="adm-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        <StatusCard icon={<Clock size={15} />} label="En attente" value={stats.orders.pending} color="#f59e0b" />
-        <StatusCard icon={<CheckCircle size={15} />} label="Confirmées" value={stats.orders.confirmed} color="#22c55e" />
-        <StatusCard icon={<Package size={15} />} label="Livrées" value={stats.orders.delivered} color="#60a5fa" />
+      {/* Pipeline des commandes */}
+      <div className="adm-card adm-card--pad">
+        <div className="adm-card__title">Suivi des commandes <small>{fmt(stats.orders.total)} au total</small></div>
+        <div className="adm-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <StatusCard icon={<Clock size={16} />}       label="En attente" value={stats.orders.pending}   tone="warning" />
+          <StatusCard icon={<CheckCircle size={16} />} label="Confirmées" value={stats.orders.confirmed} tone="success" />
+          <StatusCard icon={<Package size={16} />}     label="Livrées"    value={stats.orders.delivered} tone="info" />
+        </div>
       </div>
 
-      {/* Charts */}
+      {/* Graphiques */}
       <div className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-
-        {/* Sales chart */}
-        <Card title="Ventes mensuelles (Ar)">
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, paddingTop: 8 }}>
-            {MONTHS.map((m, i) => {
-              const d = stats.charts.monthly_sales.find(s => s.month === i + 1)
-              const h = d ? Math.round((d.total / maxSales) * 100) : 0
-              return (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <div title={d ? `Ar ${d.total.toLocaleString('fr-FR')}` : '0'}
-                    style={{ width: '100%', height: `${Math.max(h, 2)}%`, background: h > 0 ? 'linear-gradient(180deg, #FF9900, #CC5500)' : 'rgba(255,255,255,0.06)', borderRadius: '3px 3px 0 0', minHeight: 3, transition: 'height 0.4s ease', cursor: 'pointer' }} />
-                  <span style={{ fontSize: 9, color: 'rgba(240,240,245,0.3)' }}>{m}</span>
-                </div>
-              )
-            })}
-          </div>
+        <Card title="Ventes mensuelles" hint={`${new Date().getFullYear()} · Ar`}>
+          <Bars data={stats.charts.monthly_sales} valueKey="total" tone="gold" nowMonth={nowMonth}
+            label={v => `Ar ${fmt(v)}`} />
         </Card>
-
-        {/* Users chart */}
-        <Card title="Nouveaux clients / mois">
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, paddingTop: 8 }}>
-            {MONTHS.map((m, i) => {
-              const d = stats.charts.monthly_users.find(s => s.month === i + 1)
-              const h = d ? Math.round((d.count / maxUsers) * 100) : 0
-              return (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <div title={d ? `${d.count} clients` : '0'}
-                    style={{ width: '100%', height: `${Math.max(h, 2)}%`, background: h > 0 ? 'linear-gradient(180deg, #a78bfa, #7c3aed)' : 'rgba(255,255,255,0.06)', borderRadius: '3px 3px 0 0', minHeight: 3, transition: 'height 0.4s ease', cursor: 'pointer' }} />
-                  <span style={{ fontSize: 9, color: 'rgba(240,240,245,0.3)' }}>{m}</span>
-                </div>
-              )
-            })}
-          </div>
+        <Card title="Nouveaux clients" hint="par mois">
+          <Bars data={stats.charts.monthly_users} valueKey="count" tone="violet" nowMonth={nowMonth}
+            label={v => `${v} client${v > 1 ? 's' : ''}`} />
         </Card>
       </div>
 
-      {/* Visiteurs par pays (ce mois) */}
-      <Card title="Visiteurs par pays · ce mois">
+      {/* Visiteurs par pays */}
+      <Card title="Visiteurs par pays" hint="ce mois">
         {(!stats.countries || stats.countries.length === 0) ? (
-          <div style={{ fontSize: 12, color: 'rgba(240,240,245,0.3)', padding: '8px 0' }}>
+          <p style={{ fontSize: 13, color: 'var(--color-subtle)' }}>
             Aucune donnée de localisation pour l'instant — elle se remplit au fil des visites.
-          </div>
+          </p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {(() => {
               const maxC = Math.max(...stats.countries.map(c => Number(c.count)), 1)
               return stats.countries.map(c => (
-                <div key={c.country_code} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 18, width: 24, flexShrink: 0 }}>{flagEmoji(c.country_code)}</span>
-                  <span style={{ fontSize: 12, color: '#f0f0f5', width: 120, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div key={c.country_code} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 18, width: 24, flexShrink: 0 }} aria-hidden="true">{flagEmoji(c.country_code)}</span>
+                  <span style={{ fontSize: 13, width: 130, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.country || c.country_code}
                   </span>
-                  <div style={{ flex: 1, height: 8, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.round((c.count / maxC) * 100)}%`, height: '100%', background: 'linear-gradient(90deg,#34d399,#059669)', borderRadius: 99 }} />
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#34d399', width: 36, textAlign: 'right', flexShrink: 0 }}>{c.count}</span>
+                  <div className="adm-meter"><span style={{ width: `${Math.round((c.count / maxC) * 100)}%` }} /></div>
+                  <span style={{ fontSize: 13, fontWeight: 600, width: 44, textAlign: 'right', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmt(c.count)}</span>
                 </div>
               ))
             })()}
           </div>
         )}
       </Card>
+    </div>
+  )
+}
+
+const TONES = {
+  gold:    ['var(--color-gold)',    'var(--color-gold-soft)'],
+  warning: ['var(--color-warning)', 'var(--color-warning-soft)'],
+  info:    ['var(--color-info)',    'var(--color-info-soft)'],
+  violet:  ['var(--color-violet)',  'var(--color-violet-soft)'],
+  success: ['var(--color-success)', 'var(--color-success-soft)'],
+}
+
+function Bars({ data, valueKey, tone, nowMonth, label }) {
+  const max = Math.max(...data.map(d => Number(d[valueKey]) || 0), 1)
+  return (
+    <div className="adm-bars" role="img" aria-label="Graphique mensuel">
+      {MONTHS.map((m, i) => {
+        const d = data.find(s => s.month === i + 1)
+        const v = d ? Number(d[valueKey]) : 0
+        const h = Math.round((v / max) * 100)
+        return (
+          <div key={i} className={`adm-bars__col${i + 1 === nowMonth ? ' adm-bars__col--now' : ''}`} title={`${m} : ${label(v)}`}>
+            <div className="adm-bars__track">
+              <div className={`adm-bars__bar${v > 0 ? ` adm-bars__bar--${tone}` : ''}`} style={{ height: `${Math.max(h, 2)}%` }} />
+            </div>
+            <span className="adm-bars__lbl">{m}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -125,35 +127,37 @@ function flagEmoji(cc) {
   )
 }
 
-function KPICard({ icon, label, value, sub, color }) {
+function KPICard({ icon, label, value, sub, tone }) {
+  const [c, bg] = TONES[tone]
   return (
-    <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '16px 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color }}>
-        {icon}
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(240,240,245,0.4)' }}>{label}</span>
+    <div className="adm-card adm-kpi">
+      <div className="adm-kpi__head">
+        <span className="adm-kpi__icon" style={{ color: c, background: bg }}>{icon}</span>
+        {label}
       </div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: '#f0f0f5', letterSpacing: '-0.5px' }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.3)', marginTop: 4 }}>{sub}</div>}
+      <div className="adm-kpi__value">{value}</div>
+      {sub && <div className="adm-kpi__sub">{sub}</div>}
     </div>
   )
 }
 
-function StatusCard({ icon, label, value, color }) {
+function StatusCard({ icon, label, value, tone }) {
+  const [c, bg] = TONES[tone]
   return (
-    <div style={{ background: `${color}10`, border: `1px solid ${color}25`, borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-      <span style={{ color }}>{icon}</span>
+    <div style={{ background: 'var(--color-bg-alt)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+      <span className="adm-kpi__icon" style={{ color: c, background: bg, width: 38, height: 38, borderRadius: 10 }}>{icon}</span>
       <div>
-        <div style={{ fontSize: 18, fontWeight: 800, color }}>{value}</div>
-        <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.4)', fontWeight: 600 }}>{label}</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+        <div style={{ fontSize: 13, color: 'var(--color-muted)' }}>{label}</div>
       </div>
     </div>
   )
 }
 
-function Card({ title, children }) {
+function Card({ title, hint, children }) {
   return (
-    <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '16px 18px' }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(240,240,245,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{title}</div>
+    <div className="adm-card adm-card--pad">
+      <div className="adm-card__title">{title}{hint && <small>{hint}</small>}</div>
       {children}
     </div>
   )
@@ -161,10 +165,15 @@ function Card({ title, children }) {
 
 function Skeleton() {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
-      {[...Array(5)].map((_, i) => (
-        <div key={i} style={{ height: 90, background: 'rgba(255,255,255,0.03)', borderRadius: 14, animation: 'pulse 1.5s infinite' }} />
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }} aria-busy="true">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 14 }}>
+        {[...Array(5)].map((_, i) => <div key={i} className="vs-skeleton" style={{ height: 118, borderRadius: 16 }} />)}
+      </div>
+      <div className="vs-skeleton" style={{ height: 120, borderRadius: 16 }} />
+      <div className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="vs-skeleton" style={{ height: 230, borderRadius: 16 }} />
+        <div className="vs-skeleton" style={{ height: 230, borderRadius: 16 }} />
+      </div>
     </div>
   )
 }

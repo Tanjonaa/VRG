@@ -134,23 +134,23 @@ export default function TeamAdmin() {
       <style>{ANIM_STYLE}</style>
 
       {/* Section heading editor */}
-      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: '18px 20px', marginBottom: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f0f5', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 3, height: 14, background: '#FF9900', borderRadius: 99, display: 'inline-block' }} />
+      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '18px 20px', marginBottom: 24 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 3, height: 14, background: 'var(--color-gold)', borderRadius: 99, display: 'inline-block' }} />
           Contenu de la section
         </div>
         <form onSubmit={saveSection}>
           <div className="adm-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <label style={labelStyle}>Badge</label>
-              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '9px 12px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border-strong)', borderRadius: 10, padding: '9px 12px' }}>
                 <input value={sec.team_badge} onChange={e => setSec(s => ({ ...s, team_badge: e.target.value }))}
                   style={inp} placeholder="Notre équipe" />
               </div>
             </div>
             <div>
-              <label style={labelStyle}>Titre <span style={{ color: 'rgba(240,240,245,0.3)', textTransform: 'none', letterSpacing: 0, fontWeight: 500 }}>+ "VaRyGasy" en orange</span></label>
-              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '9px 12px' }}>
+              <label style={labelStyle}>Titre <span style={{ color: 'var(--color-subtle)', textTransform: 'none', letterSpacing: 0, fontWeight: 500 }}>+ "VaRyGasy" en orange</span></label>
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border-strong)', borderRadius: 10, padding: '9px 12px' }}>
                 <input value={sec.team_title} onChange={e => setSec(s => ({ ...s, team_title: e.target.value }))}
                   style={inp} placeholder="Les personnes derrière" />
               </div>
@@ -158,7 +158,7 @@ export default function TeamAdmin() {
           </div>
           <div style={{ marginBottom: 12 }}>
             <label style={labelStyle}>Sous-titre</label>
-            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '9px 12px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border-strong)', borderRadius: 10, padding: '9px 12px' }}>
               <input value={sec.team_subtitle} onChange={e => setSec(s => ({ ...s, team_subtitle: e.target.value }))}
                 style={inp} placeholder="Une équipe passionnée…" />
             </div>
@@ -169,13 +169,13 @@ export default function TeamAdmin() {
               {secBusy ? '…' : 'Enregistrer'}
             </button>
             {secMsg && (
-              <span style={{ fontSize: 12, fontWeight: 600, color: secMsg.type === 'ok' ? '#22c55e' : '#f87171', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: secMsg.type === 'ok' ? 'var(--color-success)' : 'var(--color-danger-text)', display: 'flex', alignItems: 'center', gap: 5 }}>
                 {secMsg.type === 'ok' ? <Check size={12} /> : <AlertCircle size={12} />} {secMsg.text}
               </span>
             )}
             {/* Live preview */}
-            <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(240,240,245,0.25)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {sec.team_title} <span style={{ color: '#FF9900' }}>VaRyGasy</span>
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--color-subtle)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {sec.team_title} <span style={{ color: 'var(--color-gold)' }}>VaRyGasy</span>
             </span>
           </div>
         </form>
@@ -183,7 +183,7 @@ export default function TeamAdmin() {
 
       {/* Top bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.4)' }}>
+        <div style={{ fontSize: 13, color: 'var(--color-muted)' }}>
           {active.length} actif{active.length !== 1 ? 's' : ''} · {archived.length} archivé{archived.length !== 1 ? 's' : ''}
         </div>
         <button onClick={openAdd} style={btnPrimary}>
@@ -192,12 +192,12 @@ export default function TeamAdmin() {
       </div>
 
       {/* Table */}
-      <div className="adm-table-scroll" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, overflow: 'hidden' }}>
+      <div className="adm-table-scroll" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+            <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
               {['Photo', 'Nom', 'Rôle', 'Ordre', 'Statut', 'Actions'].map(col => (
-                <th key={col} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{col}</th>
+                <th key={col} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{col}</th>
               ))}
             </tr>
           </thead>
@@ -207,25 +207,25 @@ export default function TeamAdmin() {
             <tbody>
               {members.map((m, i) => (
                 <tr key={m.id}
-                  style={{ borderBottom: i < members.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', opacity: m.active ? 1 : 0.4, animation: 'rowIn 0.3s ease both', animationDelay: `${Math.min(i * 30, 300)}ms`, transition: 'background 0.15s' }}
+                  style={{ borderBottom: i < members.length - 1 ? '1px solid var(--color-border)' : 'none', opacity: m.active ? 1 : 0.4, animation: 'rowIn 0.3s ease both', animationDelay: `${Math.min(i * 30, 300)}ms`, transition: 'background 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <td style={{ padding: '12px 16px', width: 56 }}>
                     <ThumbImg photo={m.photo} name={m.name} />
                   </td>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, color: '#f0f0f5' }}>{m.name}</td>
-                  <td style={{ padding: '12px 16px', color: 'rgba(240,240,245,0.5)' }}>{m.role || '—'}</td>
-                  <td style={{ padding: '12px 16px', color: 'rgba(240,240,245,0.35)', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{m.order_index}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text)' }}>{m.name}</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--color-muted)' }}>{m.role || '—'}</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--color-muted)', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{m.order_index}</td>
                   <td style={{ padding: '12px 16px' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: m.active ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)', color: m.active ? '#22c55e' : 'rgba(240,240,245,0.3)', border: `1px solid ${m.active ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)'}` }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: m.active ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)', color: m.active ? 'var(--color-success)' : 'var(--color-subtle)', border: `1px solid ${m.active ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)'}` }}>
                       {m.active ? 'Actif' : 'Archivé'}
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => openEdit(m)} style={btnIcon} title="Modifier"><Pencil size={13} /></button>
-                      {m.active && <button onClick={() => archive(m.id)} style={{ ...btnIcon, color: '#f87171' }} title="Archiver"><Trash2 size={13} /></button>}
+                      {m.active && <button onClick={() => archive(m.id)} style={{ ...btnIcon, color: 'var(--color-danger-text)' }} title="Archiver"><Trash2 size={13} /></button>}
                     </div>
                   </td>
                 </tr>
@@ -233,7 +233,7 @@ export default function TeamAdmin() {
             </tbody>
           </table>
           {members.length === 0 && (
-            <div style={{ padding: '56px', textAlign: 'center', color: 'rgba(240,240,245,0.3)', fontSize: 13 }}>
+            <div style={{ padding: '56px', textAlign: 'center', color: 'var(--color-subtle)', fontSize: 13 }}>
               <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>👤</div>
               <div>Aucun membre — clique sur "Ajouter un membre"</div>
             </div>
@@ -245,13 +245,13 @@ export default function TeamAdmin() {
       {modal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={e => e.target === e.currentTarget && closeModal()}>
-          <div style={{ background: '#0f0f1f', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, width: '100%', maxWidth: 500, maxHeight: '92vh', overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16, animation: 'rowIn 0.2s ease' }}>
+          <div style={{ background: 'var(--color-bg-alt)', border: '1px solid var(--color-border-strong)', borderRadius: 18, width: '100%', maxWidth: 500, maxHeight: '92vh', overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16, animation: 'rowIn 0.2s ease' }}>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#f0f0f5' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>
                 {modal === 'add' ? 'Nouveau membre' : `Modifier · ${modal.name}`}
               </div>
-              <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,240,245,0.4)', display: 'flex' }}>
+              <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex' }}>
                 <X size={18} />
               </button>
             </div>
@@ -263,21 +263,21 @@ export default function TeamAdmin() {
                 <label style={labelStyle}>Photo</label>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={onFileInput} style={{ display: 'none' }} />
                 {imagePreview ? (
-                  <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', aspectRatio: '4/3', background: '#0a0a18' }}>
+                  <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--color-border-strong)', aspectRatio: '4/3', background: 'var(--color-bg-alt)' }}>
                     <img src={imagePreview} alt="aperçu" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: 0, transition: 'all 0.2s' }}
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.55)'; e.currentTarget.style.opacity = 1 }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0)'; e.currentTarget.style.opacity = 0 }}>
                       <button type="button" onClick={() => fileInputRef.current.click()}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(255,153,0,0.9)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(245,183,10,0.9)', border: 'none', color: 'var(--color-on-gold)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                         <Upload size={13} /> Changer
                       </button>
                       <button type="button" onClick={() => { setImageFile(null); setImagePreview(null); setForm(f => ({ ...f, photo: '' })) }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(239,68,68,0.85)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'rgba(240,82,82,0.85)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                         <X size={13} /> Supprimer
                       </button>
                     </div>
-                    <div style={{ position: 'absolute', bottom: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: imageFile ? 'rgba(255,153,0,0.85)' : 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                    <div style={{ position: 'absolute', bottom: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: imageFile ? 'rgba(245,183,10,0.85)' : 'rgba(255,255,255,0.15)', color: 'var(--color-on-gold)' }}>
                       {imageFile ? 'Nouveau fichier' : 'Image actuelle'}
                     </div>
                   </div>
@@ -287,13 +287,13 @@ export default function TeamAdmin() {
                     onDragOver={e => { e.preventDefault(); setDragOver(true) }}
                     onDragLeave={() => setDragOver(false)}
                     onDrop={onDrop}
-                    style={{ border: `2px dashed ${dragOver ? 'rgba(255,153,0,0.6)' : 'rgba(255,255,255,0.12)'}`, borderRadius: 12, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: dragOver ? 'rgba(255,153,0,0.05)' : 'rgba(255,255,255,0.02)', transition: 'all 0.2s' }}>
+                    style={{ border: `2px dashed ${dragOver ? 'rgba(245,183,10,0.6)' : 'rgba(255,255,255,0.12)'}`, borderRadius: 12, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: dragOver ? 'rgba(245,183,10,0.05)' : 'rgba(255,255,255,0.02)', transition: 'all 0.2s' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,153,0,0.1)', border: '1px solid rgba(255,153,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Image size={18} color="#FF9900" />
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(245,183,10,0.1)', border: '1px solid rgba(245,183,10,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Image size={18} color="var(--color-gold)" />
                       </div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#f0f0f5' }}>Glisser ou <span style={{ color: '#FF9900' }}>parcourir</span></div>
-                      <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.35)' }}>JPG, PNG, WebP · max 5 Mo</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>Glisser ou <span style={{ color: 'var(--color-gold)' }}>parcourir</span></div>
+                      <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>JPG, PNG, WebP · max 5 Mo</div>
                     </div>
                   </div>
                 )}
@@ -313,14 +313,14 @@ export default function TeamAdmin() {
               </FRow>
 
               {msg && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: msg.type === 'ok' ? '#22c55e' : '#f87171', background: msg.type === 'ok' ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${msg.type === 'ok' ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: 9, padding: '8px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: msg.type === 'ok' ? 'var(--color-success)' : 'var(--color-danger-text)', background: msg.type === 'ok' ? 'rgba(34,197,94,0.08)' : 'rgba(240,82,82,0.08)', border: `1px solid ${msg.type === 'ok' ? 'rgba(34,197,94,0.2)' : 'rgba(240,82,82,0.2)'}`, borderRadius: 9, padding: '8px 12px' }}>
                   {msg.type === 'ok' ? <Check size={12} /> : <AlertCircle size={12} />} {msg.text}
                 </div>
               )}
 
               <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
                 <button type="button" onClick={closeModal}
-                  style={{ flex: 1, padding: 11, borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: 'rgba(240,240,245,0.5)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                  style={{ flex: 1, padding: 11, borderRadius: 10, border: '1px solid var(--color-border-strong)', background: 'none', color: 'var(--color-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
                   Annuler
                 </button>
                 <button type="submit" disabled={busy}
@@ -340,14 +340,14 @@ function ThumbImg({ photo, name }) {
   const [err, setErr] = useState(false)
   if (!photo || err) {
     return (
-      <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,153,0,0.12)', border: '1px solid rgba(255,153,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#FF9900', flexShrink: 0 }}>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(245,183,10,0.12)', border: '1px solid rgba(245,183,10,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: 'var(--color-gold)', flexShrink: 0 }}>
         {name?.[0]?.toUpperCase()}
       </div>
     )
   }
   return (
     <img src={photo} alt={name} onError={() => setErr(true)}
-      style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,153,0,0.2)', flexShrink: 0 }} />
+      style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(245,183,10,0.2)', flexShrink: 0 }} />
   )
 }
 
@@ -355,12 +355,12 @@ function FRow({ label, children }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
-      <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '10px 12px' }}>{children}</div>
+      <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border-strong)', borderRadius: 10, padding: '10px 12px' }}>{children}</div>
     </div>
   )
 }
 
-const labelStyle = { fontSize: 11, fontWeight: 700, color: 'rgba(240,240,245,0.35)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }
-const inp        = { width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: 13, color: '#f0f0f5', fontFamily: 'inherit', boxSizing: 'border-box' }
-const btnPrimary = { display: 'flex', alignItems: 'center', gap: 7, background: 'linear-gradient(135deg, #FF9900, #CC5500)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }
-const btnIcon    = { display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, padding: '6px', cursor: 'pointer', color: 'rgba(240,240,245,0.6)', transition: 'all 0.15s' }
+const labelStyle = { fontSize: 11, fontWeight: 700, color: 'var(--color-muted)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }
+const inp        = { width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--color-text)', fontFamily: 'inherit', boxSizing: 'border-box' }
+const btnPrimary = { display: 'flex', alignItems: 'center', gap: 7, background: 'var(--color-gold)', color: 'var(--color-on-gold)', border: 'none', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }
+const btnIcon    = { display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-border)', borderRadius: 7, padding: '6px', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.15s' }
