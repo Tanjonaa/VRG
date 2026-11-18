@@ -1,3 +1,4 @@
+import ModalOverlay from '../components/ModalOverlay.jsx'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Plus, Pencil, Trash2, X, Check, AlertCircle, Upload, Image } from 'lucide-react'
 
@@ -243,8 +244,7 @@ export default function TeamAdmin() {
 
       {/* Modal */}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-          onClick={e => e.target === e.currentTarget && closeModal()}>
+        <ModalOverlay onClose={closeModal}>
           <div style={{ background: 'var(--color-bg-alt)', border: '1px solid var(--color-border-strong)', borderRadius: 18, width: '100%', maxWidth: 500, maxHeight: '92vh', overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16, animation: 'rowIn 0.2s ease' }}>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -330,7 +330,7 @@ export default function TeamAdmin() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   )
