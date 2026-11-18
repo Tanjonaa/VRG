@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { User, ShoppingBag, Search, Menu, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
+import { useSettings } from '../hooks/useSettings.js'
+import { liveFromSettings } from '../lib/live.js'
 
 const LINKS = [
   { label: 'Boutique',    href: '/catalogue' },
@@ -16,6 +18,8 @@ export default function Navbar({ onOpenAuth, onOpenAccount, onOpenCart }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { user } = useAuth()
   const { count } = useCart()
+  /* Live activé dans l'admin → lien « En direct » vers la section #live */
+  const isLive = !!liveFromSettings(useSettings())
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 8)
@@ -55,10 +59,19 @@ export default function Navbar({ onOpenAuth, onOpenAccount, onOpenCart }) {
         </div>
 
         <div className="vs-nav-links">
+          {isLive && (
+            <a href="#live" className="vs-nav-link vs-nav-link--live"><span className="vs-live-dot" aria-hidden="true" /> En direct</a>
+          )}
           {LINKS.map(l => <a key={l.href} href={l.href} className="vs-nav-link">{l.label}</a>)}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {isLive && (
+            <a href="#live" className="vs-live-badge vs-live-mobile" aria-label="Live en cours — regarder"
+              style={{ height: 28, padding: '0 10px', fontSize: 12, textDecoration: 'none', marginRight: 4 }}>
+              <span className="vs-live-dot" aria-hidden="true" /> Live
+            </a>
+          )}
           <a href="/catalogue" className="vs-icon-btn vs-hide-mobile" aria-label="Rechercher un produit">
             <Search size={20} />
           </a>
@@ -98,6 +111,10 @@ export default function Navbar({ onOpenAuth, onOpenAccount, onOpenCart }) {
                 </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', padding: 12, gap: 2 }}>
+                {isLive && (
+                  <a href="#live" className="vs-nav-link vs-nav-link--live" onClick={() => setMenuOpen(false)}
+                    style={{ height: 52, fontSize: 17 }}><span className="vs-live-dot" aria-hidden="true" /> En direct</a>
+                )}
                 {LINKS.map(l => (
                   <a key={l.href} href={l.href} className="vs-nav-link" onClick={() => setMenuOpen(false)}
                     style={{ height: 52, fontSize: 17 }}>{l.label}</a>

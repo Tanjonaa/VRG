@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Radio, Layout, Star, Image, Package, Megaphone, Truck, Phone, Save, Check, Plus, Trash2, GripVertical, Upload, Clock, FileText } from 'lucide-react'
+import { parseLiveUrl, platformLabel } from '../../lib/live.js'
+import { Video, ExternalLink, AlertCircle, Radio, Layout, Star, Image, Package, Megaphone, Truck, Phone, Save, Check, Plus, Trash2, GripVertical, Upload, Clock, FileText } from 'lucide-react'
 
 const BASE = '/api'
 const h = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
 const hAuth = () => ({ Authorization: `Bearer ${localStorage.getItem('vrg_token')}` })
 
 const SECTIONS = [
+  { id: 'live',         label: 'Live',        icon: Video,     desc: 'Vidéo en direct' },
   { id: 'comingsoon',   label: 'Coming Soon', icon: Clock,     desc: 'Mode maintenance' },
   { id: 'ticker',       label: 'Ticker',      icon: Radio,     desc: 'Messages défilants' },
   { id: 'hero',         label: 'Héro',        icon: Layout,    desc: 'Section principale' },
@@ -24,6 +26,7 @@ const DEF = {
   reassurance_text: 'Livraison sur Antananarivo · Paiement à la livraison · Retour sous 7 jours',
   whatsapp: '', business_hours: '', facebook: '', instagram: '',
   coming_soon: '0', coming_soon_date: '',
+  live_active: '0', live_url: '', live_title: '', live_desc: '',
   coming_soon_message: 'Nous préparons quelque chose d\'exceptionnel. La boutique ouvre bientôt !',
   pricing_hidden: '0',
   company_legal_name: 'VaRyGasy', company_nif: '', company_stat: '',
@@ -76,7 +79,7 @@ const card = children => (
 const sectionTitle = text => <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-gold)', marginBottom: 4 }}>{text}</div>
 
 export default function Settings() {
-  const [section, setSection]   = useState('ticker')
+  const [section, setSection]   = useState('live')
   const [flat,    setFlat]      = useState(DEF)
   const [ticker,  setTicker]    = useState(DEF_TICKER)
   const [hero,    setHero]      = useState(DEF_HERO)
@@ -177,6 +180,9 @@ export default function Settings() {
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
+
+        {/* ── LIVE ── */}
+        {section === 'live' && <LiveSettings flat={flat} setF={setF} onSave={save} saving={saving} saved={saved} />}
 
         {/* ── COMING SOON ── */}
         {section === 'comingsoon' && <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -501,6 +507,98 @@ export default function Settings() {
           </>)}
         </div>}
       </div>
+    </div>
+  )
+}
+/* ── Paramètres du live vidéo ───────────────────────────────── */
+function LiveSettings({ flat, setF, onSave, saving, saved }) {
+  const on     = flat.live_active === '1'
+  const parsed = parseLiveUrl(flat.live_url)
+  const hasUrl = !!String(flat.live_url || '').trim()
+
+  /* Coller un premier lien valide active le live (sinon on oubliait l'interrupteur) */
+  const onUrl = v => {
+    if (!parsed && parseLiveUrl(v) && !on) setF('live_active')('1')
+    setF('live_url')(v)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {card(<>
+        {sectionTitle('Diffusion')}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {on && <span className="vs-live-dot" style={{ color: 'var(--color-danger)' }} aria-hidden="true" />}
+              {on ? 'Live affiché sur la boutique' : 'Live désactivé'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 3 }}>
+              Ajoute une section « En direct » sous le hero et un lien rouge dans le menu
+            </div>
+          </div>
+          <button type="button" role="switch" aria-checked={on} aria-label="Afficher le live sur la boutique"
+            onClick={() => setF('live_active')(on ? '0' : '1')}
+            style={{ width: 52, height: 28, borderRadius: 99, border: 'none', cursor: 'pointer', flexShrink: 0, position: 'relative', transition: 'background 0.2s',
+              background: on ? 'var(--color-danger)' : 'rgba(255,255,255,0.12)' }}>
+            <span style={{ position: 'absolute', top: 3, left: on ? 26 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
+          </button>
+        </div>
+        {!on && parsed && (
+          <div className="adm-alert adm-alert--warn"><AlertCircle size={16} /> Un lien est enregistré mais le live est désactivé : il n'apparaît pas sur la boutique. Active l'interrupteur puis sauvegarde.</div>
+        )}
+        {on && !parsed && (
+          <div className="adm-alert adm-alert--warn"><AlertCircle size={16} /> Ajoute un lien valide ci-dessous, sinon rien ne s'affichera sur la boutique.</div>
+        )}
+        <div style={{ fontSize: 12, color: 'var(--color-subtle)' }}>
+          Pense à cliquer sur « Sauvegarder ». Les visiteurs déjà sur le site voient le changement en rechargeant la page.
+        </div>
+      </>)}
+
+      {card(<>
+        {sectionTitle('Lien du live')}
+        {field('Lien Facebook, YouTube ou TikTok', 'Colle le lien de la vidéo en direct (bouton « Partager » → « Copier le lien »)',
+          inp(flat.live_url, onUrl, 'url', 'https://www.facebook.com/varygasy/videos/…'))}
+
+        {hasUrl && !parsed && <div className="adm-alert adm-alert--error"><AlertCircle size={16} /> Ce lien n'est pas valide.</div>}
+        {parsed && (parsed.embed
+          ? <div className="adm-alert adm-alert--ok"><Video size={16} /> Lien {platformLabel(parsed.platform)} reconnu : la vidéo sera intégrée dans la boutique.</div>
+          : <div className="adm-alert adm-alert--warn"><AlertCircle size={16} />
+              {parsed.platform === 'tiktok'
+                ? `TikTok ne permet pas d'intégrer un live : la boutique affichera une carte « Regarder le live sur TikTok » qui ouvre l'application.`
+                : parsed.platform === 'facebook' || parsed.platform === 'youtube'
+                  ? `Ce lien ${platformLabel(parsed.platform)} n'est pas celui d'une vidéo : les visiteurs auront seulement un bouton pour l'ouvrir. Utilise le lien de la vidéo du live.`
+                  : 'Plateforme non reconnue : les visiteurs auront seulement un bouton pour ouvrir le lien.'}
+            </div>)}
+
+        <ul style={{ fontSize: 12, color: 'var(--color-muted)', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <li><strong style={{ color: 'var(--color-text)' }}>Facebook</strong> : lien de la vidéo du live (…/videos/123…). La vidéo doit être publique.</li>
+          <li><strong style={{ color: 'var(--color-text)' }}>YouTube</strong> : lien du live (youtube.com/live/… ou watch?v=…), ou youtube.com/channel/UC…/live pour toujours afficher le live en cours de la chaîne.</li>
+          <li><strong style={{ color: 'var(--color-text)' }}>TikTok</strong> : lien du profil live (tiktok.com/@compte/live), ouvert dans l'app.</li>
+        </ul>
+      </>)}
+
+      {card(<>
+        {sectionTitle('Texte affiché')}
+        {field('Titre', 'Par défaut : « On est en direct ! »', inp(flat.live_title, setF('live_title'), 'text', 'On est en direct !'))}
+        {field('Description', 'Ce que les visiteurs vont voir pendant le live',
+          ta(flat.live_desc, setF('live_desc'), 'Découvrez nos accessoires en vidéo, posez vos questions en direct…', 3))}
+      </>)}
+
+      {parsed?.embed && card(<>
+        {sectionTitle('Aperçu')}
+        <div style={{ position: 'relative', aspectRatio: parsed.vertical ? '9 / 16' : '16 / 9', maxWidth: parsed.vertical ? 320 : '100%', borderRadius: 12, overflow: 'hidden', background: '#000' }}>
+          <iframe src={parsed.embed.replace('autoplay=1', 'autoplay=0')} title="Aperçu du live" loading="lazy"
+            allow="encrypted-media; picture-in-picture; fullscreen" allowFullScreen
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} />
+        </div>
+        <a href={parsed.link} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-gold)' }}>
+          Ouvrir le live sur {platformLabel(parsed.platform)} <ExternalLink size={13} />
+        </a>
+      </>)}
+
+      <button type="button" onClick={onSave} disabled={saving} className="adm-btn adm-btn--primary" style={{ alignSelf: 'flex-start' }}>
+        {saved ? 'Sauvegardé ✓' : saving ? 'Sauvegarde…' : 'Sauvegarder le live'}
+      </button>
     </div>
   )
 }

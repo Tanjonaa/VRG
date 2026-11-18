@@ -7,6 +7,7 @@ import Navbar from './components/Navbar.jsx'
 import Hero from './components/Hero.jsx'
 import AnnouncementBar from './components/Marquee.jsx'
 import Categories from './components/Categories.jsx'
+import LiveSection from './components/LiveSection.jsx'
 import Features from './components/Features.jsx'
 import Products from './components/Products.jsx'
 import Gallery from './components/Gallery.jsx'
@@ -63,6 +64,7 @@ function AppInner() {
       />
       <main id="contenu">
         <Hero />
+        <LiveSection />
         <Categories />
         <Products />
         <Features />
