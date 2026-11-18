@@ -77,11 +77,6 @@ export default function Navbar({ onOpenAuth, onOpenAccount, onOpenCart }) {
               </motion.span>
             )}
           </button>
-          {!user && (
-            <button type="button" className="vs-btn vs-btn--primary vs-btn--sm vs-hide-mobile" onClick={onOpenAuth} style={{ marginLeft: 6 }}>
-              Connexion
-            </button>
-          )}
         </div>
       </nav>
 
