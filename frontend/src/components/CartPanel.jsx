@@ -4,6 +4,7 @@ import { Trash2, Plus, Minus, ShoppingBag, MapPin, CheckCircle2, ChevronLeft, Lo
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import Drawer from './store/Drawer.jsx'
+import { useSettings } from '../hooks/useSettings.js'
 
 const PAYMENT_METHODS = [
   { id: 'mvola',     name: 'MVola',          sub: 'Telma',         color: '#00A651', merchantNumber: '034 XX XXX XX' },
@@ -12,10 +13,18 @@ const PAYMENT_METHODS = [
   { id: 'livraison', name: 'À la livraison', sub: 'Payer en cash', color: '#22c55e', merchantNumber: null },
 ]
 
+/* Frais lus dans les réglages admin — les mêmes que ceux facturés par le
+   serveur (POST /orders recalcule le total) : le client voit le vrai montant. */
 const ZONES = [
-  { id: 'tana',         label: 'Tana Ville',   fee: 5000,  desc: 'Antananarivo centre' },
-  { id: 'peripherique', label: 'Périphérique', fee: 10000, desc: 'Banlieue & communes' },
+  { id: 'tana',         label: 'Tana Ville',   key: 'delivery_fee_tana',         fallback: 3000, desc: 'Antananarivo centre' },
+  { id: 'peripherique', label: 'Périphérique', key: 'delivery_fee_peripherique', fallback: 5000, desc: 'Banlieue & communes' },
 ]
+const zoneFee = (id, settings) => {
+  const z = ZONES.find(x => x.id === id)
+  if (!z) return 0
+  const v = Number(settings?.[z.key])
+  return Number.isFinite(v) && settings?.[z.key] !== undefined && settings[z.key] !== '' ? v : z.fallback
+}
 
 const ar = (n) => `${Number(n || 0).toLocaleString('fr-FR')} Ar`
 const fade = { initial: { opacity: 0, x: 16 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -16 }, transition: { duration: 0.2 } }
@@ -37,7 +46,8 @@ export default function CartPanel({ isOpen, onClose, onOpenAuth }) {
   const [submitting, setSubmitting]   = useState(false)
 
   const isMobile = payment && payment !== 'livraison'
-  const deliveryFee = zone === 'tana' ? 5000 : zone === 'peripherique' ? 10000 : 0
+  const settings    = useSettings()
+  const deliveryFee = zone ? zoneFee(zone, settings) : 0
   const grandTotal  = total + deliveryFee
   const canSubmit = payment && address.trim() && zone && hours.trim() && (!isMobile || (transferPhone.trim() && transferName.trim() && transferId.trim()))
 
@@ -209,6 +219,7 @@ function CartItem({ item, updateQty, removeItem }) {
 
 function CheckoutForm({ payment, setPayment, address, setAddress, zone, setZone, setHours, note, setNote, transferPhone, setTransferPhone, transferName, setTransferName, transferId, setTransferId, onSubmit, onBack }) {
   const [copied, setCopied] = useState(false)
+  const settings = useSettings()
   const method = PAYMENT_METHODS.find(m => m.id === payment)
   const isMobile = payment && payment !== 'livraison'
 
@@ -240,7 +251,7 @@ function CheckoutForm({ payment, setPayment, address, setAddress, zone, setZone,
             <button key={z.id} type="button" className="vs-option" aria-pressed={zone === z.id} onClick={() => setZone(z.id)}>
               <span style={{ fontSize: 15, fontWeight: 600 }}>{z.label}</span>
               <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>{z.desc}</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-gold)', marginTop: 4 }}>{ar(z.fee)}</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-gold)', marginTop: 4 }}>{ar(zoneFee(z.id, settings))}</span>
             </button>
           ))}
         </div>
