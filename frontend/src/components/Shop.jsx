@@ -9,6 +9,8 @@ import SupportChat from './SupportChat.jsx'
 import ComingSoon from './ComingSoon.jsx'
 import AccountPanel from './AccountPanel.jsx'
 import ProductCard from './store/ProductCard.jsx'
+import { X, Package, Truck, Wallet, ShieldCheck, Check, ShoppingBag, MessageCircle, Link2 } from 'lucide-react'
+import { isPromo, finalPrice } from '../lib/product.js'
 
 /* ─── useMobile hook ─── */
 function useMobile(bp = 768) {
@@ -104,29 +106,34 @@ function GlassCard({ children, style: sx = {}, glow = false, onClick }) {
 }
 
 /* ══════════════════════════════════════════
-   PRODUCT MODAL — PREMIUM
+   FICHE PRODUIT (modale)
 ══════════════════════════════════════════ */
 function ProductModal({ product, onClose, onAdd }) {
-  const [idx, setIdx]   = useState(0)
-  const [added, setAdded] = useState(false)
+  const [idx, setIdx]       = useState(0)
+  const [added, setAdded]   = useState(false)
   const [copied, setCopied] = useState(false)
-  const imgs = parse(product?.images)
-  const oos  = product?.stock === 0
-  const col  = catColor(product?.category)
+  const imgs  = parse(product?.images)
+  const oos   = Number(product?.stock) <= 0
+  const low   = !oos && Number(product?.stock) <= 5
+  const promo = product ? isPromo(product) : false
+  const price = product ? finalPrice(product) : 0
 
   const shareUrl  = `https://varygasy.net/produit/${product?.id}`
-  const shareText = `${product?.name} · ${fmt(product?.price)} Ar — ${shareUrl}`
+  const shareText = `${product?.name} · ${fmt(price)} Ar — ${shareUrl}`
   const copyLink = async () => {
     /* Partage natif sur mobile, copie du lien sinon */
     if (navigator.share) { try { await navigator.share({ title: product.name, url: shareUrl }) } catch {} ; return }
-    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch {}
+    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch {}
   }
 
   useEffect(() => { setIdx(0) }, [product])
   useEffect(() => {
     const handler = e => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.body.classList.add('vs-drawer-open')   // masque la bulle de chat
+    return () => { window.removeEventListener('keydown', handler); document.body.style.overflow = prev; document.body.classList.remove('vs-drawer-open') }
   }, [onClose])
 
   if (!product) return null
@@ -134,105 +141,85 @@ function ProductModal({ product, onClose, onAdd }) {
   const handleAdd = () => {
     onAdd(product)
     setAdded(true)
-    setTimeout(() => setAdded(false), 1500)
+    setTimeout(() => setAdded(false), 1800)
   }
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-        onClick={onClose}
-        style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', zIndex:60, display:'flex', alignItems:'center', justifyContent:'center', padding:24, backdropFilter:'blur(4px)' }}>
-        <motion.div
-          initial={{ scale:0.9, opacity:0, y:20 }} animate={{ scale:1, opacity:1, y:0 }} exit={{ scale:0.9, opacity:0 }}
-          transition={{ type:'spring', damping:26, stiffness:300 }}
+      <motion.div className="vs-pm-backdrop" onClick={onClose}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div className="vs-pm" role="dialog" aria-modal="true" aria-labelledby="pm-title" tabIndex={-1}
+          ref={el => el && !el.contains(document.activeElement) && el.focus({ preventScroll: true })}
           onClick={e => e.stopPropagation()}
-          style={{ background:'#0b0b1a', border:`1px solid ${T.border}`, borderRadius:28, maxWidth:740, width:'100%', overflow:'hidden', display:'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', maxHeight: window.innerWidth < 768 ? '90dvh' : 'auto', overflowY: window.innerWidth < 768 ? 'auto' : 'visible', boxShadow:'0 40px 120px rgba(0,0,0,0.7)' }}>
+          initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
 
-          {/* Left — Images */}
-          <div style={{ width:340, flexShrink:0, background:'rgba(255,255,255,0.02)', display:'flex', flexDirection:'column' }}>
-            <div style={{ flex:1, position:'relative', overflow:'hidden' }}>
-              <AnimatePresence mode="wait">
-                <motion.div key={idx} initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} transition={{ duration:0.25 }}
-                  style={{ width:'100%', height:'100%', minHeight:300 }}>
-                  {imgs[idx]?.src
-                    ? <img src={imgs[idx].src} alt={`${product.name} — ${product.category || 'accessoire gaming'} VaRyGasy`} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                    : <div style={{ width:'100%', height:'100%', minHeight:300, display:'flex', alignItems:'center', justifyContent:'center', fontSize:72, opacity:0.08 }}>📦</div>
-                  }
-                </motion.div>
-              </AnimatePresence>
-              {/* Gradient bottom */}
-              <div style={{ position:'absolute', bottom:0, left:0, right:0, height:80, background:'linear-gradient(to top, #0b0b1a, transparent)', pointerEvents:'none' }} />
+          <button type="button" className="vs-icon-btn vs-pm__close" onClick={onClose} aria-label="Fermer">
+            <X size={20} />
+          </button>
+
+          {/* Visuels */}
+          <div className="vs-pm__media">
+            <div className="vs-pm__main">
+              {imgs[idx]?.src
+                ? <>
+                    {/* Fond flou (même photo) + photo entière par-dessus, jamais recadrée */}
+                    <img src={imgs[idx].src} alt="" aria-hidden="true" className="vs-pm__blur" />
+                    <img src={imgs[idx].src} alt={`${product.name} — ${product.category || 'accessoire gaming'} VaRyGasy`} className="vs-pm__photo" />
+                  </>
+                : <Package size={56} color="var(--color-subtle)" aria-hidden="true" />}
+              <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', gap: 6 }}>
+                {promo && <span className="vs-badge vs-badge--promo">-{product.promo_percent}%</span>}
+                {oos && <span className="vs-badge vs-badge--out">Épuisé</span>}
+              </div>
             </div>
             {imgs.length > 1 && (
-              <div style={{ display:'flex', gap:8, padding:'12px 16px' }}>
+              <div className="vs-pm__thumbs" role="group" aria-label="Photos du produit">
                 {imgs.map((im, i) => (
-                  <button key={i} onClick={() => setIdx(i)}
-                    style={{ width:52, height:52, borderRadius:12, overflow:'hidden', border:`2px solid ${i===idx ? T.accent : T.border}`, cursor:'pointer', padding:0, transition:'border-color 0.2s', flexShrink:0, background:'rgba(255,255,255,0.03)' }}>
-                    <img src={im.src} alt={`${product.name} vue ${i + 1}`} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  <button key={i} type="button" onClick={() => setIdx(i)} aria-label={`Photo ${i + 1}`} aria-pressed={i === idx}>
+                    <img src={im.src} alt="" />
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Right — Info */}
-          <div style={{ flex:1, padding:'32px', display:'flex', flexDirection:'column', gap:16, overflow:'auto' }}>
-            {/* Close */}
-            <div style={{ display:'flex', justifyContent:'flex-end' }}>
-              <button onClick={onClose}
-                style={{ width:34, height:34, borderRadius:99, border:`1px solid ${T.border}`, background:T.glass, cursor:'pointer', color:T.textMuted, fontSize:17, display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
-                ✕
+          {/* Informations */}
+          <div className="vs-pm__body">
+            {product.category && <span className="vs-card__cat">{product.category}</span>}
+            <h2 id="pm-title" className="vs-pm__title">{product.name}</h2>
+
+            <div className="vs-price" style={{ marginTop: 4 }}>
+              <span className={`vs-price__now${promo ? ' vs-price__now--promo' : ''}`} style={{ fontSize: 28 }}>{fmt(price)} Ar</span>
+              {promo && <span className="vs-price__old" style={{ fontSize: 15 }}>{fmt(product.price)} Ar</span>}
+            </div>
+
+            <span className={`vs-stock${oos ? ' vs-stock--out' : low ? ' vs-stock--low' : ''}`} style={{ fontSize: 13 }}>
+              {oos ? 'Rupture de stock' : low ? `Plus que ${product.stock} en stock` : 'En stock · expédié sous 24 h'}
+            </span>
+
+            {product.description && <p className="vs-pm__desc">{product.description}</p>}
+
+            <ul className="vs-pm__perks">
+              <li><Truck size={16} aria-hidden="true" /> Livraison 24 h sur Antananarivo</li>
+              <li><Wallet size={16} aria-hidden="true" /> Mobile money ou paiement à la livraison</li>
+              <li><ShieldCheck size={16} aria-hidden="true" /> Retour sous 7 jours</li>
+            </ul>
+
+            <div className="vs-pm__actions">
+              <button type="button" className={`vs-btn vs-btn--block ${added ? 'vs-btn--added' : 'vs-btn--primary'}`}
+                onClick={handleAdd} disabled={oos} style={{ minHeight: 52 }}>
+                {added ? <><Check size={18} /> Ajouté au panier</> : oos ? 'Indisponible' : <><ShoppingBag size={18} /> Ajouter au panier</>}
               </button>
-            </div>
-
-            {product.category && (
-              <span style={{ fontSize:11, fontWeight:800, padding:'4px 12px', borderRadius:99, background:`${col}18`, color:col, border:`1px solid ${col}30`, alignSelf:'flex-start', letterSpacing:'0.06em', textTransform:'uppercase' }}>
-                {product.category}
-              </span>
-            )}
-
-            <div>
-              <h2 style={{ fontSize:22, fontWeight:900, color:T.text, lineHeight:1.25, margin:0, letterSpacing:'-0.5px' }}>{product.name}</h2>
-            </div>
-
-            {/* Price */}
-            <div style={{ display:'flex', alignItems:'baseline', gap:6, padding:'16px', borderRadius:16, background:'rgba(245,183,10,0.06)', border:'1px solid rgba(245,183,10,0.15)' }}>
-              <span style={{ fontSize:34, fontWeight:900, color:T.accent, letterSpacing:'-1.5px', lineHeight:1 }}>{fmt(product.price)}</span>
-              <span style={{ fontSize:14, color:T.textMuted, fontWeight:700 }}>Ar</span>
-            </div>
-
-            {product.description && (
-              <p style={{ fontSize:13, color:T.textMuted, lineHeight:1.7, margin:0 }}>{product.description}</p>
-            )}
-
-            {/* Stock */}
-            <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 16px', borderRadius:12, background: oos ? 'rgba(239,68,68,0.06)' : 'rgba(74,222,128,0.06)', border: `1px solid ${oos ? 'rgba(239,68,68,0.2)' : 'rgba(74,222,128,0.2)'}` }}>
-              <span style={{ width:8, height:8, borderRadius:'50%', background: oos ? '#f87171' : '#4ade80', boxShadow: oos ? '0 0 8px rgba(248,113,113,0.5)' : '0 0 8px rgba(74,222,128,0.5)', flexShrink:0 }} />
-              <span style={{ fontSize:12, fontWeight:700, color: oos ? '#f87171' : '#4ade80' }}>
-                {oos ? 'Rupture de stock' : product.stock <= 5 ? `Seulement ${product.stock} en stock` : `En stock (${product.stock} disponibles)`}
-              </span>
-            </div>
-
-            {/* Partage — chaque produit a son URL propre */}
-            <div style={{ display:'flex', gap:8 }}>
-              <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noreferrer"
-                style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'9px 12px', borderRadius:12, background:'rgba(37,211,102,0.1)', border:'1px solid rgba(37,211,102,0.3)', color:'#25d366', fontSize:12, fontWeight:700, textDecoration:'none' }}>
-                Partager sur WhatsApp
-              </a>
-              <button onClick={copyLink}
-                style={{ flex:1, padding:'9px 12px', borderRadius:12, background:T.glass, border:`1px solid ${T.border}`, color:T.textMuted, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
-                {copied ? 'Lien copié ✓' : '🔗 Copier le lien'}
-              </button>
-            </div>
-
-            <div style={{ marginTop:'auto', display:'flex', gap:10 }}>
-              <Btn variant="primary" size="lg" disabled={oos} onClick={handleAdd} full>
-                {added ? '✓ Ajouté au panier !' : oos ? 'Indisponible' : '+ Ajouter au panier'}
-              </Btn>
-              <Btn variant="ghost" size="lg" onClick={onClose}>
-                ✕
-              </Btn>
+              <div className="vs-pm__share">
+                <span>Partager</span>
+                <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noreferrer" className="vs-textbtn">
+                  <MessageCircle size={16} aria-hidden="true" /> WhatsApp
+                </a>
+                <button type="button" onClick={copyLink} className="vs-textbtn" aria-live="polite">
+                  {copied ? <><Check size={16} aria-hidden="true" /> Lien copié</> : <><Link2 size={16} aria-hidden="true" /> Copier le lien</>}
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
