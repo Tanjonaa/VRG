@@ -44,7 +44,7 @@ export default function AdminLogin({ onLogin }) {
               <AtSign size={17} aria-hidden="true" />
               <input id="adm-id" value={identifier} onChange={e => setIdentifier(e.target.value)}
                 type="text" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false}
-                placeholder="toi@exemple.com ou 034 00 000 00" autoFocus />
+                placeholder="nom@exemple.com" autoFocus />
             </div>
           </div>
 

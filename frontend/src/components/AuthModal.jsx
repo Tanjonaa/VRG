@@ -231,7 +231,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                     onChange={e => set('phone', isRegister ? e.target.value.replace(/[^\d\s+]/g, '') : e.target.value)}
                     type={isRegister ? 'tel' : 'text'} inputMode={isRegister ? 'tel' : undefined}
                     autoComplete={isRegister ? 'tel' : 'username'}
-                    placeholder={isRegister ? '034 12 345 67' : '034 12 345 67 ou vous@email.com'}
+                    placeholder="034 12 345 67"
                     aria-describedby={isRegister ? 'auth-phone-hint' : undefined}
                     aria-invalid={isRegister && (phoneStatus === 'taken' || phoneStatus === 'invalid')} />
                   {isRegister && statusIcon(phoneStatus)}

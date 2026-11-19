@@ -220,6 +220,51 @@ body {
 @media (min-width: 640px) { .vs-footer-grid { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 1000px) { .vs-footer-grid { grid-template-columns: 1.6fr 1fr 1fr 1.2fr; } }
 
+/* ── Fiche produit (modale du catalogue) ── */
+.vs-pm-backdrop { position: fixed; inset: 0; z-index: 160; display: flex; align-items: flex-end; justify-content: center; background: rgba(5,5,8,0.75); backdrop-filter: blur(6px); }
+.vs-pm {
+  position: relative; width: 100%; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  background: var(--color-bg-alt); border: 1px solid var(--color-border-strong); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--shadow-pop); font-family: var(--font-sans); color: var(--color-text);
+}
+@media (min-width: 820px) {
+  .vs-pm-backdrop { align-items: center; padding: 32px; }
+  .vs-pm { max-width: 960px; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); border-radius: var(--radius-xl); overflow: hidden; max-height: min(680px, 90dvh); }
+}
+.vs-pm__close { position: absolute; top: 12px; right: 12px; z-index: 2; background: rgba(11,11,16,0.7); backdrop-filter: blur(8px); border-color: var(--color-border); }
+.vs-pm__media { display: flex; flex-direction: column; background: var(--color-surface); min-width: 0; }
+/* Photo produit : toujours affichée en entier (contain), quel que soit son
+   format (portrait, paysage, carré), sur un fond flou tiré de la même photo. */
+.vs-pm__main { position: relative; display: grid; place-items: center; overflow: hidden; background: var(--color-surface-2);
+  aspect-ratio: 4 / 5; max-height: 52dvh; }
+@media (min-width: 820px) { .vs-pm__main { aspect-ratio: auto; max-height: none; flex: 1; min-height: 420px; } }
+.vs-pm__main img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.vs-pm__blur { object-fit: cover; filter: blur(28px) brightness(.45) saturate(1.2); transform: scale(1.15); }
+.vs-pm__photo { object-fit: contain; padding: 8px; }
+.vs-pm__thumbs { display: flex; gap: 8px; padding: 12px; overflow-x: auto; scrollbar-width: none; border-top: 1px solid var(--color-border); }
+.vs-pm__thumbs button { width: 60px; height: 60px; flex-shrink: 0; padding: 0; border-radius: 10px; overflow: hidden; cursor: pointer; background: var(--color-surface-2); border: 2px solid transparent; opacity: .6; transition: opacity .2s, border-color .2s; }
+.vs-pm__thumbs button[aria-pressed="true"] { border-color: var(--color-gold); opacity: 1; }
+.vs-pm__thumbs button:hover { opacity: 1; }
+.vs-pm__thumbs button:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+.vs-pm__thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vs-pm__body { display: flex; flex-direction: column; gap: 14px; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); min-width: 0; }
+@media (min-width: 820px) { .vs-pm__body { padding: 40px 36px 32px; overflow-y: auto; } }
+.vs-pm__title { font-family: var(--font-display); font-size: clamp(22px, 2.6vw, 28px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; padding-right: 40px; text-wrap: balance; }
+.vs-pm__desc { font-size: 15px; line-height: 1.65; color: var(--color-muted); white-space: pre-line; }
+.vs-pm__perks { list-style: none; display: flex; flex-direction: column; gap: 10px; padding: 16px 0; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+.vs-pm__perks li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--color-muted); }
+.vs-pm__perks svg { color: var(--color-gold); flex-shrink: 0; }
+.vs-pm__actions { margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.vs-pm:focus { outline: none; }
+@media (max-width: 819px) {
+  /* Mobile : bouton d'achat toujours visible en bas de la fiche */
+  .vs-pm__body { padding-bottom: 0; }
+  .vs-pm__actions { position: sticky; bottom: 0; margin: 0 -20px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); background: var(--color-bg-alt); border-top: 1px solid var(--color-border); }
+}
+.vs-pm__share a { text-decoration: none; }
+.vs-pm__share { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--color-subtle); }
+
 /* ── Live vidéo (section « En direct ») ── */
 .vs-live {
   display: grid; gap: 28px; align-items: center; grid-template-columns: minmax(0, 1fr);
@@ -466,6 +511,10 @@ body.vs-drawer-open .vs-chat-bubble { opacity: 0; pointer-events: none; transfor
 .adm-field:focus-within { border-color: var(--color-gold); box-shadow: 0 0 0 3px var(--color-gold-soft); }
 .adm-field input { flex: 1; min-width: 0; height: 46px; background: none; border: none; outline: none; font: 400 16px var(--font-sans); color: var(--color-text); }
 .adm-field input::placeholder { color: var(--color-subtle); }
+/* Texte trop long → « … » au lieu d'être coupé net ; marge à droite pour l'icône
+   que les gestionnaires de mots de passe (Bitwarden, LastPass…) posent dans le champ */
+.adm-field input, .vs-field input { text-overflow: ellipsis; }
+.adm-field input[autocomplete="username"], .vs-field input[autocomplete="username"] { padding-right: 28px; }
 .adm-field input:focus-visible { outline: none; }  /* l'anneau est porté par .adm-field */
 .adm-field__btn { display: inline-grid; place-items: center; width: 36px; height: 36px; margin-right: -8px; border: none; border-radius: 8px; background: none; color: var(--color-subtle); cursor: pointer; }
 .adm-field__btn:hover { color: var(--color-text); }
@@ -586,6 +635,23 @@ body.vs-drawer-open .vs-chat-bubble { opacity: 0; pointer-events: none; transfor
      (le JS n'affiche que liste OU conversation sur mobile) */
   .adm-chat-list { width: 100% !important; border-right: none !important; }
 }
+
+/* Remplissage automatique du navigateur (Chrome, Edge, Safari) : il impose un
+   fond bleu clair/jaune. On le recouvre par une ombre interne aux couleurs du
+   champ (seule méthode fiable) et on retarde la transition du fond natif. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--color-text);
+  caret-color: var(--color-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-surface) inset !important;
+  box-shadow: 0 0 0 1000px var(--color-surface) inset !important;
+  transition: background-color 9999s ease-out 0s;
+  font: inherit;
+}
+input:autofill { box-shadow: 0 0 0 1000px var(--color-surface) inset; -webkit-text-fill-color: var(--color-text); }
+.vs-field input, .adm-field input { color-scheme: dark; }
 
 /* Date/select inputs — dark mode natif */
 input[type="date"] { color-scheme: dark; }
