@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AuthProvider, useAuth } from '../context/AuthContext.jsx'
 import { CartProvider, useCart } from '../context/CartContext.jsx'
@@ -8,26 +8,15 @@ import AuthModal from './AuthModal.jsx'
 import SupportChat from './SupportChat.jsx'
 import ComingSoon from './ComingSoon.jsx'
 import AccountPanel from './AccountPanel.jsx'
-import ProductCard from './store/ProductCard.jsx'
-import { X, Package, Truck, Wallet, ShieldCheck, Check, ShoppingBag, MessageCircle, Link2 } from 'lucide-react'
-import { isPromo, finalPrice } from '../lib/product.js'
-
-/* ─── useMobile hook ─── */
-function useMobile(bp = 768) {
-  const [m, setM] = useState(() => typeof window !== 'undefined' && window.innerWidth < bp)
-  useEffect(() => {
-    const fn = () => setM(window.innerWidth < bp)
-    window.addEventListener('resize', fn)
-    return () => window.removeEventListener('resize', fn)
-  }, [bp])
-  return m
-}
+import ProductCard, { ProductCardSkeleton } from './store/ProductCard.jsx'
+import {
+  X, Package, Truck, Wallet, ShieldCheck, Check, ShoppingBag, MessageCircle, Link2,
+  Search, User, ChevronRight, ChevronDown, SlidersHorizontal, LayoutGrid, List, SearchX, ArrowRight,
+} from 'lucide-react'
+import { isPromo, finalPrice, fmtAr } from '../lib/product.js'
 
 /* ─── helpers ─── */
 const fmt = n => Number(n).toLocaleString('fr-FR')
-const djb2 = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h*33)^s.charCodeAt(i))>>>0; return h }
-const PALETTE = ['#f5b70a','#a78bfa','#34d399','#60a5fa','#f472b6','#fb923c','#38bdf8','#4ade80','#e879f9','#f87171']
-const catColor = c => PALETTE[djb2(c||'')%PALETTE.length]
 /* images arrive soit en chaîne JSON (API admin), soit déjà parsé en tableau (API publique) */
 const parse = raw => { if (Array.isArray(raw)) return raw; try { const a = JSON.parse(raw); return Array.isArray(a)?a:[] } catch { return [] } }
 
@@ -38,71 +27,6 @@ const filterByDate = (list, df) => {
   if (df === 'all') return sorted
   const cutoff = Date.now() - AGO_MS[df]
   return sorted.filter(p => p.created_at && new Date(p.created_at) >= cutoff)
-}
-const fmtDate = ts => {
-  if (!ts) return ''
-  const d = new Date(ts)
-  return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' })
-}
-
-/* ══════════════════════════════════════════
-   DESIGN TOKENS
-══════════════════════════════════════════ */
-const T = {
-  bg:       '#0b0b10',
-  surface:  '#14141c',
-  glass:    'rgba(255,255,255,0.04)',
-  border:   'rgba(255,255,255,0.07)',
-  borderHi: 'rgba(245,183,10,0.35)',
-  accent:   '#f5b70a',
-  accentDim:'rgba(245,183,10,0.15)',
-  text:     '#f0f0f8',
-  textMuted:'rgba(240,240,248,0.64)',
-  textDim:  'rgba(240,240,248,0.42)',
-}
-
-/* ══════════════════════════════════════════
-   PREMIUM BUTTON
-══════════════════════════════════════════ */
-function Btn({ children, onClick, variant = 'ghost', size = 'md', disabled, full, style: sx = {} }) {
-  const pads = { sm:'7px 16px', md:'11px 22px', lg:'14px 32px' }
-  const sizes = { sm:11, md:13, lg:15 }
-  const variants = {
-    primary:  { background:'linear-gradient(135deg,#f5b70a 0%,#e0a400 100%)', border:'none', color:'#17130a', boxShadow:'0 4px 24px rgba(245,183,10,0.35)' },
-    ghost:    { background:T.glass, border:`1px solid ${T.border}`, color:T.text, boxShadow:'none' },
-    outline:  { background:'transparent', border:`1px solid ${T.borderHi}`, color:T.accent, boxShadow:'none' },
-    danger:   { background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.25)', color:'#f87171', boxShadow:'none' },
-  }
-  const v = disabled ? { background:'rgba(255,255,255,0.03)', border:`1px solid ${T.border}`, color:T.textDim, boxShadow:'none' } : variants[variant]
-  return (
-    <motion.button
-      whileHover={disabled ? {} : variant==='primary' ? { scale:1.03, boxShadow:'0 6px 32px rgba(245,183,10,0.45)' } : { scale:1.02, background:'rgba(255,255,255,0.07)' }}
-      whileTap={disabled ? {} : { scale:0.97 }}
-      onClick={disabled ? undefined : onClick}
-      style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', gap:7, padding:pads[size], borderRadius:99, fontSize:sizes[size], fontWeight:700, letterSpacing:'0.01em', cursor:disabled?'not-allowed':'pointer', fontFamily:'inherit', width:full?'100%':'auto', transition:'background 0.2s', ...v, ...sx }}>
-      {children}
-    </motion.button>
-  )
-}
-
-/* ══════════════════════════════════════════
-   GLASS CARD
-══════════════════════════════════════════ */
-function GlassCard({ children, style: sx = {}, glow = false, onClick }) {
-  return (
-    <div onClick={onClick} style={{
-      background: T.surface,
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      border: `1px solid ${glow ? T.borderHi : T.border}`,
-      borderRadius: 20,
-      boxShadow: glow ? `0 8px 40px rgba(245,183,10,0.1), inset 0 1px 0 rgba(255,255,255,0.06)` : `0 2px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)`,
-      transition: 'border-color 0.25s, box-shadow 0.25s',
-      ...sx,
-    }}>
-      {children}
-    </div>
-  )
 }
 
 /* ══════════════════════════════════════════
@@ -229,89 +153,183 @@ function ProductModal({ product, onClose, onAdd }) {
 }
 
 /* ══════════════════════════════════════════
-   FILTER DRAWER — mobile bottom sheet
+   EN-TÊTE BOUTIQUE
 ══════════════════════════════════════════ */
-function FilterDrawer({ open, onClose, categories, active, setActive, price, setPrice, inStock, setInStock, total }) {
+const TABS = [
+  { id: 'catalogue',  label: 'Catalogue' },
+  { id: 'nouveautes', label: 'Nouveautés' },
+  { id: 'promos',     label: 'Promotions' },
+]
+
+function ShopHeader({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, counts }) {
+  const { user }  = useAuth()
+  const { count } = useCart()
+  return (
+    <header className="vs-sh">
+      <div className="vs-container vs-sh__bar">
+        <a href="/" className="vs-sh__logo" aria-label="VaRyGasy — accueil">
+          <img src="/images/logo/logo.svg" alt="VaRyGasy" width="110" height="40" />
+        </a>
+
+        <nav className="vs-sh__tabs" aria-label="Rayons de la boutique">
+          {TABS.map(t => (
+            <button key={t.id} type="button" className="vs-sh__tab"
+              aria-current={navTab === t.id ? 'page' : undefined} onClick={() => setNavTab(t.id)}>
+              {t.label}
+              {counts[t.id] > 0 && (
+                <span className={`vs-sh__count${t.id === 'promos' ? ' vs-sh__count--promo' : ''}`}>{counts[t.id]}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <div className="vs-field vs-sh__search">
+          <Search size={18} aria-hidden="true" />
+          <input type="search" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher un produit…" aria-label="Rechercher un produit" />
+          {search && (
+            <button type="button" className="vs-sh__clear" onClick={() => setSearch('')} aria-label="Effacer la recherche">
+              <X size={16} />
+            </button>
+          )}
+        </div>
+
+        <div className="vs-sh__actions">
+          <button type="button" className="vs-icon-btn" onClick={onOpenAuth} aria-label={user ? 'Mon compte' : 'Se connecter'}>
+            <User size={20} />
+          </button>
+          <button type="button" className="vs-icon-btn" onClick={onOpenCart}
+            aria-label={`Panier, ${count} article${count > 1 ? 's' : ''}`}>
+            <ShoppingBag size={20} />
+            {count > 0 && (
+              <motion.span key={count} initial={{ scale: 0.4 }} animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 22 }} className="vs-sh__badge" aria-hidden="true">
+                {count}
+              </motion.span>
+            )}
+          </button>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+/* ══════════════════════════════════════════
+   EN-TÊTE DE PAGE (fil d'Ariane + titre)
+══════════════════════════════════════════ */
+function PageHead({ crumbs, title, sub }) {
+  return (
+    <div className="vs-ph">
+      <nav className="vs-ph__crumbs" aria-label="Fil d'Ariane">
+        <a href="/">Accueil</a>
+        {crumbs.map((c, i) => (
+          <React.Fragment key={i}>
+            <ChevronRight size={14} aria-hidden="true" />
+            {c.onClick && i < crumbs.length - 1
+              ? <button type="button" onClick={c.onClick}>{c.label}</button>
+              : <span aria-current={i === crumbs.length - 1 ? 'page' : undefined}>{c.label}</span>}
+          </React.Fragment>
+        ))}
+      </nav>
+      <h1 className="vs-ph__title">{title}</h1>
+      {sub && <p className="vs-ph__sub">{sub}</p>}
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════
+   FILTRES (colonne desktop + tiroir mobile)
+══════════════════════════════════════════ */
+function FilterPanel({ cats, total, active, setActive, price, setPrice, priceCeil, inStock, setInStock, dirty, onReset, bare }) {
+  const value = price ?? priceCeil
+  const pct   = priceCeil ? Math.round((value / priceCeil) * 100) : 100
+  const step  = priceCeil > 100000 ? 5000 : 1000
+  return (
+    <div className={`vs-fp${bare ? ' vs-fp--bare' : ''}`}>
+      {!bare && (
+        <div className="vs-fp__head">
+          <h2 className="vs-fp__title"><SlidersHorizontal size={16} aria-hidden="true" /> Filtres</h2>
+          {dirty && <button type="button" className="vs-textbtn vs-textbtn--gold" onClick={onReset}>Réinitialiser</button>}
+        </div>
+      )}
+
+      <section className="vs-fp__sec" aria-labelledby="fp-cat">
+        <h3 id="fp-cat" className="vs-fp__label">Catégorie</h3>
+        <ul className="vs-fp__list">
+          <li>
+            <button type="button" className="vs-fp__opt" aria-pressed={active === null} onClick={() => setActive(null)}>
+              <span>Tous les produits</span><span className="vs-fp__n">{total}</span>
+            </button>
+          </li>
+          {cats.map(c => (
+            <li key={c.name}>
+              <button type="button" className="vs-fp__opt" aria-pressed={active === c.name} onClick={() => setActive(c.name)}>
+                <span>{c.name}</span><span className="vs-fp__n">{c.count}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="vs-fp__sec">
+        <div className="vs-fp__row">
+          <h3 id="fp-price" className="vs-fp__label">Prix maximum</h3>
+          <span className="vs-fp__val">{price == null ? 'Tous les prix' : fmtAr(price)}</span>
+        </div>
+        <input type="range" className="vs-range" min={0} max={priceCeil} step={step} value={value}
+          onChange={e => { const v = Number(e.target.value); setPrice(v >= priceCeil ? null : v) }}
+          aria-labelledby="fp-price" aria-valuetext={price == null ? 'Tous les prix' : fmtAr(price)}
+          style={{ '--pct': `${pct}%` }} />
+        <div className="vs-fp__scale"><span>0 Ar</span><span>{fmtAr(priceCeil)}</span></div>
+      </section>
+
+      <section className="vs-fp__sec">
+        <label className="vs-switch">
+          <span>
+            <span className="vs-fp__swlabel">En stock uniquement</span>
+            <span className="vs-fp__hint">Masquer les produits épuisés</span>
+          </span>
+          <input type="checkbox" role="switch" checked={inStock} onChange={e => setInStock(e.target.checked)} />
+          <span className="vs-switch__track" aria-hidden="true" />
+        </label>
+      </section>
+    </div>
+  )
+}
+
+function FilterDrawer({ open, onClose, resultCount, ...panel }) {
   useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
-  }, [open])
+    if (!open) return
+    const onKey = e => e.key === 'Escape' && onClose()
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.body.classList.add('vs-drawer-open')
+    window.addEventListener('keydown', onKey)
+    return () => { document.body.style.overflow = prev; document.body.classList.remove('vs-drawer-open'); window.removeEventListener('keydown', onKey) }
+  }, [open, onClose])
 
   return (
     <AnimatePresence>
       {open && (
         <>
-          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-            onClick={onClose}
-            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:50, backdropFilter:'blur(4px)' }} />
-
-          <motion.div
-            initial={{ y:'100%' }} animate={{ y:0 }} exit={{ y:'100%' }}
-            transition={{ type:'spring', damping:32, stiffness:320 }}
-            style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:51, background:'#0e0e1e', borderTop:`1px solid ${T.border}`, borderRadius:'24px 24px 0 0', padding:'0 0 32px', maxHeight:'85dvh', overflowY:'auto' }}>
-
-            {/* Handle */}
-            <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 8px' }}>
-              <div style={{ width:40, height:4, borderRadius:99, background:'rgba(255,255,255,0.15)' }} />
+          <motion.div className="vs-sheet-backdrop" onClick={onClose}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+          <motion.div className="vs-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"
+            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+            transition={{ type: 'tween', duration: 0.32, ease: [0.16, 1, 0.3, 1] }}>
+            <div className="vs-sheet__handle" aria-hidden="true" />
+            <div className="vs-sheet__head">
+              <h2 id="sheet-title">Filtres</h2>
+              <button type="button" className="vs-icon-btn" onClick={onClose} aria-label="Fermer les filtres" autoFocus>
+                <X size={20} />
+              </button>
             </div>
-
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 20px 16px' }}>
-              <span style={{ fontSize:16, fontWeight:800, color:T.text }}>Filtres</span>
-              <button onClick={onClose} style={{ background:'rgba(255,255,255,0.06)', border:`1px solid ${T.border}`, borderRadius:99, padding:'6px 14px', cursor:'pointer', color:T.textMuted, fontSize:12, fontWeight:700 }}>Fermer</button>
-            </div>
-
-            <div style={{ padding:'0 16px', display:'flex', flexDirection:'column', gap:12 }}>
-              {/* Catégories */}
-              <GlassCard>
-                <div style={{ padding:'14px 16px' }}>
-                  <div style={{ fontSize:10, fontWeight:800, color:T.textDim, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>Catégories</div>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                    <button onClick={() => setActive(null)}
-                      style={{ padding:'7px 14px', borderRadius:99, fontSize:12, fontWeight:700, border:'1px solid', cursor:'pointer', background: active===null?T.accentDim:'rgba(255,255,255,0.04)', borderColor: active===null?'rgba(245,183,10,0.3)':T.border, color: active===null?T.accent:T.textMuted }}>
-                      Tous ({total})
-                    </button>
-                    {categories.map(c => (
-                      <button key={c.name} onClick={() => { setActive(c.name); onClose() }}
-                        style={{ padding:'7px 14px', borderRadius:99, fontSize:12, fontWeight:700, border:'1px solid', cursor:'pointer', background: active===c.name?T.accentDim:'rgba(255,255,255,0.04)', borderColor: active===c.name?'rgba(245,183,10,0.3)':T.border, color: active===c.name?T.accent:T.textMuted }}>
-                        {c.name} ({c.count})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </GlassCard>
-
-              {/* Prix */}
-              <GlassCard>
-                <div style={{ padding:'14px 16px' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12 }}>
-                    <div style={{ fontSize:10, fontWeight:800, color:T.textDim, textTransform:'uppercase', letterSpacing:'0.1em' }}>Prix maximum</div>
-                    <span style={{ fontSize:13, fontWeight:800, color:T.accent }}>{fmt(price)} Ar</span>
-                  </div>
-                  <div style={{ position:'relative', height:4, borderRadius:99, background:'rgba(255,255,255,0.08)', marginBottom:-4 }}>
-                    <div style={{ position:'absolute', left:0, top:0, height:'100%', borderRadius:99, background:`linear-gradient(90deg,${T.accent},#e0a400)`, width:`${(price/200000)*100}%` }} />
-                  </div>
-                  <input type="range" min={0} max={200000} step={5000} value={price} onChange={e => setPrice(Number(e.target.value))}
-                    style={{ width:'100%', accentColor:T.accent, cursor:'pointer', opacity:0, marginTop:-4, height:24 }} />
-                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:T.textDim }}>
-                    <span>0 Ar</span><span>200 000 Ar</span>
-                  </div>
-                </div>
-              </GlassCard>
-
-              {/* Stock */}
-              <GlassCard>
-                <div style={{ padding:'14px 16px' }}>
-                  <button onClick={() => setInStock(s => !s)}
-                    style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', background:'none', border:'none', cursor:'pointer', padding:0 }}>
-                    <span style={{ fontSize:13, fontWeight:600, color:inStock?T.text:T.textMuted }}>En stock uniquement</span>
-                    <div style={{ width:44, height:24, borderRadius:99, background: inStock?T.accent:'rgba(255,255,255,0.08)', position:'relative', transition:'background 0.2s', flexShrink:0 }}>
-                      <div style={{ position:'absolute', top:4, width:16, height:16, borderRadius:'50%', background:'#fff', left: inStock?24:4, transition:'left 0.2s', boxShadow:'0 1px 4px rgba(0,0,0,0.4)' }} />
-                    </div>
-                  </button>
-                </div>
-              </GlassCard>
-
-              <Btn variant="primary" size="md" full onClick={onClose}>Appliquer les filtres</Btn>
+            <div className="vs-sheet__body"><FilterPanel {...panel} bare /></div>
+            <div className="vs-sheet__foot">
+              {panel.dirty && <button type="button" className="vs-btn vs-btn--ghost" onClick={panel.onReset}>Réinitialiser</button>}
+              <button type="button" className="vs-btn vs-btn--primary" style={{ flex: 1 }} onClick={onClose}>
+                Voir {resultCount} produit{resultCount !== 1 ? 's' : ''}
+              </button>
             </div>
           </motion.div>
         </>
@@ -321,134 +339,206 @@ function FilterDrawer({ open, onClose, categories, active, setActive, price, set
 }
 
 /* ══════════════════════════════════════════
-   SIDEBAR — PREMIUM
+   BARRE D'OUTILS (nombre, filtres actifs, tri, vue)
 ══════════════════════════════════════════ */
-function Sidebar({ categories, active, setActive, price, setPrice, inStock, setInStock, total }) {
+function ViewToggle({ view, setView }) {
   return (
-    <aside style={{ width:230, flexShrink:0, display:'flex', flexDirection:'column', gap:10 }}>
-
-      {/* Categories */}
-      <GlassCard>
-        <div style={{ padding:'16px 18px' }}>
-          <div style={SC.label}>Catégories</div>
-          <div style={{ display:'flex', flexDirection:'column', gap:2, marginTop:10 }}>
-            <SideBtn active={active===null} onClick={() => setActive(null)} count={total} label="Tous les produits" dot={T.accent} />
-            {categories.map(c => <SideBtn key={c.name} active={active===c.name} onClick={() => setActive(c.name)} count={c.count} label={c.name} dot={catColor(c.name)} />)}
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Price */}
-      <GlassCard>
-        <div style={{ padding:'16px 18px' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-            <div style={SC.label}>Prix maximum</div>
-            <span style={{ fontSize:12, fontWeight:800, color:T.accent }}>{fmt(price)} Ar</span>
-          </div>
-          <div style={{ position:'relative', height:4, borderRadius:99, background:'rgba(255,255,255,0.08)' }}>
-            <div style={{ position:'absolute', left:0, top:0, height:'100%', borderRadius:99, background:`linear-gradient(90deg,${T.accent},#e0a400)`, width:`${(price/200000)*100}%`, transition:'width 0.1s' }} />
-          </div>
-          <input type="range" min={0} max={200000} step={5000}
-            value={price} onChange={e => setPrice(Number(e.target.value))}
-            style={{ width:'100%', marginTop:-4, accentColor:T.accent, cursor:'pointer', opacity:0 }} />
-          <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:T.textDim, marginTop:6 }}>
-            <span>0 Ar</span><span>200 000 Ar</span>
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Stock */}
-      <GlassCard>
-        <div style={{ padding:'14px 18px' }}>
-          <button onClick={() => setInStock(s => !s)}
-            style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', background:'none', border:'none', cursor:'pointer', padding:0 }}>
-            <span style={{ fontSize:12, fontWeight:600, color:inStock ? T.text : T.textMuted }}>En stock uniquement</span>
-            <div style={{ width:40, height:22, borderRadius:99, background: inStock ? T.accent : 'rgba(255,255,255,0.08)', position:'relative', transition:'background 0.2s', flexShrink:0 }}>
-              <div style={{ position:'absolute', top:3, width:16, height:16, borderRadius:'50%', background:'#fff', left: inStock ? 21 : 3, transition:'left 0.2s', boxShadow:'0 1px 4px rgba(0,0,0,0.4)' }} />
-            </div>
-          </button>
-        </div>
-      </GlassCard>
-
-    </aside>
+    <div className="vs-seg" role="group" aria-label="Affichage">
+      <button type="button" aria-pressed={view === 'grid'} onClick={() => setView('grid')} aria-label="Grille"><LayoutGrid size={16} /></button>
+      <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')} aria-label="Liste"><List size={16} /></button>
+    </div>
   )
 }
 
-function SideBtn({ active, onClick, count, label, dot }) {
+function Toolbar({ count, chips = [], sort, setSort, view, setView, onFilter, filterCount = 0 }) {
   return (
-    <button onClick={onClick}
-      style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', padding:'8px 12px', borderRadius:12, border:'none', cursor:'pointer', background: active ? 'rgba(245,183,10,0.12)' : 'none', color: active ? T.accent : T.textMuted, fontSize:12, fontWeight: active?700:500, transition:'all 0.15s', textAlign:'left' }}>
-      <span style={{ display:'flex', alignItems:'center', gap:8 }}>
-        <span style={{ width:6, height:6, borderRadius:'50%', background: active ? T.accent : dot, opacity: active ? 1 : 0.7, flexShrink:0 }} />
-        {label}
-      </span>
-      <span style={{ fontSize:10, fontWeight:700, padding:'1px 7px', borderRadius:99, background:'rgba(255,255,255,0.06)', color:T.textDim }}>{count}</span>
-    </button>
-  )
-}
-
-/* ══════════════════════════════════════════
-   SORT BAR
-══════════════════════════════════════════ */
-function SortBar({ count, sort, setSort, view, setView, isMobile, onFilter }) {
-  return (
-    <div style={{ display:'flex', alignItems:'center', gap: isMobile?8:12, marginBottom: isMobile?14:24, flexWrap:'wrap' }}>
-      <div style={{ fontSize:13, color:T.textMuted, flex:1 }}>
-        <span style={{ color:T.text, fontWeight:800 }}>{count}</span> produit{count!==1?'s':''}
+    <div className="vs-tb">
+      <div className="vs-tb__left">
+        <p className="vs-tb__count"><strong>{count}</strong> produit{count !== 1 ? 's' : ''}</p>
+        {chips.length > 0 && (
+          <ul className="vs-tb__chips" aria-label="Filtres actifs">
+            {chips.map(c => (
+              <li key={c.key}>
+                <button type="button" className="vs-fchip" onClick={c.clear} aria-label={`Retirer le filtre ${c.label}`}>
+                  {c.label} <X size={14} aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-
-      {/* Filtre button — mobile only */}
-      {isMobile && onFilter && (
-        <button onClick={onFilter}
-          style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:99, border:`1px solid ${T.border}`, background:'rgba(255,255,255,0.05)', color:T.textMuted, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="12" y1="18" x2="12" y2="18" strokeLinecap="round"/></svg>
-          Filtres
-        </button>
-      )}
-
-      <select value={sort} onChange={e => setSort(e.target.value)}
-        style={{ padding: isMobile?'8px 12px':'9px 16px', borderRadius:99, border:`1px solid ${T.border}`, background:'rgba(255,255,255,0.04)', color:T.text, fontSize:12, fontWeight:600, outline:'none', cursor:'pointer', maxWidth: isMobile?140:'none' }}>
-        <option value="default">Tri par défaut</option>
-        <option value="price_asc">Prix ↑</option>
-        <option value="price_desc">Prix ↓</option>
-        <option value="name">Nom A → Z</option>
-        <option value="stock">Stock</option>
-      </select>
-
-      <div style={{ display:'flex', gap:4, background:'rgba(255,255,255,0.04)', borderRadius:99, padding:4, border:`1px solid ${T.border}` }}>
-        {[{ v:'grid', path:'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
-          { v:'list', path:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' }].map(b => (
-          <button key={b.v} onClick={() => setView(b.v)}
-            style={{ width:30, height:30, borderRadius:99, border:'none', cursor:'pointer', background: view===b.v?T.accentDim:'none', display:'flex', alignItems:'center', justifyContent:'center', transition:'background 0.15s' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill={view===b.v?T.accent:'none'} stroke={view===b.v?T.accent:T.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d={b.path}/>
-            </svg>
+      <div className="vs-tb__right">
+        {onFilter && (
+          <button type="button" className="vs-btn vs-btn--ghost vs-btn--sm vs-tb__filter" onClick={onFilter}>
+            <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            {filterCount > 0 && <span className="vs-tb__fc">{filterCount}</span>}
           </button>
-        ))}
+        )}
+        {setSort && (
+          <label className="vs-select">
+            <span className="vs-sr">Trier par</span>
+            <select value={sort} onChange={e => setSort(e.target.value)}>
+              <option value="default">Recommandés</option>
+              <option value="price_asc">Prix croissant</option>
+              <option value="price_desc">Prix décroissant</option>
+              <option value="name">Nom (A → Z)</option>
+              <option value="stock">Disponibilité</option>
+            </select>
+            <ChevronDown size={16} aria-hidden="true" />
+          </label>
+        )}
+        {setView && <ViewToggle view={view} setView={setView} />}
       </div>
     </div>
   )
 }
 
 /* ══════════════════════════════════════════
-   CART FLOAT BAR
+   LISTE DE PRODUITS (grille ou lignes)
+══════════════════════════════════════════ */
+function ProductRow({ product: p, onAdd, onView }) {
+  const { items } = useCart()
+  const img   = parse(p.images)[0]?.src
+  const promo = isPromo(p)
+  const out   = Number(p.stock) <= 0
+  const low   = !out && Number(p.stock) <= 5
+  const inCart = items.some(i => i.id === p.id)
+  return (
+    <article className="vs-li">
+      <div className="vs-li__media">
+        {img ? <img src={img} alt="" loading="lazy" decoding="async" /> : <Package size={28} strokeWidth={1.4} aria-hidden="true" />}
+        {promo && <span className="vs-badge vs-badge--promo vs-li__badge">-{p.promo_percent}%</span>}
+      </div>
+      <div className="vs-li__body">
+        {p.category && <span className="vs-card__cat">{p.category}</span>}
+        <h3 className="vs-li__name">
+          <a href={`/produit/${p.id}`} className="vs-card__link" onClick={e => { e.preventDefault(); onView(p) }}>{p.name}</a>
+        </h3>
+        {p.description && <p className="vs-li__desc">{p.description}</p>}
+        <span className={`vs-stock${out ? ' vs-stock--out' : low ? ' vs-stock--low' : ''}`}>
+          {out ? 'Indisponible' : low ? `Plus que ${p.stock} en stock` : 'En stock'}
+        </span>
+      </div>
+      <div className="vs-li__side">
+        <div className="vs-price vs-li__price">
+          <span className={`vs-price__now${promo ? ' vs-price__now--promo' : ''}`}>{fmtAr(finalPrice(p))}</span>
+          {promo && <span className="vs-price__old">{fmtAr(p.price)}</span>}
+        </div>
+        <button type="button" className={`vs-btn vs-btn--sm ${inCart ? 'vs-btn--added' : 'vs-btn--primary'}`}
+          disabled={out} onClick={() => onAdd(p)} style={{ position: 'relative', zIndex: 1 }}
+          aria-label={out ? 'Produit indisponible' : `Ajouter ${p.name} au panier`}>
+          {inCart ? <Check size={16} aria-hidden="true" /> : <ShoppingBag size={16} aria-hidden="true" />}
+          {out ? 'Indisponible' : inCart ? 'Dans le panier' : 'Ajouter'}
+        </button>
+      </div>
+    </article>
+  )
+}
+
+function ProductList({ list, view, onAdd, onView }) {
+  if (view === 'list') return (
+    <div className="vs-plist">
+      {list.map((p, i) => (
+        <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.03 }}>
+          <ProductRow product={p} onAdd={onAdd} onView={onView} />
+        </motion.div>
+      ))}
+    </div>
+  )
+  return (
+    <div className="vs-pgrid">
+      {list.map((p, i) => (
+        <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.03 }}>
+          <ProductCard product={p} onAdd={onAdd} onView={onView} />
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
+function GridSkeleton() {
+  return (
+    <div className="vs-pgrid" aria-busy="true" aria-label="Chargement des produits">
+      {Array.from({ length: 8 }, (_, i) => <ProductCardSkeleton key={i} />)}
+    </div>
+  )
+}
+
+function EmptyState({ title, text, action, onAction }) {
+  return (
+    <div className="vs-empty">
+      <span className="vs-empty__icon"><SearchX size={26} aria-hidden="true" /></span>
+      <h2>{title}</h2>
+      <p>{text}</p>
+      {action && <button type="button" className="vs-btn vs-btn--secondary" onClick={onAction}>{action}</button>}
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════
+   NOUVEAUTÉS
+══════════════════════════════════════════ */
+const DATE_FILTERS = [
+  { id: '7d',  label: '7 derniers jours' },
+  { id: '30d', label: '30 derniers jours' },
+  { id: '90d', label: '3 derniers mois' },
+  { id: 'all', label: 'Tout' },
+]
+
+function NouveautesView({ products, onAdd, onView, view, setView }) {
+  const [df, setDf] = useState('30d')
+  const list = filterByDate(products, df)
+  return (
+    <>
+      <div className="vs-chiprow" role="group" aria-label="Période">
+        {DATE_FILTERS.map(f => (
+          <button key={f.id} type="button" className="vs-chip" aria-pressed={df === f.id} onClick={() => setDf(f.id)}>{f.label}</button>
+        ))}
+      </div>
+      <Toolbar count={list.length} view={view} setView={setView} />
+      {list.length === 0
+        ? <EmptyState title="Aucun nouvel article sur cette période" text="Élargissez la période pour voir les arrivages précédents."
+            action="Voir tous les articles" onAction={() => setDf('all')} />
+        : <ProductList list={list} view={view} onAdd={onAdd} onView={onView} />}
+    </>
+  )
+}
+
+/* ══════════════════════════════════════════
+   PROMOTIONS
+══════════════════════════════════════════ */
+function PromosView({ products, onAdd, onView, view, setView, onBrowse }) {
+  const promos = products.filter(isPromo).sort((a, b) => b.promo_percent - a.promo_percent)
+  if (promos.length === 0) return (
+    <EmptyState title="Aucune promotion en cours" text="Revenez bientôt : nos offres apparaissent ici dès leur lancement."
+      action="Parcourir le catalogue" onAction={onBrowse} />
+  )
+  return (
+    <>
+      <Toolbar count={promos.length} view={view} setView={setView} />
+      <ProductList list={promos} view={view} onAdd={onAdd} onView={onView} />
+    </>
+  )
+}
+
+/* ══════════════════════════════════════════
+   BARRE PANIER FLOTTANTE
 ══════════════════════════════════════════ */
 function CartFloatBar({ onOpen }) {
   const { count, total } = useCart()
   return (
     <AnimatePresence>
       {count > 0 && (
-        <motion.div
-          initial={{ y:80, opacity:0 }} animate={{ y:0, opacity:1 }} exit={{ y:80, opacity:0 }}
-          style={{ position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)', zIndex:30, display:'flex', alignItems:'center', gap:20, background:'rgba(11,11,26,0.95)', backdropFilter:'blur(20px)', border:`1px solid ${T.borderHi}`, borderRadius:99, padding:'10px 16px 10px 20px', boxShadow:'0 8px 40px rgba(245,183,10,0.15), 0 2px 20px rgba(0,0,0,0.5)' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <span style={{ background:T.accent, color:'#000', fontSize:11, fontWeight:900, borderRadius:99, width:22, height:22, display:'flex', alignItems:'center', justifyContent:'center' }}>{count}</span>
-            <div>
-              <div style={{ fontSize:11, color:T.textMuted, lineHeight:1 }}>Total panier</div>
-              <div style={{ fontSize:16, fontWeight:900, color:T.accent, letterSpacing:'-0.5px', lineHeight:1.3 }}>{fmt(total)} Ar</div>
-            </div>
+        <motion.div className="vs-cartbar" initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
+          <span className="vs-cartbar__n" aria-hidden="true">{count}</span>
+          <div>
+            <span className="vs-cartbar__label">{count} article{count > 1 ? 's' : ''} · Total</span>
+            <strong>{fmtAr(total)}</strong>
           </div>
-          <Btn variant="primary" size="sm" onClick={onOpen}>Voir le panier →</Btn>
+          <button type="button" className="vs-btn vs-btn--primary vs-btn--sm" onClick={onOpen}>
+            Voir le panier <ArrowRight size={16} aria-hidden="true" />
+          </button>
         </motion.div>
       )}
     </AnimatePresence>
@@ -456,341 +546,20 @@ function CartFloatBar({ onOpen }) {
 }
 
 /* ══════════════════════════════════════════
-   HEADER — PREMIUM
+   PAGE BOUTIQUE
 ══════════════════════════════════════════ */
-function Header({ search, setSearch, onOpenAuth, onOpenCart, navTab, setNavTab, newCount, promoCount }) {
-  const { user } = useAuth()
-  const { count } = useCart()
-  const isMobile = useMobile()
-
-  const NAV = [
-    { id:'catalogue',  label:'Catalogue' },
-    { id:'nouveautes', label:'Nouveautés', badge: newCount > 0 ? newCount : null, badgeColor:'#4ade80' },
-    { id:'promos',     label:'Promotions', badge: promoCount > 0 ? promoCount : null, badgeColor:'#f87171' },
-  ]
-
-  return (
-    <header style={{ background:'rgba(11,11,16,0.95)', backdropFilter:'blur(20px)', borderBottom:`1px solid ${T.border}`, position:'sticky', top:0, zIndex:30 }}>
-
-
-      {/* Main nav */}
-      <div style={{ padding: isMobile ? '10px 16px' : '14px 40px', display:'flex', alignItems:'center', gap: isMobile ? 10 : 24 }}>
-
-        {/* Logo */}
-        <a href="/" style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none', flexShrink:0 }}>
-          <div style={{ width: isMobile?32:36, height: isMobile?32:36, borderRadius:11, background:'linear-gradient(135deg,#f5b70a,#e0a400)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 14px rgba(245,183,10,0.4)' }}>
-            <img src="/images/logo/logo.svg" alt="VRG" style={{ width: isMobile?20:24, height: isMobile?20:24 }} onError={e => { e.target.style.display='none' }} />
-          </div>
-          <div>
-            <div style={{ fontSize: isMobile?14:16, fontWeight:900, color:T.text, letterSpacing:'-0.5px', lineHeight:1 }}>VaRyGasy</div>
-            {!isMobile && <div style={{ fontSize:9, color:T.textDim, fontWeight:600, letterSpacing:'0.15em', textTransform:'uppercase' }}>Gaming Store</div>}
-          </div>
-        </a>
-
-        {/* Nav — desktop inline / mobile hidden (nav chips below) */}
-        {!isMobile && (
-          <nav style={{ display:'flex', gap:2, marginLeft:8 }}>
-            {NAV.map(n => {
-              const active = navTab === n.id
-              return (
-                <button key={n.id} onClick={() => setNavTab(n.id)}
-                  style={{ position:'relative', padding:'8px 15px', borderRadius:99, fontSize:13, fontWeight:600, cursor:'pointer', background: active?T.accentDim:'none', color: active?T.accent:T.textMuted, border: active?`1px solid rgba(245,183,10,0.2)`:'1px solid transparent', transition:'all 0.15s', display:'flex', alignItems:'center', gap:6 }}>
-                  {n.label}
-                  {n.badge && <span style={{ background:n.badgeColor||'#4ade80', color:'#000', fontSize:9, fontWeight:900, borderRadius:99, padding:'1px 6px', lineHeight:1.4 }}>{n.badge}</span>}
-                </button>
-              )
-            })}
-          </nav>
-        )}
-
-        {/* Search */}
-        <div style={{ flex:1, maxWidth: isMobile?'100%':320, marginLeft: isMobile?0:'auto', position:'relative' }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.textDim} strokeWidth="2.5" style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…"
-            style={{ width:'100%', padding:'9px 14px 9px 34px', borderRadius:99, border:`1px solid ${T.border}`, background:'rgba(255,255,255,0.05)', color:T.text, fontSize:13, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }}
-            onFocus={e => e.target.style.borderColor = T.borderHi}
-            onBlur={e => e.target.style.borderColor = T.border} />
-        </div>
-
-        {/* Actions */}
-        <div style={{ display:'flex', gap:8, alignItems:'center', flexShrink:0 }}>
-          {!isMobile && (
-            <Btn variant="ghost" size="sm" onClick={onOpenAuth}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              {user ? user.name.split(' ')[0] : 'Connexion'}
-            </Btn>
-          )}
-          {isMobile && (
-            <button onClick={onOpenAuth} aria-label={user ? 'Mon compte' : 'Se connecter'}
-              style={{ width:38, height:38, borderRadius:99, border:`1px solid ${T.border}`, background:T.glass, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </button>
-          )}
-          <button onClick={onOpenCart}
-            style={{ position:'relative', width: isMobile?38:42, height: isMobile?38:42, borderRadius:99, border:`1px solid ${count>0?T.borderHi:T.border}`, background: count>0?T.accentDim:T.glass, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.2s' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={count>0?T.accent:T.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-            </svg>
-            {count>0 && (
-              <motion.span key={count} initial={{ scale:1.4 }} animate={{ scale:1 }}
-                style={{ position:'absolute', top:-5, right:-5, background:T.accent, color:'#000', fontSize:10, fontWeight:900, borderRadius:99, width:18, height:18, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 8px rgba(245,183,10,0.4)' }}>
-                {count}
-              </motion.span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Nav chips — mobile only, horizontal scroll */}
-      {isMobile && (
-        <div style={{ display:'flex', gap:8, padding:'0 16px 10px', overflowX:'auto', scrollbarWidth:'none', msOverflowStyle:'none' }}>
-          {NAV.map(n => {
-            const active = navTab === n.id
-            return (
-              <button key={n.id} onClick={() => setNavTab(n.id)}
-                style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'7px 16px', borderRadius:99, fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, background: active?T.accentDim:'rgba(255,255,255,0.05)', color: active?T.accent:T.textMuted, border: active?`1px solid rgba(245,183,10,0.3)`:`1px solid ${T.border}`, transition:'all 0.15s' }}>
-                {n.label}
-                {n.badge && <span style={{ background:n.badgeColor, color:'#000', fontSize:9, fontWeight:900, borderRadius:99, padding:'1px 6px' }}>{n.badge}</span>}
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </header>
-  )
-}
-
-/* ══════════════════════════════════════════
-   SHOP INNER
-══════════════════════════════════════════ */
-function Loader() {
-  return (
-    <div style={{ textAlign:'center', padding:'100px 0' }}>
-      <motion.div animate={{ rotate:360 }} transition={{ repeat:Infinity, duration:1, ease:'linear' }}
-        style={{ width:32, height:32, borderRadius:'50%', border:`2px solid ${T.border}`, borderTopColor:T.accent, margin:'0 auto 16px' }} />
-      <div style={{ fontSize:13, color:T.textMuted }}>Chargement…</div>
-    </div>
-  )
-}
-
-function EmptyState({ onReset }) {
-  return (
-    <div style={{ textAlign:'center', padding:'100px 0', color:T.textMuted }}>
-      <div style={{ fontSize:48, marginBottom:16, opacity:0.2 }}>🔍</div>
-      <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8 }}>Aucun produit trouvé</div>
-      <div style={{ fontSize:13, marginBottom:24 }}>Essayez d'ajuster vos filtres</div>
-      <Btn variant="ghost" onClick={onReset}>Réinitialiser les filtres</Btn>
-    </div>
-  )
-}
-
-/* ══════════════════════════════════════════
-   NOUVEAUTÉS VIEW
-══════════════════════════════════════════ */
-const DATE_FILTERS = [
-  { id:'7d',  label:'7 derniers jours' },
-  { id:'30d', label:'30 derniers jours' },
-  { id:'90d', label:'3 derniers mois' },
-  { id:'all', label:'Tout (par date)' },
-]
-
-function NouveautesView({ products, onAdd, onView, view, setView }) {
-  const [df, setDf] = useState('30d')
-
-  const list = filterByDate(products, df)
-
-  return (
-    <div>
-      {/* Header section */}
-      <div style={{ marginBottom:28 }}>
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16, flexWrap:'wrap', marginBottom:20 }}>
-          <div>
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
-              <div style={{ width:28, height:28, borderRadius:9, background:'linear-gradient(135deg,#4ade80,#16a34a)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              </div>
-              <h2 style={{ margin:0, fontSize:22, fontWeight:900, color:T.text, letterSpacing:'-0.5px' }}>Nouveautés</h2>
-            </div>
-            <p style={{ margin:0, fontSize:13, color:T.textMuted }}>
-              {list.length} article{list.length!==1?'s':''} — triés du plus récent au plus ancien
-            </p>
-          </div>
-          {/* View toggle */}
-          <div style={{ display:'flex', gap:4, background:'rgba(255,255,255,0.04)', borderRadius:99, padding:4, border:`1px solid ${T.border}`, alignSelf:'flex-start' }}>
-            {[{ v:'grid', path:'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
-              { v:'list', path:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' }].map(b => (
-              <button key={b.v} onClick={() => setView(b.v)}
-                style={{ width:30, height:30, borderRadius:99, border:'none', cursor:'pointer', background: view===b.v ? T.accentDim : 'none', display:'flex', alignItems:'center', justifyContent:'center', transition:'background 0.15s' }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill={view===b.v?T.accent:'none'} stroke={view===b.v?T.accent:T.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={b.path}/>
-                </svg>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Date filter chips */}
-        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          {DATE_FILTERS.map(f => (
-            <button key={f.id} onClick={() => setDf(f.id)}
-              style={{ padding:'8px 18px', borderRadius:99, fontSize:12, fontWeight:700, cursor:'pointer', border:'1px solid', transition:'all 0.15s',
-                background: df===f.id ? 'linear-gradient(135deg,#4ade80,#16a34a)' : 'rgba(255,255,255,0.04)',
-                borderColor: df===f.id ? 'transparent' : T.border,
-                color: df===f.id ? '#000' : T.textMuted,
-                boxShadow: df===f.id ? '0 4px 16px rgba(74,222,128,0.3)' : 'none',
-              }}>
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats rapides */}
-      {list.length > 0 && (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:28 }}>
-          {[
-            { label:'Ajoutés cette semaine', value: products.filter(p => isNew7(p)).length, color:'#4ade80' },
-            { label:'Ajoutés ce mois',       value: filterByDate(products,'30d').length,    color:T.accent },
-            { label:'Total catalogue',       value: products.length,                        color:'#a78bfa' },
-          ].map(s => (
-            <GlassCard key={s.label}>
-              <div style={{ padding:'14px 16px', display:'flex', alignItems:'center', gap:12 }}>
-                <span style={{ fontSize:24, fontWeight:900, color:s.color, letterSpacing:'-1px' }}>{s.value}</span>
-                <span style={{ fontSize:11, color:T.textMuted, lineHeight:1.4 }}>{s.label}</span>
-              </div>
-            </GlassCard>
-          ))}
-        </div>
-      )}
-
-      {/* Product list */}
-      {list.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'80px 0', color:T.textMuted }}>
-          <div style={{ fontSize:40, marginBottom:14, opacity:0.2 }}>📦</div>
-          <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8 }}>Aucun article dans cette période</div>
-          <div style={{ fontSize:13, marginBottom:20 }}>Essayez « 3 derniers mois » ou « Tout »</div>
-          <Btn variant="ghost" onClick={() => setDf('all')}>Voir tous les articles</Btn>
-        </div>
-      ) : view === 'grid' ? (
-        <motion.div layout style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:18 }}>
-          <AnimatePresence>
-            {list.map((p, i) => (
-              <motion.div key={p.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}>
-                <ProductCard product={p} onAdd={onAdd} onView={onView} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </motion.div>
-      ) : (
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          {list.map((p, i) => {
-            const img = parse(p.images)[0]?.src
-            const novo = isNew7(p)
-            return (
-              <motion.div key={p.id} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.03 }}
-                onClick={() => onView(p)}
-                style={{ display:'flex', gap:18, background:T.surface, backdropFilter:'blur(16px)', border:`1px solid ${novo ? 'rgba(74,222,128,0.2)' : T.border}`, borderRadius:18, overflow:'hidden', padding:16, cursor:'pointer', transition:'all 0.2s' }}
-                onMouseEnter={e=>{ e.currentTarget.style.borderColor='rgba(245,183,10,0.25)'; e.currentTarget.style.boxShadow='0 8px 30px rgba(245,183,10,0.08)' }}
-                onMouseLeave={e=>{ e.currentTarget.style.borderColor=novo?'rgba(74,222,128,0.2)':T.border; e.currentTarget.style.boxShadow='none' }}>
-                <div style={{ width:88, height:88, borderRadius:14, background:'rgba(255,255,255,0.04)', overflow:'hidden', flexShrink:0, position:'relative' }}>
-                  {img?<img src={img} alt={`${p.name} — ${p.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:<div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, opacity:0.1 }}>📦</div>}
-                </div>
-                <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', justifyContent:'center', gap:4 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    {novo && <span style={{ fontSize:9, fontWeight:900, padding:'2px 7px', borderRadius:99, background:'linear-gradient(135deg,#4ade80,#16a34a)', color:'#fff', letterSpacing:'0.1em' }}>NOUVEAU</span>}
-                    <div style={{ fontSize:14, fontWeight:700, color:T.text }}>{p.name}</div>
-                  </div>
-                  <div style={{ fontSize:11, color:T.textMuted, lineHeight:1.5, display:'-webkit-box', WebkitLineClamp:1, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{p.description}</div>
-                  {p.created_at && <div style={{ fontSize:10, color:T.textDim }}>Ajouté le {fmtDate(p.created_at)}</div>}
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'space-between', flexShrink:0, gap:10 }} onClick={e=>e.stopPropagation()}>
-                  <span style={{ fontSize:16, fontWeight:900, color:T.accent, letterSpacing:'-0.5px' }}>{fmt(p.price)} Ar</span>
-                  <Btn variant={p.stock>0?'primary':'ghost'} size="sm" disabled={p.stock===0} onClick={()=>onAdd(p)}>
-                    {p.stock>0?'+ Panier':'Rupture'}
-                  </Btn>
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ══════════════════════════════════════════
-   PROMOTIONS VIEW
-══════════════════════════════════════════ */
-function PromosView({ products, onAdd, onView }) {
-  const promos = products.filter(p => Number(p.promo_active) === 1)
-
-  if (promos.length === 0) return (
-    <div style={{ textAlign:'center', padding:'100px 0' }}>
-      <div style={{ fontSize:15, marginBottom:12, color:T.textDim }}>—</div>
-      <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8 }}>Aucune promotion en cours</div>
-      <div style={{ fontSize:13, color:T.textMuted }}>Les promotions actives apparaîtront ici</div>
-    </div>
-  )
-
-  const totalSaving = promos.reduce((s, p) => s + Math.round(p.price * p.promo_percent / 100), 0)
-
-  return (
-    <div>
-      {/* Header */}
-      <div style={{ marginBottom:28 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
-          <div style={{ width:28, height:28, borderRadius:9, background:T.accent, color:'#17130a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:900 }}>%</div>
-          <h2 style={{ margin:0, fontSize:22, fontWeight:900, color:T.text, letterSpacing:'-0.5px' }}>Promotions</h2>
-        </div>
-        <p style={{ margin:0, fontSize:13, color:T.textMuted }}>
-          {promos.length} article{promos.length>1?'s':''} en promotion — jusqu'à {Math.max(...promos.map(p=>p.promo_percent))}% de réduction
-        </p>
-      </div>
-
-      {/* Stats */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:28 }}>
-        {[
-          { label:'Articles en promo', value: promos.length, color:T.accent },
-          { label:'Réduction max',     value: `${Math.max(...promos.map(p=>p.promo_percent))}%`, color:T.accent },
-          { label:'Économie totale',   value: `${totalSaving.toLocaleString('fr-FR')} Ar`, color:'#22c55e' },
-        ].map(s => (
-          <GlassCard key={s.label}>
-            <div style={{ padding:'14px 16px', display:'flex', alignItems:'center', gap:12 }}>
-              <span style={{ fontSize:s.label==='Économie totale'?13:24, fontWeight:900, color:s.color, letterSpacing:'-1px' }}>{s.value}</span>
-              <span style={{ fontSize:11, color:T.textMuted, lineHeight:1.4 }}>{s.label}</span>
-            </div>
-          </GlassCard>
-        ))}
-      </div>
-
-      {/* Grid */}
-      <motion.div layout style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:18 }}>
-        <AnimatePresence>
-          {promos.map((p,i) => (
-            <motion.div key={p.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.05 }}>
-              <ProductCard product={p} onAdd={onAdd} onView={onView} />
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </motion.div>
-    </div>
-  )
-}
+const tabUrl = t => (t === 'catalogue' ? '/catalogue' : `/catalogue?tab=${t}`)
 
 function ShopInner() {
   const { user } = useAuth()
   const { addItem } = useCart()
-  const isMobile = useMobile()
   const [products, setProducts] = useState([])
   const [loading, setLoading]   = useState(true)
   /* Liens profonds depuis l'accueil : ?tab=nouveautes|promos, ?cat=<catégorie>, ?q=<recherche> */
   const qs = new URLSearchParams(window.location.search)
   const [navTab, setNavTab]     = useState(() => ['nouveautes', 'promos'].includes(qs.get('tab')) ? qs.get('tab') : 'catalogue')
   const [active, setActive]     = useState(() => qs.get('cat') || null)
-  const [price, setPrice]       = useState(200000)
+  const [price, setPrice]       = useState(null)          // null = pas de plafond
   const [inStock, setInStock]   = useState(false)
   const [sort, setSort]         = useState('default')
   const [view, setView]         = useState('grid')
@@ -802,7 +571,7 @@ function ShopInner() {
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
-    fetch('/api/products').then(r=>r.json()).then(d=>{
+    fetch('/api/products').then(r => r.json()).then(d => {
       const list = Array.isArray(d) ? d : []
       setProducts(list)
       setLoading(false)
@@ -812,37 +581,62 @@ function ShopInner() {
         const p = list.find(x => x.id === Number(m[1]))
         if (p) setModal(p)
       }
-    }).catch(()=>setLoading(false))
+    }).catch(() => setLoading(false))
   }, [])
+
+  const goTab = t => {
+    setNavTab(t)
+    window.history.replaceState(null, '', tabUrl(t))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  /* Taper une recherche depuis Nouveautés/Promos ramène au catalogue */
+  const onSearch = v => { setSearch(v); if (navTab !== 'catalogue') goTab('catalogue') }
 
   /* URL synchronisée avec la fiche ouverte : chaque produit est partageable */
   const openProduct  = (p) => { setModal(p); window.history.replaceState(null, '', `/produit/${p.id}`) }
-  const closeProduct = () => { setModal(null); window.history.replaceState(null, '', '/catalogue') }
+  const closeProduct = () => { setModal(null); window.history.replaceState(null, '', tabUrl(navTab)) }
 
   const cats = Object.entries(
-    products.reduce((a,p)=>{ if(p.category) a[p.category]=(a[p.category]||0)+1; return a },{})
-  ).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count)
+    products.reduce((a, p) => { if (p.category) a[p.category] = (a[p.category] || 0) + 1; return a }, {})
+  ).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
+
+  /* Plafond du curseur de prix : prix le plus élevé, arrondi au multiple de 5 000 supérieur */
+  const priceCeil = Math.max(5000, Math.ceil(Math.max(0, ...products.map(finalPrice)) / 5000) * 5000)
 
   const newCount   = products.filter(isNew7).length
-  const promoCount = products.filter(p => Number(p.promo_active) === 1).length
+  const promoCount = products.filter(isPromo).length
 
+  const q = search.trim().toLowerCase()
   const filtered = products
-    .filter(p => !active || p.category===active)
-    .filter(p => p.price<=price)
-    .filter(p => !inStock || p.stock>0)
-    .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a,b) => sort==='price_asc'?a.price-b.price : sort==='price_desc'?b.price-a.price : sort==='name'?a.name.localeCompare(b.name) : sort==='stock'?b.stock-a.stock : 0)
+    .filter(p => !active || p.category === active)
+    .filter(p => price == null || finalPrice(p) <= price)
+    .filter(p => !inStock || Number(p.stock) > 0)
+    .filter(p => !q || p.name.toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q))
+    .sort((a, b) =>
+      sort === 'price_asc'  ? finalPrice(a) - finalPrice(b) :
+      sort === 'price_desc' ? finalPrice(b) - finalPrice(a) :
+      sort === 'name'       ? a.name.localeCompare(b.name, 'fr') :
+      sort === 'stock'      ? Number(b.stock) - Number(a.stock) : 0)
+
+  const resetFilters = () => { setActive(null); setSearch(''); setInStock(false); setPrice(null) }
+  const chips = [
+    q       && { key: 'q',     label: `« ${search.trim()} »`,     clear: () => setSearch('') },
+    active  && { key: 'cat',   label: active,                     clear: () => setActive(null) },
+    price != null && { key: 'price', label: `≤ ${fmtAr(price)}`, clear: () => setPrice(null) },
+    inStock && { key: 'stock', label: 'En stock',                 clear: () => setInStock(false) },
+  ].filter(Boolean)
+  const dirty = chips.length > 0
 
   const handleAdd = product => {
     const promoActive = Number(product.promo_active) === 1
-    const finalPrice  = promoActive
+    const unitPrice   = promoActive
       ? Math.round(product.price * (1 - product.promo_percent / 100))
       : product.price
     const imgs = parse(product.images)
     addItem({
       id:             product.id,
       name:           product.name,
-      price:          finalPrice,
+      price:          unitPrice,
       original_price: promoActive ? product.price : null,
       promo_percent:  promoActive ? product.promo_percent : null,
       image:          imgs[0]?.src || null,
@@ -850,127 +644,66 @@ function ShopInner() {
     })
   }
 
-  const breadcrumbLabel = navTab === 'nouveautes' ? 'Nouveautés' : navTab === 'promos' ? 'Promotions' : 'Catalogue'
+  const panel = { cats, total: products.length, active, setActive, price, setPrice, priceCeil, inStock, setInStock, dirty, onReset: resetFilters }
+
+  /* Titre de page selon l'onglet et les filtres */
+  const maxPromo = promoCount ? Math.max(...products.filter(isPromo).map(p => Number(p.promo_percent))) : 0
+  const head =
+    navTab === 'nouveautes' ? { crumbs: [{ label: 'Boutique', onClick: () => goTab('catalogue') }, { label: 'Nouveautés' }], title: 'Nouveautés', sub: 'Les derniers accessoires arrivés en boutique, du plus récent au plus ancien.' } :
+    navTab === 'promos'     ? { crumbs: [{ label: 'Boutique', onClick: () => goTab('catalogue') }, { label: 'Promotions' }], title: 'Promotions', sub: promoCount ? `${promoCount} offre${promoCount > 1 ? 's' : ''} en cours · jusqu'à -${maxPromo} %` : 'Nos offres du moment.' } :
+    active                  ? { crumbs: [{ label: 'Boutique', onClick: () => setActive(null) }, { label: active }], title: active, sub: 'Accessoires gaming livrés sous 24 h à Antananarivo.' } :
+                              { crumbs: [{ label: 'Boutique' }], title: q ? `Résultats pour « ${search.trim()} »` : 'Tous les produits', sub: 'Accessoires gaming livrés sous 24 h à Antananarivo · paiement mobile money ou à la livraison.' }
 
   return (
-    <div style={{ minHeight:'100dvh', background:T.bg, color:T.text, fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}>
+    <div className="vs-shop">
+      <ShopHeader search={search} setSearch={onSearch}
+        onOpenAuth={() => user ? setShowAccount(true) : setShowAuth(true)} onOpenCart={() => setShowCart(true)}
+        navTab={navTab} setNavTab={goTab} counts={{ nouveautes: newCount, promos: promoCount }} />
 
-      {/* Ambient glow */}
-      <div style={{ position:'fixed', top:0, left:'50%', transform:'translateX(-50%)', width:800, height:400, background:'radial-gradient(ellipse, rgba(245,183,10,0.04) 0%, transparent 70%)', pointerEvents:'none', zIndex:0 }} />
+      <main className="vs-container vs-shop__main">
+        <PageHead {...head} />
 
-      <div style={{ position:'relative', zIndex:1 }}>
-        <Header search={search} setSearch={setSearch} onOpenAuth={()=> user ? setShowAccount(true) : setShowAuth(true)} onOpenCart={()=>setShowCart(true)} navTab={navTab} setNavTab={setNavTab} newCount={newCount} promoCount={promoCount} />
-
-        {/* Breadcrumb */}
-        <div style={{ padding: isMobile ? '8px 16px' : '10px 40px', borderBottom:`1px solid ${T.border}`, display:'flex', alignItems:'center', gap:6, fontSize:12, color:T.textDim }}>
-          <a href="/" style={{ color:'inherit', textDecoration:'none' }}>Accueil</a>
-          <span style={{ opacity:0.4 }}>/</span>
-          <span style={{ color:T.accent, fontWeight:700 }}>{breadcrumbLabel}</span>
-          {navTab === 'catalogue' && active && <><span style={{ opacity:0.4 }}>/</span><span style={{ color:T.text }}>{active}</span></>}
-        </div>
-
-        {/* Body */}
-        <div style={{ maxWidth:1320, margin:'0 auto', padding: isMobile ? '16px 12px' : '32px 40px', display:'flex', gap:28, alignItems:'flex-start' }}>
-
-          {/* Sidebar — desktop uniquement */}
-          {!isMobile && navTab === 'catalogue' && (
-            <Sidebar categories={cats} active={active} setActive={setActive} price={price} setPrice={setPrice} inStock={inStock} setInStock={setInStock} total={products.length} />
-          )}
-
-          <div style={{ flex:1, minWidth:0 }}>
-
-            {/* ── Onglet Nouveautés ── */}
-            {navTab === 'nouveautes' && (
-              loading
-                ? <Loader />
-                : <NouveautesView products={products} onAdd={handleAdd} onView={openProduct} view={view} setView={setView} />
-            )}
-
-            {/* ── Onglet Catalogue ── */}
-            {navTab === 'catalogue' && (
-              <>
-                <SortBar count={filtered.length} sort={sort} setSort={setSort} view={view} setView={setView} isMobile={isMobile} onFilter={isMobile ? () => setShowFilters(true) : null} />
-                {loading ? <Loader /> : filtered.length===0 ? (
-                  <EmptyState onReset={()=>{ setActive(null); setSearch(''); setInStock(false); setPrice(200000) }} />
-                ) : view==='grid' ? (
-                  <motion.div layout style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: isMobile ? 12 : 18 }}>
-                    <AnimatePresence>
-                      {filtered.map((p,i) => (
-                        <motion.div key={p.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}>
-                          <ProductCard product={p} onAdd={handleAdd} onView={openProduct} />
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </motion.div>
-                ) : (
-                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                    {filtered.map((p,i) => {
-                      const img = parse(p.images)[0]?.src
-                      return (
-                        <motion.div key={p.id} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.03 }}
-                          onClick={() => openProduct(p)}
-                          style={{ display:'flex', gap:18, background:T.surface, backdropFilter:'blur(16px)', border:`1px solid ${T.border}`, borderRadius:18, overflow:'hidden', padding:16, cursor:'pointer', transition:'border-color 0.2s, box-shadow 0.2s' }}
-                          onMouseEnter={e=>{ e.currentTarget.style.borderColor=T.borderHi; e.currentTarget.style.boxShadow='0 8px 30px rgba(245,183,10,0.08)' }}
-                          onMouseLeave={e=>{ e.currentTarget.style.borderColor=T.border; e.currentTarget.style.boxShadow='none' }}>
-                          <div style={{ width:88, height:88, borderRadius:14, background:'rgba(255,255,255,0.04)', overflow:'hidden', flexShrink:0 }}>
-                            {img?<img src={img} alt={`${p.name} — ${p.category || 'accessoire gaming'} VaRyGasy`} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:<div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, opacity:0.1 }}>📦</div>}
-                          </div>
-                          <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', justifyContent:'center' }}>
-                            <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:4 }}>{p.name}</div>
-                            <div style={{ fontSize:11, color:T.textMuted, lineHeight:1.5, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{p.description}</div>
-                          </div>
-                          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'space-between', flexShrink:0, gap:10 }} onClick={e=>e.stopPropagation()}>
-                            <span style={{ fontSize:18, fontWeight:900, color:T.accent, letterSpacing:'-0.5px' }}>{fmt(p.price)} Ar</span>
-                            <Btn variant={p.stock>0?'primary':'ghost'} size="sm" disabled={p.stock===0} onClick={()=>handleAdd(p)}>
-                              {p.stock>0?'+ Panier':'Rupture'}
-                            </Btn>
-                          </div>
-                        </motion.div>
-                      )
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* ── Onglet Promotions ── */}
-            {navTab === 'promos' && (
-              loading ? <Loader /> : <PromosView products={products} onAdd={handleAdd} onView={openProduct} />
-            )}
+        {navTab === 'catalogue' && (
+          <div className="vs-cat-layout">
+            <aside className="vs-cat-side" aria-label="Filtres"><FilterPanel {...panel} /></aside>
+            <div style={{ minWidth: 0 }}>
+              <Toolbar count={filtered.length} chips={chips} sort={sort} setSort={setSort} view={view} setView={setView}
+                onFilter={() => setShowFilters(true)} filterCount={chips.filter(c => c.key !== 'q').length} />
+              {loading ? <GridSkeleton /> : filtered.length === 0
+                ? <EmptyState title="Aucun produit trouvé" text="Essayez un autre mot-clé ou retirez certains filtres."
+                    action={dirty ? 'Réinitialiser les filtres' : null} onAction={resetFilters} />
+                : <ProductList list={filtered} view={view} onAdd={handleAdd} onView={openProduct} />}
+            </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Floating cart bar */}
+        {navTab === 'nouveautes' && (loading ? <GridSkeleton /> :
+          <NouveautesView products={products} onAdd={handleAdd} onView={openProduct} view={view} setView={setView} />)}
+
+        {navTab === 'promos' && (loading ? <GridSkeleton /> :
+          <PromosView products={products} onAdd={handleAdd} onView={openProduct} view={view} setView={setView} onBrowse={() => goTab('catalogue')} />)}
+      </main>
+
       <CartFloatBar onOpen={() => setShowCart(true)} />
 
-      {/* Modals */}
       <AnimatePresence>
         {modal && <ProductModal product={modal} onClose={closeProduct} onAdd={handleAdd} />}
       </AnimatePresence>
 
-      <CartPanel isOpen={showCart} onClose={()=>setShowCart(false)} onOpenAuth={()=>{ setShowCart(false); setShowAuth(true) }} />
-      <AuthModal isOpen={showAuth} onClose={()=>setShowAuth(false)} onSuccess={()=>setShowAuth(false)} />
-      <AccountPanel isOpen={showAccount} onClose={()=>setShowAccount(false)} />
+      <CartPanel isOpen={showCart} onClose={() => setShowCart(false)} onOpenAuth={() => { setShowCart(false); setShowAuth(true) }} />
+      <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} />
+      <AccountPanel isOpen={showAccount} onClose={() => setShowAccount(false)} />
 
-      {/* Filter drawer — mobile */}
-      <FilterDrawer open={showFilters} onClose={()=>setShowFilters(false)} categories={cats} active={active} setActive={setActive} price={price} setPrice={setPrice} inStock={inStock} setInStock={setInStock} total={products.length} />
-
-
+      <FilterDrawer open={showFilters} onClose={() => setShowFilters(false)} resultCount={filtered.length} {...panel} />
     </div>
   )
-}
-
-/* ─── Shared ─── */
-const SC = {
-  label: { fontSize:10, fontWeight:800, color:T.textDim, textTransform:'uppercase', letterSpacing:'0.1em' },
 }
 
 /* ─── Gate Coming Soon ─── */
 function ComingSoonGate({ children }) {
   const settings = useSettings()
   const loaded = Object.keys(settings).length > 0
-  if (!loaded) return <div style={{ height:'100dvh', background:'#0b0b10' }} />
+  if (!loaded) return <div style={{ height: '100dvh', background: 'var(--color-bg)' }} />
   if (settings.coming_soon === '1') return <ComingSoon settings={settings} />
   return children
 }
